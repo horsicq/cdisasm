@@ -89,7 +89,7 @@ Formatter calls return the required character count excluding the terminating
 NUL. A `NULL` buffer with size `0` performs a size query.
 
 Some generated numeric data is derived from Intel XED (Apache-2.0) and Arm
-AARCHMRS (BSD-3-Clause).
+AARCHMRS (BSD-3-Clause); their license texts are in [LICENSES](LICENSES/).
 
 ## License
 
