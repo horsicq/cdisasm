@@ -1,0 +1,23 @@
+{
+  "appended_bit_count": 207,
+  "appended_group_count": 207,
+  "base_no_bit_set_count": 7,
+  "decode_bit_capacity": 512,
+  "decode_bit_count": 271,
+  "descriptor_count": 10994,
+  "existing_alias_group_count": 3,
+  "existing_bit_set_count": 71,
+  "existing_direct_group_count": 75,
+  "existing_group_count": 78,
+  "existing_or_base_bit_set_count": 78,
+  "generator": "tools/isa_codegen/generate_x86_isa_set_catalog.py",
+  "generator_version": 1,
+  "group_count": 323,
+  "isa_set_count": 285,
+  "macro_collision_count": 0,
+  "no_bit_sentinel": 4294967295,
+  "normalization_change_count": 1,
+  "xed_db_sha256": "35365a46b4375411dc418f4d1b2c80f66117f5dc66df4280b138d16d2440c6bb",
+  "xed_record_count": 10994,
+  "xed_version": "v2026.08.23"
+}

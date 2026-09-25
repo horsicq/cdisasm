@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "intel_xed": {
+    "name": "Intel XED",
+    "repository": "https://github.com/intelxed/xed.git",
+    "ref": "v2026.08.23",
+    "commit": "0bcb6237345c5066726dcc08b3d87928df3b5b26",
+    "release_date": "2026-08-23",
+    "license": "Apache-2.0",
+    "license_file": "LICENSE",
+    "inventory_interface": "official pysrc/xed_to_db.py --compact JSON export from the pinned XED source/build",
+    "decode_interface": "xed-dec executable from the pinned XED build",
+    "metadata_export_interface": "pysrc/xed_to_db.py --compact from the pinned source and build dgen directory",
+    "metadata_export_sha256": "35365a46b4375411dc418f4d1b2c80f66117f5dc66df4280b138d16d2440c6bb",
+    "metadata_export_records": 10994,
+    "metadata_export_unique_iforms": 9001,
+    "metadata_export_unique_iclasses": 1987
+  },
+  "arm_aarchmrs": {
+    "name": "Arm Architecture Machine Readable Specification, A-profile FAT",
+    "repository": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/maz/AARCHMRS",
+    "ref": "AARCHMRS_OPENSOURCE_A_profile_FAT-2026-03",
+    "commit": "47b5446cf08ef6a46c86147c7deb0d56caf99d93",
+    "commit_date": "2026-05-16T11:57:54+01:00",
+    "architecture_revision": "vFATAp1-A",
+    "data_ref": "2026-03_rel",
+    "build": "751",
+    "schema": "2.8",
+    "data_timestamp": "2026-03-26 20:28:51",
+    "license": "BSD-3-Clause",
+    "license_notice": "docs/notice.html",
+    "inventory_file": "Instructions.json",
+    "scope": [
+      "A64",
+      "A32",
+      "T32"
+    ]
+  },
+  "arm_2026_06_manual_delta": {
+    "name": "Arm A-profile Instruction Set Architecture manual",
+    "revision": "2026-06",
+    "status": "reviewed_manual_delta_over_2026_03_open_baseline",
+    "documentation": "https://developer.arm.com/documentation/ddi0602/2026-06",
+    "automatic_form_inventory": false,
+    "reason": "The pinned openly licensed AARCHMRS repository ends at 2026-03. The official 2026-06 A64 and AArch32 XML release deltas were reviewed locally under their proprietary notice but are not copied or used to generate checked-in tables. A64 adds FEAT_HINTE; AArch32 adds no instruction XML file. HINTE was implemented from independently verifiable public encoding facts and checked against upstream LLVM.",
+    "review": {
+      "a64_instruction_files_added": [
+        "hinte.xml"
+      ],
+      "a64_instruction_files_removed": [],
+      "a32_instruction_xml_file_count_2026_03": 574,
+      "a32_instruction_xml_file_count_2026_06": 574,
+      "a32_instruction_files_added": [],
+      "a32_instruction_files_removed": [],
+      "checked_in_proprietary_source": false,
+      "generated_from_proprietary_source": false
+    },
+    "queue": [
+      {
+        "id": "ARM-2026-06-DELTA-001",
+        "state": "complete",
+        "action": "Acquire and pin an Arm-authorized 2026-06 machine-readable A-profile instruction package or a later open AARCHMRS commit."
+      },
+      {
+        "id": "ARM-2026-06-DELTA-002",
+        "state": "complete",
+        "action": "Diff canonical A64, A32, and T32 leaves, aliases, feature conditions, encoding masks, and operations against the 2026-03 baseline."
+      },
+      {
+        "id": "ARM-2026-06-DELTA-003",
+        "state": "complete",
+        "action": "Add reviewed cdisasm corpus probes for every newly allocated or changed encoding before changing a coverage state."
+      },
+      {
+        "id": "ARM-2026-06-DELTA-004",
+        "state": "complete",
+        "action": "Do not infer 2026-06 opcode allocation from processor age, marketing names, or a mnemonic-only manual search."
+      }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "artifacts": {
+    "include/cdisasm/cdisasm_x86_iclass_ids.inc": {
+      "bytes": 90614,
+      "sha256": "55e2fcea376ce402bc6718ebbec539d2718778f9cd2f676c253198edfdbff8ef"
+    },
+    "src/x86/x86_iclass_mnemonics.inc": {
+      "bytes": 34421,
+      "sha256": "20f75e575a5a4336697c4e9c35371357368a95b5bedb06dcb9e52c1a9a8e28ac"
+    },
+    "tools/isa_codegen/generated/x86_iclass_catalog.tsv": {
+      "bytes": 92262,
+      "sha256": "5516931c70f4d2de6870b11470f63ba123096029ee7890cbb8f4b4a3b2da76c3"
+    }
+  },
+  "counts": {
+    "final_name_count_including_none": 2028,
+    "formatter_spelling_collisions": 1,
+    "generated_allocations_retained": 830,
+    "macro_token_collisions": 0,
+    "manual_aliases_preserved": 3,
+    "manual_non_upstream_numeric_ids_preserved": 40,
+    "manual_numeric_ids_before_generation": 1197,
+    "upstream_appended_ids": 830,
+    "upstream_iclasses": 1987,
+    "upstream_reused_existing_ids": 1157,
+    "upstream_unique_numeric_ids": 1987
+  },
+  "generator_version": 1,
+  "invariants": {
+    "all_upstream_iclasses_mapped": true,
+    "decoder_matching_wired": false,
+    "existing_aliases_preserved": [
+      "ICEBP",
+      "LOADALLD",
+      "SETALC"
+    ],
+    "existing_numeric_ids_preserved": true,
+    "generated_c_strings_outside_formatter_data": false,
+    "upstream_mapping_is_one_to_one": true
+  },
+  "normalization": {
+    "changed_macro_tokens": [],
+    "collision_rule": "append _ICLASS; if occupied append the shortest unique 8+ hex SHA-256 prefix",
+    "formatter_mnemonic": "lowercase disasm_intel from the JSON export",
+    "formatter_spelling_collisions": [
+      {
+        "formatter_mnemonic": "pextrw",
+        "iclasses": [
+          "PEXTRW",
+          "PEXTRW_SSE4"
+        ]
+      }
+    ],
+    "iclass_sort": "ASCII lexicographic",
+    "macro_token": "uppercase; non [A-Z0-9] runs become underscore",
+    "macro_token_collisions": []
+  },
+  "schema_version": 1,
+  "source": {
+    "instruction_records": 10994,
+    "interface": "official pysrc/xed_to_db.py --compact JSON export",
+    "json_export_sha256": "35365a46b4375411dc418f4d1b2c80f66117f5dc66df4280b138d16d2440c6bb",
+    "name": "Intel XED",
+    "unique_iclasses": 1987,
+    "version": "v2026.08.23"
+  }
+}

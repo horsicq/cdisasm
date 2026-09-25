@@ -1,0 +1,46 @@
+{
+  "artifacts": {
+    "src/arm/generated/cdisasm_arm_open_operands.inc": {
+      "bytes": 105653,
+      "sha256": "dfe78742a9512bdab15d6dd854a7aab6ffeaaa060dded488918333b6310d0cc0"
+    },
+    "tools/isa_codegen/generated/arm_open_operand_oracle.tsv": {
+      "bytes": 41398,
+      "sha256": "e74a8668a20ad29f32c7af9889cce233b31f6c4ebf6cfd721ddb78117bd6763d"
+    }
+  },
+  "counts": {
+    "forms_by_isa": {
+      "A32": 43,
+      "A64": 293,
+      "T32": 53
+    },
+    "lowered_operands": 1002,
+    "operand_classes": {
+      "D": 108,
+      "H": 159,
+      "R": 324,
+      "S": 108,
+      "W": 127,
+      "X": 176
+    },
+    "oracle_rejected_or_unavailable": 80,
+    "oracle_verified_forms": 389,
+    "scalar_fp_forms": 198,
+    "structural_candidates": 469
+  },
+  "policy": {
+    "runtime_dependency": false,
+    "scope": "A32/T32 flat GPR and A64 flat GPR/scalar-FP register operands",
+    "strings_in_decoder_table": false,
+    "unlisted_forms": "remain operands-opaque",
+    "validation": "two ordinary register assignments plus register-31 assignment when present; exact Capstone register/type/access agreement"
+  },
+  "schema_version": 1,
+  "source": {
+    "arm_commit": "47b5446cf08ef6a46c86147c7deb0d56caf99d93",
+    "arm_instructions_sha256": "0496ca9d55f66fd096c2a7120fafe951763dbd00fa2f006652cbd0547e430602",
+    "capstone_commit": "6ef3f4856689e340db794cceec23b155eefb541b",
+    "generator_sha256": "298ba0c38b217a71016f92e48dd78e4bff7b032287895123f8e29b1803e5ec30"
+  }
+}

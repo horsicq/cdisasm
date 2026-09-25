@@ -1,0 +1,113 @@
+{
+  "arm_name_aliases": {
+    "MOV_rr_T1_ASR": "ASRS",
+    "MOV_rr_T1_LSL": "LSLS",
+    "MOV_rr_T1_LSR": "LSRS",
+    "MOV_rr_T1_ROR": "RORS"
+  },
+  "schema_version": 1,
+  "x86_name_aliases": {
+    "CALL_FAR": "CALL",
+    "CALL_NEAR": "CALL",
+    "CMOVNB": "CMOVAE",
+    "CMOVNBE": "CMOVA",
+    "CMOVNL": "CMOVGE",
+    "CMOVNLE": "CMOVG",
+    "CMOVNZ": "CMOVNE",
+    "CMOVZ": "CMOVE",
+    "FDISI8087_NOP": "FDISI",
+    "FENI8087_NOP": "FENI",
+    "FSETPM287_NOP": "FSETPM",
+    "FWAIT": "WAIT",
+    "JMP_FAR": "JMP",
+    "JMP_NEAR": "JMP",
+    "JNB": "JAE",
+    "JNBE": "JA",
+    "JNL": "JGE",
+    "JNLE": "JG",
+    "JNZ": "JNE",
+    "JZ": "JE",
+    "RET_FAR": "RETF",
+    "RET_NEAR": "RET",
+    "SETNB": "SETAE",
+    "SETNBE": "SETA",
+    "SETNL": "SETGE",
+    "SETNLE": "SETG",
+    "SETNZ": "SETNE",
+    "SETZ": "SETE",
+    "SYSCALL_AMD": "SYSCALL",
+    "SYSRET64": "SYSRET",
+    "SYSRET_AMD": "SYSRET"
+  },
+  "x86_normalization_rules": [
+    {
+      "id": "LOCK_SUFFIX",
+      "description": "XED may split a lockable encoding into an ICLASS ending in _LOCK; cdisasm stores LOCK as instruction metadata.",
+      "operation": "strip_suffix",
+      "value": "_LOCK"
+    },
+    {
+      "id": "NOP_LENGTH_ALIAS",
+      "description": "XED NOP2 through NOP9 identify lengths; cdisasm uses NOP plus numeric encoding metadata.",
+      "operation": "regex_replace",
+      "pattern": "^NOP[2-9]$",
+      "replacement": "NOP"
+    },
+    {
+      "id": "STRING_REPEAT_PREFIX",
+      "description": "XED may include REP/REPE/REPNE in the ICLASS; cdisasm stores those as prefix metadata on the underlying string mnemonic.",
+      "operation": "strip_string_prefix",
+      "values": [
+        "REP_",
+        "REPE_",
+        "REPNE_"
+      ]
+    },
+    {
+      "id": "XED_DISAMBIGUATION_SUFFIX",
+      "description": "Selected XED ICLASS suffixes disambiguate same-spelling string/SIMD or legacy extension variants.",
+      "operation": "strip_suffix_if_catalogued",
+      "values": [
+        "_XMM",
+        "_SSE4",
+        "_XOP"
+      ]
+    }
+  ],
+  "status_policy": {
+    "successful_corpus_statuses": [
+      "OK",
+      "EXTRA_OK"
+    ],
+    "missing_encoding_statuses": [
+      "UNSUPPORTED_INSTRUCTION"
+    ],
+    "profile_only_statuses": [
+      "EXTRA_PROFILE",
+      "COVERAGE_PROFILE"
+    ],
+    "excluded_from_coverage_proof": [
+      "END_OF_INPUT",
+      "INVALID_ARGUMENT",
+      "INVALID_INSTRUCTION",
+      "EXTRA_INVALID",
+      "TRUNCATED"
+    ]
+  },
+  "high_impact_gap_queues": {
+    "x86": [
+      "Late register-relation and complete legacy-prefix legality for the pinned generated descriptor inventory",
+      "Independent operand and malformed-neighbor oracles across generated VEX, EVEX, AVX-512, gather/scatter, and conversion forms",
+      "Suppressed execution state and state-sized memory or tile operands in AVX10, APX, and AMX forms",
+      "CPU, vendor, privilege, and runtime-family policy for remaining generated security, virtualization, UINTR, TDX, and SNP forms",
+      "Primary-source inventory and collision review for undocumented or newer-than-pinned XED encodings"
+    ],
+    "arm": [
+      "Exact fixed-layout operands and authoritative named-profile admission for generated A32 and T32 leaves",
+      "Remaining fixed-width FP and Advanced SIMD operand arrangements and legality boundaries",
+      "SVE/SVE2 operands, MOVPRFX context, vector-length constraints, and allocated/reserved boundary evidence",
+      "SME/SME2 streaming, ZA, ZT0, matrix-state semantics, and named-profile policy",
+      "LSE2/LSE128/RCpc operands and version gates plus independently reviewed post-2026-03 architectural additions"
+    ]
+  }
+}

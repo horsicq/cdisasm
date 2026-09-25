@@ -1,0 +1,35 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/cdisasmTargets.cmake")
+
+set(cdisasm_USE_ARCH_X86 @CDISASM_NORMALIZED_USE_ARCH_X86@)
+set(cdisasm_USE_ARCH_ARM @CDISASM_NORMALIZED_USE_ARCH_ARM@)
+set(cdisasm_REQUESTED_USE_DISASM_FORMAT @CDISASM_NORMALIZED_USE_DISASM_FORMAT@)
+set(cdisasm_USE_DISASM_FORMAT @CDISASM_EFFECTIVE_USE_DISASM_FORMAT@)
+set(cdisasm_REQUESTED_USE_EXTRA_OPCODES @CDISASM_NORMALIZED_USE_EXTRA_OPCODES@)
+set(cdisasm_USE_EXTRA_OPCODES @CDISASM_EFFECTIVE_USE_EXTRA_OPCODES@)
+set(cdisasm_BUILD_SHARED_LIBS @CDISASM_NORMALIZED_CDISASM_BUILD_SHARED_LIBS@)
+
+set(cdisasm_common_FOUND TRUE)
+
+if(cdisasm_USE_ARCH_X86 AND TARGET cdisasm::cdisasm_x86)
+    set(cdisasm_x86_FOUND TRUE)
+else()
+    set(cdisasm_x86_FOUND FALSE)
+endif()
+
+if(cdisasm_USE_DISASM_FORMAT
+        AND (cdisasm_USE_ARCH_X86 OR cdisasm_USE_ARCH_ARM)
+        AND TARGET cdisasm::cdisasm_format)
+    set(cdisasm_format_FOUND TRUE)
+else()
+    set(cdisasm_format_FOUND FALSE)
+endif()
+
+if(cdisasm_USE_ARCH_ARM AND TARGET cdisasm::cdisasm_arm)
+    set(cdisasm_arm_FOUND TRUE)
+else()
+    set(cdisasm_arm_FOUND FALSE)
+endif()
+
+check_required_components(cdisasm)

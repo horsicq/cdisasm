@@ -1,0 +1,17 @@
+record_kind	record_index	form_id	mnemonic	source_form_id	reason	audit_class
+alias	60	702	vrshr	A32/uncond_as/advsimddp/simd3reg_same/VORR_r_A1_D	choice_selection_missing:dt_option__8	non_invertible_assembly_alias
+alias	61	702	vshr	A32/uncond_as/advsimddp/simd3reg_same/VORR_r_A1_D	choice_selection_missing:dt_option__8	non_invertible_assembly_alias
+alias	63	703	vrshr	A32/uncond_as/advsimddp/simd3reg_same/VORR_r_A1_Q	choice_selection_missing:dt_option__8	non_invertible_assembly_alias
+alias	64	703	vshr	A32/uncond_as/advsimddp/simd3reg_same/VORR_r_A1_Q	choice_selection_missing:dt_option__8	non_invertible_assembly_alias
+alias	84	905	vorn	A32/uncond_as/advsimddp/a_simd_12reg/simd1reg_imm/VORR_i_A1_D	encoded_concat_transform_missing:imm__114:<imm>	assembly_only_pseudoinstruction
+alias	85	906	vorn	A32/uncond_as/advsimddp/a_simd_12reg/simd1reg_imm/VORR_i_A1_Q	encoded_concat_transform_missing:imm__114:<imm>	assembly_only_pseudoinstruction
+alias	88	913	vorn	A32/uncond_as/advsimddp/a_simd_12reg/simd1reg_imm/VORR_i_A2_D	encoded_concat_transform_missing:imm__114:<imm>	assembly_only_pseudoinstruction
+alias	89	914	vorn	A32/uncond_as/advsimddp/a_simd_12reg/simd1reg_imm/VORR_i_A2_Q	encoded_concat_transform_missing:imm__114:<imm>	assembly_only_pseudoinstruction
+alias	144	1229	vrshr	T32/w/cpaf/simddp/simd_3same/VORR_r_T1_D	choice_selection_missing:dt_option__8	non_invertible_assembly_alias
+alias	145	1229	vshr	T32/w/cpaf/simddp/simd_3same/VORR_r_T1_D	choice_selection_missing:dt_option__8	non_invertible_assembly_alias
+alias	147	1230	vrshr	T32/w/cpaf/simddp/simd_3same/VORR_r_T1_Q	choice_selection_missing:dt_option__8	non_invertible_assembly_alias
+alias	148	1230	vshr	T32/w/cpaf/simddp/simd_3same/VORR_r_T1_Q	choice_selection_missing:dt_option__8	non_invertible_assembly_alias
+alias	168	1432	vorn	T32/w/cpaf/simddp/t_simd_12reg/simd_1r_imm/VORR_i_T1_D	encoded_concat_transform_missing:imm__114:<imm>	assembly_only_pseudoinstruction
+alias	169	1433	vorn	T32/w/cpaf/simddp/t_simd_12reg/simd_1r_imm/VORR_i_T1_Q	encoded_concat_transform_missing:imm__114:<imm>	assembly_only_pseudoinstruction
+alias	172	1440	vorn	T32/w/cpaf/simddp/t_simd_12reg/simd_1r_imm/VORR_i_T2_D	encoded_concat_transform_missing:imm__114:<imm>	assembly_only_pseudoinstruction
+alias	173	1441	vorn	T32/w/cpaf/simddp/t_simd_12reg/simd_1r_imm/VORR_i_T2_Q	encoded_concat_transform_missing:imm__114:<imm>	assembly_only_pseudoinstruction
