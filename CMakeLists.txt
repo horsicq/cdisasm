@@ -41,8 +41,30 @@ unset(_cdisasm_version_header)
 unset(_cdisasm_version_line)
 unset(_cdisasm_version_part)
 
-include(CTest)
 include(GNUInstallDirs)
+
+# Development support trees are intentionally optional.  Release exports may
+# contain only the library sources, headers, and package configuration files.
+set(_cdisasm_has_tests OFF)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+    set(_cdisasm_has_tests ON)
+    include(CTest)
+endif()
+
+set(_cdisasm_has_examples OFF)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/examples")
+    set(_cdisasm_has_examples ON)
+endif()
+
+set(_cdisasm_has_fuzzers OFF)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/fuzz")
+    set(_cdisasm_has_fuzzers ON)
+endif()
+
+set(_cdisasm_has_tools OFF)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tools")
+    set(_cdisasm_has_tools ON)
+endif()
 
 set(_cdisasm_is_top_level OFF)
 if("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
@@ -68,17 +90,29 @@ option(USE_ARCH_X86 "Build the x86 decoder" ON)
 option(USE_ARCH_ARM "Build the ARM decoder" ON)
 option(USE_DISASM_FORMAT "Build instruction formatting into cdisasm" ON)
 option(USE_EXTRA_OPCODES "Build extended opcode coverage into cdisasm" ON)
-option(CDISASM_BUILD_EXAMPLES "Build the cdisasm command-line example" ON)
-option(CDISASM_BUILD_FUZZERS "Build the Clang libFuzzer harness" OFF)
+if(_cdisasm_has_examples)
+    option(CDISASM_BUILD_EXAMPLES "Build the cdisasm command-line example" ON)
+else()
+    set(CDISASM_BUILD_EXAMPLES OFF)
+endif()
+if(_cdisasm_has_fuzzers)
+    option(CDISASM_BUILD_FUZZERS "Build the Clang libFuzzer harness" OFF)
+else()
+    set(CDISASM_BUILD_FUZZERS OFF)
+endif()
 
 set(_cdisasm_verify_generated_default OFF)
-if(_cdisasm_is_top_level AND BUILD_TESTING)
+if(_cdisasm_is_top_level AND BUILD_TESTING AND _cdisasm_has_tools)
     set(_cdisasm_verify_generated_default ON)
 endif()
-option(
-    CDISASM_VERIFY_GENERATED
-    "Verify checked-in generated-source invariants while building and testing"
-    ${_cdisasm_verify_generated_default})
+if(_cdisasm_has_tools)
+    option(
+        CDISASM_VERIFY_GENERATED
+        "Verify checked-in generated-source invariants while building and testing"
+        ${_cdisasm_verify_generated_default})
+else()
+    set(CDISASM_VERIFY_GENERATED OFF)
+endif()
 unset(_cdisasm_verify_generated_default)
 set(
     CDISASM_ARM_AARCHMRS_ROOT
@@ -143,13 +177,18 @@ if(CDISASM_NORMALIZED_USE_EXTRA_OPCODES
 endif()
 
 set(_cdisasm_package_tests_default OFF)
-if("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
+if(_cdisasm_has_tests
+        AND "${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
     set(_cdisasm_package_tests_default ON)
 endif()
-option(
-    CDISASM_BUILD_PACKAGE_TESTS
-    "Run the isolated shared/static package feature matrix"
-    ${_cdisasm_package_tests_default})
+if(_cdisasm_has_tests)
+    option(
+        CDISASM_BUILD_PACKAGE_TESTS
+        "Run the isolated shared/static package feature matrix"
+        ${_cdisasm_package_tests_default})
+else()
+    set(CDISASM_BUILD_PACKAGE_TESTS OFF)
+endif()
 unset(_cdisasm_package_tests_default)
 
 set(_cdisasm_generated_include_dir
@@ -332,7 +371,7 @@ if(WIN32 AND CDISASM_BUILD_SHARED_LIBS)
         PROPERTIES RUNTIME_OUTPUT_NAME "cdisasm-${PROJECT_VERSION_MAJOR}")
 endif()
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND _cdisasm_has_tests)
     if(CDISASM_VERIFY_GENERATED)
         add_test(
             NAME cdisasm_arm_recipe_opcode_checker_tests
@@ -6047,42 +6086,57 @@ install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/cdisasm-variant.txt"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cdisasm")
 install(
-    FILES README.md LICENSE THIRD_PARTY_NOTICES.md
+    FILES README.md LICENSE
     DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm")
-install(
-    DIRECTORY LICENSES/
-    DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/LICENSES")
-install(
-    DIRECTORY docs/
-    DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/docs")
-install(
-    FILES fuzz/README.md
-    DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/fuzz")
-if(USE_ARCH_X86)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/THIRD_PARTY_NOTICES.md")
     install(
-        FILES fuzz/fuzz_decode2.c
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/fuzz")
-    install(
-        DIRECTORY fuzz/corpus/
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/fuzz/corpus"
-        FILES_MATCHING
-        PATTERN "*.hex")
-    install(
-        FILES tests/data/x86_opcodes.tsv
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/tests/data")
+        FILES THIRD_PARTY_NOTICES.md
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm")
 endif()
-if(USE_ARCH_ARM)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/LICENSES")
     install(
-        FILES fuzz/fuzz_arm_decode2.c
+        DIRECTORY LICENSES/
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/LICENSES")
+endif()
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/docs")
+    install(
+        DIRECTORY docs/
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/docs")
+endif()
+if(_cdisasm_has_fuzzers)
+    install(
+        FILES fuzz/README.md
         DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/fuzz")
-    install(
-        DIRECTORY fuzz/arm_corpus/
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/fuzz/arm_corpus"
-        FILES_MATCHING
-        PATTERN "*.hex")
-    install(
-        FILES tests/data/arm_opcodes.tsv
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/tests/data")
+    if(USE_ARCH_X86)
+        install(
+            FILES fuzz/fuzz_decode2.c
+            DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/fuzz")
+        install(
+            DIRECTORY fuzz/corpus/
+            DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/fuzz/corpus"
+            FILES_MATCHING
+            PATTERN "*.hex")
+        if(_cdisasm_has_tests)
+            install(
+                FILES tests/data/x86_opcodes.tsv
+                DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/tests/data")
+        endif()
+    endif()
+    if(USE_ARCH_ARM)
+        install(
+            FILES fuzz/fuzz_arm_decode2.c
+            DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/fuzz")
+        install(
+            DIRECTORY fuzz/arm_corpus/
+            DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/fuzz/arm_corpus"
+            FILES_MATCHING
+            PATTERN "*.hex")
+        if(_cdisasm_has_tests)
+            install(
+                FILES tests/data/arm_opcodes.tsv
+                DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/tests/data")
+        endif()
+    endif()
 endif()
 
 unset(_cdisasm_install_targets)
