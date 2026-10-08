@@ -5030,8 +5030,29 @@ static int arm_modern_encoding_is_valid(arm_modern_form form, uint32_t word)
             : ((word >> 22) & 3u) != 0u;
     }
     if (form == ARM_MODERN_RCPC3) {
-        /* RCpc3 LDIAPP/STILP allocate only the W and X pair sizes. */
-        return ((word >> 30) & 3u) >= 2u;
+        uint32_t operation;
+
+        /* The classifier deliberately covers both the pair and single
+         * envelopes.  Each leaf also fixes operation bits outside it. */
+        if ((word & UINT32_C(0x00800000)) != 0u) {
+            operation = word & UINT32_C(0xfffffc00);
+            return operation == UINT32_C(0x99800800)
+                || operation == UINT32_C(0x99c00800)
+                || operation == UINT32_C(0xd9800800)
+                || operation == UINT32_C(0xd9c00800);
+        }
+        operation = word & UINT32_C(0xffe0fc00);
+        return operation == UINT32_C(0x99000800)
+            || operation == UINT32_C(0x99001800)
+            || operation == UINT32_C(0x99400800)
+            || operation == UINT32_C(0x99401800)
+            || operation == UINT32_C(0xd9000800)
+            || operation == UINT32_C(0xd9001800)
+            || operation == UINT32_C(0xd9005800)
+            || operation == UINT32_C(0xd9400800)
+            || operation == UINT32_C(0xd9401800)
+            || operation == UINT32_C(0xd9405800)
+            || operation == UINT32_C(0xd9407800);
     }
     if (form >= ARM_MODERN_LD64B && form <= ARM_MODERN_ST64BV0) {
         unsigned base = word & 31u;
@@ -15361,7 +15382,7 @@ static void arm_modern_decode_misc(
                 { CDISASM_ARM_NAME_RCWSCLRA, CDISASM_ARM_NAME_RCWSSWPA,
                   CDISASM_ARM_NAME_RCWSSETA },
                 { CDISASM_ARM_NAME_RCWSCLRAL, CDISASM_ARM_NAME_RCWSSWPAL,
-                  CDISASM_ARM_NAME_RCWSETAL }
+                  CDISASM_ARM_NAME_RCWSSETAL }
             }
         };
         static const uint16_t forms[2][4][3] = {

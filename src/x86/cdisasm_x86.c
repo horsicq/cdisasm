@@ -600,9 +600,100 @@ static int x86_instruction_has_movrs_group(
                CDISASM_X86_GROUP_AVX10_MOVRS_512);
 }
 
+static cdisasm_x86_family_id x86_direct_family_for_group(
+    cdisasm_x86_group_id group_id)
+{
+    switch (group_id) {
+        case CDISASM_X86_GROUP_MMX:
+        case CDISASM_X86_GROUP_PENTIUMMMX:
+            return CDISASM_X86_FAMILY_MMX;
+        case CDISASM_X86_GROUP_3DNOW:
+        case CDISASM_X86_GROUP_3DNOW_EXT:
+            return CDISASM_X86_FAMILY_3DNOW;
+        case CDISASM_X86_GROUP_SSE:
+        case CDISASM_X86_GROUP_SSEMXCSR:
+        case CDISASM_X86_GROUP_SSE_PREFETCH:
+            return CDISASM_X86_FAMILY_SSE;
+        case CDISASM_X86_GROUP_SSE2:
+        case CDISASM_X86_GROUP_SSE2MMX:
+            return CDISASM_X86_FAMILY_SSE2;
+        case CDISASM_X86_GROUP_SSE3:
+        case CDISASM_X86_GROUP_SSE3X87:
+            return CDISASM_X86_FAMILY_SSE3;
+        case CDISASM_X86_GROUP_SSSE3:
+        case CDISASM_X86_GROUP_SSSE3MMX:
+            return CDISASM_X86_FAMILY_SSSE3;
+        case CDISASM_X86_GROUP_SSE41:
+        case CDISASM_X86_GROUP_SSE42:
+        case CDISASM_X86_GROUP_SSE4A:
+        case CDISASM_X86_GROUP_SSE4:
+            return CDISASM_X86_FAMILY_SSE4;
+        case CDISASM_X86_GROUP_AVX:
+        case CDISASM_X86_GROUP_AVX_VNNI:
+        case CDISASM_X86_GROUP_AVX_VNNI_INT8:
+        case CDISASM_X86_GROUP_AVX_VNNI_INT16:
+        case CDISASM_X86_GROUP_AVX_IFMA:
+        case CDISASM_X86_GROUP_AVX_NE_CONVERT:
+            return CDISASM_X86_FAMILY_AVX;
+        case CDISASM_X86_GROUP_AVX2:
+            return CDISASM_X86_FAMILY_AVX2;
+        case CDISASM_X86_GROUP_F16C:
+            return CDISASM_X86_FAMILY_F16C;
+        case CDISASM_X86_GROUP_FMA3:
+            return CDISASM_X86_FAMILY_FMA3;
+        case CDISASM_X86_GROUP_XOP:
+            return CDISASM_X86_FAMILY_XOP;
+        case CDISASM_X86_GROUP_FMA4:
+            return CDISASM_X86_FAMILY_FMA4;
+        case CDISASM_X86_GROUP_AESNI:
+        case CDISASM_X86_GROUP_VAES:
+        case CDISASM_X86_GROUP_AVXAES:
+            return CDISASM_X86_FAMILY_AES;
+        case CDISASM_X86_GROUP_PCLMULQDQ:
+        case CDISASM_X86_GROUP_VPCLMULQDQ:
+            return CDISASM_X86_FAMILY_PCLMUL;
+        case CDISASM_X86_GROUP_SHA:
+        case CDISASM_X86_GROUP_SHA512:
+            return CDISASM_X86_FAMILY_SHA;
+        case CDISASM_X86_GROUP_GFNI:
+        case CDISASM_X86_GROUP_AVX_GFNI:
+            return CDISASM_X86_FAMILY_GFNI;
+        case CDISASM_X86_GROUP_LZCNT:
+        case CDISASM_X86_GROUP_POPCNT:
+        case CDISASM_X86_GROUP_TBM:
+        case CDISASM_X86_GROUP_ADX:
+        case CDISASM_X86_GROUP_BMI1:
+        case CDISASM_X86_GROUP_BMI2:
+            return CDISASM_X86_FAMILY_BITMANIP;
+        case CDISASM_X86_GROUP_AVX10_1:
+        case CDISASM_X86_GROUP_AVX10_2:
+            return CDISASM_X86_FAMILY_AVX10;
+        case CDISASM_X86_GROUP_AMX_TILE:
+        case CDISASM_X86_GROUP_AMX_INT8:
+        case CDISASM_X86_GROUP_AMX_BF16:
+        case CDISASM_X86_GROUP_AMX_FP16:
+        case CDISASM_X86_GROUP_AMX_COMPLEX:
+        case CDISASM_X86_GROUP_AMX_FP8:
+        case CDISASM_X86_GROUP_AMX_MOVRS:
+        case CDISASM_X86_GROUP_AMX_AVX512:
+        case CDISASM_X86_GROUP_AMX_TILE_BASE:
+            return CDISASM_X86_FAMILY_AMX;
+        default:
+            break;
+    }
+    if (group_id >= CDISASM_X86_GROUP_AVX10_2_BF16_128
+        && group_id <= CDISASM_X86_GROUP_AVX10_V2_AUX_512) {
+        return CDISASM_X86_FAMILY_AVX10;
+    }
+    return CDISASM_X86_FAMILY_NONE;
+}
+
 cdisasm_x86_family_id CDISASM_CALL cdisasm_x86_instruction_family(
     const cdisasm_instruction *instruction)
 {
+    cdisasm_x86_family_id direct_family = CDISASM_X86_FAMILY_NONE;
+    uint8_t index;
+
     if (instruction == NULL) {
         return CDISASM_X86_FAMILY_NONE;
     }
@@ -651,7 +742,18 @@ cdisasm_x86_family_id CDISASM_CALL cdisasm_x86_instruction_family(
             instruction, CDISASM_X86_GROUP_X87)) {
         return CDISASM_X86_FAMILY_X87;
     }
-    return CDISASM_X86_FAMILY_NONE;
+    if (instruction->x86_group_count > CDISASM_MAX_X86_GROUPS) {
+        return CDISASM_X86_FAMILY_NONE;
+    }
+    for (index = 0; index < instruction->x86_group_count; ++index) {
+        cdisasm_x86_family_id candidate = x86_direct_family_for_group(
+            instruction->x86_group_ids[index]);
+
+        if (candidate > direct_family) {
+            direct_family = candidate;
+        }
+    }
+    return direct_family;
 }
 
 const cdisasm_x86_family_descriptor *CDISASM_CALL
@@ -2604,6 +2706,14 @@ uint32_t CDISASM_CALL cdisasm_x86_decode(
         return 0;
     }
 #if USE_EXTRA_OPCODES
+    if (instruction->name_id == CDISASM_X86_NAME_IBHF
+        && !cdisasm_decode_flags_test_bit(
+            selected_flags, CDISASM_X86_DECODE_BIT_IBHF)) {
+        memset(instruction, 0, sizeof(*instruction));
+        instruction->last_error_id =
+            (uint8_t)CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+        return 0;
+    }
     if (cdisasm_instruction_has_x86_group(
             instruction, CDISASM_X86_GROUP_AVX_NE_CONVERT)) {
         cdisasm_x86_decode_flags cpu_flags;
@@ -2634,6 +2744,9 @@ uint32_t CDISASM_CALL cdisasm_x86_decode_with_context(
     uint64_t address,
     cdisasm_instruction *instruction)
 {
+    uint32_t decoded_size;
+    cdisasm_x86_family_id family_id;
+
     if (context == NULL) {
         if (instruction != NULL) {
             memset(instruction, 0, sizeof(*instruction));
@@ -2642,7 +2755,7 @@ uint32_t CDISASM_CALL cdisasm_x86_decode_with_context(
         }
         return 0;
     }
-    return cdisasm_x86_decode(
+    decoded_size = cdisasm_x86_decode(
         context->cpu_id,
         context->mode,
         code,
@@ -2650,4 +2763,17 @@ uint32_t CDISASM_CALL cdisasm_x86_decode_with_context(
         address,
         &context->flags,
         instruction);
+    if (decoded_size == 0 || instruction == NULL) {
+        return decoded_size;
+    }
+    family_id = cdisasm_x86_instruction_family(instruction);
+    if (family_id != CDISASM_X86_FAMILY_NONE
+        && (cdisasm_x86_decode_context_get_set_families(context)
+            & x86_family_mask_for_id(family_id)) == 0) {
+        memset(instruction, 0, sizeof(*instruction));
+        instruction->last_error_id =
+            (uint8_t)CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+        return 0;
+    }
+    return decoded_size;
 }

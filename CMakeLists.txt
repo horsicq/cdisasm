@@ -397,6 +397,12 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
                 --strict
                 --quiet)
         add_test(
+            NAME cdisasm_x86_gap_probe_ledger_tests
+            COMMAND
+                "${Python3_EXECUTABLE}"
+                -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_x86_gap_probe_ledger.py")
+        add_test(
             NAME cdisasm_arm_assembly_audit_classes_tests
             COMMAND
                 "${Python3_EXECUTABLE}"
@@ -414,6 +420,7 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
             cdisasm_arm_assembly_audit_classes_tests
             cdisasm_arm_assembly_vorn_audit_tests
             cdisasm_x86_coverage_audit_tests
+            cdisasm_x86_gap_probe_ledger_tests
             PROPERTIES LABELS "codegen;generated")
 
         if(TARGET cdisasm_check_arm_catalog)
@@ -513,7 +520,7 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
     target_link_libraries(cdisasm_decode_tests PRIVATE cdisasm)
     add_test(NAME cdisasm_decode_tests COMMAND cdisasm_decode_tests)
 
-    if(USE_ARCH_X86 OR USE_ARCH_ARM)
+    if(_cdisasm_has_fuzzers AND (USE_ARCH_X86 OR USE_ARCH_ARM))
         add_test(
             NAME cdisasm_fuzz_corpus_seed_tests
             COMMAND

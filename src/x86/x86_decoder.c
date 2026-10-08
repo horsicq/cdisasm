@@ -1310,10 +1310,17 @@ cdisasm_x86_decode_option cdisasm_x86_cpu_decode_flag_mask_core(
     return flags & CDISASM_X86_DECODE_FLAG_KNOWN_MASK;
 }
 
+static int decoder_fail(x86_decoder *decoder, cdisasm_status status);
+
 static void decoder_require_extra(
     x86_decoder *decoder,
     cdisasm_x86_group_id group_id)
 {
+    if (group_id < X86_EXTRA_GROUP_BASE
+        || group_id > X86_EXTRA_GROUP_LAST) {
+        decoder_fail(decoder, CDISASM_STATUS_INTERNAL_ERROR);
+        return;
+    }
     if (group_id < X86_EXTRA_GROUP_HIGH_BASE) {
         const uint64_t bit = X86_EXTRA_CAP(group_id);
 
@@ -1331,6 +1338,10 @@ static int decoder_has_extra(
     const x86_decoder *decoder,
     cdisasm_x86_group_id group_id)
 {
+    if (group_id < X86_EXTRA_GROUP_BASE
+        || group_id > X86_EXTRA_GROUP_LAST) {
+        return 0;
+    }
     return group_id < X86_EXTRA_GROUP_HIGH_BASE
         ? (decoder->cpu_extra_caps & X86_EXTRA_CAP(group_id)) != 0
         : (decoder->cpu_extra_caps_high
@@ -1342,6 +1353,12 @@ static void decoder_require_extra_any(
     cdisasm_x86_group_id first,
     cdisasm_x86_group_id second)
 {
+    if (first < X86_EXTRA_GROUP_BASE || first > X86_EXTRA_GROUP_LAST
+        || second < X86_EXTRA_GROUP_BASE
+        || second > X86_EXTRA_GROUP_LAST) {
+        decoder_fail(decoder, CDISASM_STATUS_INTERNAL_ERROR);
+        return;
+    }
     const int use_second = decoder->cpu_id != CDISASM_CPU_X86
         && !decoder_has_extra(decoder, first)
         && decoder_has_extra(decoder, second);
@@ -3331,6 +3348,9 @@ static int add_name_form_groups(
         case CDISASM_X86_NAME_PREFETCHWT1:
             return add_x86_group(
                 instruction, CDISASM_X86_GROUP_PREFETCHWT1);
+
+        case CDISASM_X86_NAME_IBHF:
+            return add_x86_group(instruction, CDISASM_X86_GROUP_IBHF);
 
         case CDISASM_X86_NAME_PREFETCHIT0:
         case CDISASM_X86_NAME_PREFETCHIT1:
@@ -16804,10 +16824,8 @@ static int decode_evex_apx_invalidate(
     decoder_require_caps(decoder, X86_CAP_AMD64);
     if (name_id == CDISASM_X86_NAME_INVEPT) {
         decoder_require_caps(decoder, X86_CAP_VMX | X86_CAP_INVEPT);
-        decoder_require_extra(decoder, CDISASM_X86_GROUP_VMX);
     } else if (name_id == CDISASM_X86_NAME_INVVPID) {
         decoder_require_caps(decoder, X86_CAP_VMX | X86_CAP_INVVPID);
-        decoder_require_extra(decoder, CDISASM_X86_GROUP_VMX);
     } else {
         decoder_require_extra(decoder, CDISASM_X86_GROUP_INVPCID);
     }
@@ -20191,8 +20209,17 @@ static int decode_endbr(x86_decoder *decoder)
             && modrm.is_register && modrm.reg3 == 7u
             && modrm.rm3 == 0u) {
 #if USE_EXTRA_OPCODES
+            cdisasm_x86_decode_flags cpu_flags;
+
+            if (cdisasm_x86_cpu_decode_flag_mask(
+                    decoder->cpu_id, decoder->mode, &cpu_flags)
+                    != CDISASM_STATUS_OK
+                || !cdisasm_decode_flags_test_bit(
+                    &cpu_flags, CDISASM_X86_DECODE_BIT_IBHF)) {
+                return decoder_fail(
+                    decoder, CDISASM_STATUS_INVALID_INSTRUCTION);
+            }
             decoder->name_id = CDISASM_X86_NAME_IBHF;
-            decoder_require_extra(decoder, CDISASM_X86_GROUP_IBHF);
             return 1;
 #else
             return decoder_fail(
@@ -23030,25 +23057,9 @@ static int decode_3dnow_prefetch(x86_decoder *decoder)
     /* AMD allocated both /1 and /3 to PREFETCHW.  Keep /2 owned by
      * PREFETCHWT1 above; /4--/7 are PREFETCH_RESERVED catalog forms. */
     if (modrm.reg3 > 3u || modrm.reg3 == 2u) {
-#if USE_EXTRA_OPCODES
-        /* XED names the unallocated memory /4-/7 encodings explicitly.
-         * Their architectural operand is an unsized prefetch address, not a
-         * 512-bit vector; retain the catalog ID and use VARIABLE size so the
-         * formatter emits the canonical `ptr` spelling. */
-        if (!modrm.is_register && modrm.reg3 >= 4u
-            && decoder_has_extra(decoder, CDISASM_X86_GROUP_PREFETCH_NOP)) {
-            decoder->name_id = CDISASM_X86_NAME_PREFETCH_RESERVED;
-            decoder_require_extra(
-                decoder, CDISASM_X86_GROUP_PREFETCH_NOP);
-            if (!add_rm_operand(decoder, &modrm, 512u, 1)) {
-                return 0;
-            }
-            decoder->operand[decoder->operand_count - 1u].size =
-                CDISASM_X86_OPERAND_SIZE_VARIABLE;
-            return set_last_operand_access(
-                decoder, CDISASM_OPERAND_ACCESS_READ);
-        }
-#endif
+        /* The generated descriptor owns these exact PREFETCH_NOP rows,
+         * including their CPU and caller flag checks.  The compact hand
+         * capability bitmap cannot represent this later ISA_SET ID. */
         return decoder_fail(decoder, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
     }
     if (modrm.is_register) {

@@ -1036,9 +1036,8 @@ static inline int cdisasm_instruction_has_x86_group(
 }
 
 /**
- * Returns the validation family selected by a decoded instruction.
- * CDISASM_X86_FAMILY_NONE means that the instruction is covered by the
- * ordinary ISA-group rules and does not need one of the special bundles.
+ * Returns the most-specific direct or validation family selected by a decoded
+ * instruction. CDISASM_X86_FAMILY_NONE means no selectable family applies.
  */
 CDISASM_X86_API cdisasm_x86_family_id CDISASM_CALL
 cdisasm_x86_instruction_family(const cdisasm_instruction *instruction);
@@ -1128,7 +1127,12 @@ CDISASM_X86_API uint32_t CDISASM_CALL cdisasm_x86_decode(
     const cdisasm_x86_decode_flags *flags,
     cdisasm_instruction *instruction);
 
-/** Decodes using a previously initialized CPU-bound context. */
+/**
+ * Decodes using a previously initialized CPU-bound context. The CPU and mode
+ * capability flags still govern byte-level decoding. A successful decode is
+ * then checked against family_value; a disabled selected family returns zero
+ * with CDISASM_STATUS_UNSUPPORTED_INSTRUCTION in the result.
+ */
 CDISASM_X86_API uint32_t CDISASM_CALL cdisasm_x86_decode_with_context(
     const cdisasm_x86_decode_context *context,
     const uint8_t *code,

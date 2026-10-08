@@ -1735,6 +1735,14 @@ static cdisasm_status x86_gen_commit(
     if (!x86_gen_build_operands(state, candidate, address, instruction)) {
         return CDISASM_STATUS_INVALID_INSTRUCTION;
     }
+    if (instruction->name_id == CDISASM_X86_NAME_PREFETCH_RESERVED
+        && instruction->operand_count == 1u
+        && instruction->opcode[0].type == CDISASM_OPERAND_MEMORY) {
+        /* The catalog's 512-bit recipe is only a placeholder for an
+         * unsized prefetch address, not a 64-byte data operand. */
+        instruction->opcode[0].size =
+            CDISASM_X86_OPERAND_SIZE_VARIABLE;
+    }
     /* MASK_AS_CONTROL forms such as VPBLENDM* preserve the destination
      * elements under merge masking.  Keep the generic XED access recipe
      * unchanged for ordinary EVEX instructions and apply the additional

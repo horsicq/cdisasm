@@ -2667,10 +2667,13 @@ cdisasm_status cdisasm_arm_decode_a32_neon(
         unsigned rt2 = (canonical_word >> 16) & 15u;
         unsigned vm = (canonical_word & 15u)
             | ((canonical_word >> 1) & 16u);
+        unsigned single_start = ((canonical_word & 15u) << 1)
+            | ((canonical_word >> 5) & 1u);
         int to_core = (canonical_word & UINT32_C(0x00100000)) != 0u;
         int double_form = (canonical_word & UINT32_C(0x100)) != 0u;
 
-        if (rt == 15u || rt2 == 15u || rt == rt2) {
+        if (rt == 15u || rt2 == 15u || rt == rt2
+            || (!double_form && single_start == 31u)) {
             return CDISASM_STATUS_INVALID_INSTRUCTION;
         }
 #if !USE_EXTRA_OPCODES
@@ -2695,10 +2698,10 @@ cdisasm_status cdisasm_arm_decode_a32_neon(
                     CDISASM_OPERAND_ACCESS_READ);
             } else {
                 append_register(instruction,
-                    (cdisasm_arm_reg_id)(CDISASM_ARM_REG_S0 + vm * 2u), 4u,
+                    (cdisasm_arm_reg_id)(CDISASM_ARM_REG_S0 + single_start), 4u,
                     CDISASM_OPERAND_ACCESS_READ);
                 append_register(instruction,
-                    (cdisasm_arm_reg_id)(CDISASM_ARM_REG_S0 + vm * 2u + 1u),
+                    (cdisasm_arm_reg_id)(CDISASM_ARM_REG_S0 + single_start + 1u),
                     4u, CDISASM_OPERAND_ACCESS_READ);
             }
         } else {
@@ -2708,10 +2711,10 @@ cdisasm_status cdisasm_arm_decode_a32_neon(
                     CDISASM_OPERAND_ACCESS_WRITE);
             } else {
                 append_register(instruction,
-                    (cdisasm_arm_reg_id)(CDISASM_ARM_REG_S0 + vm * 2u), 4u,
+                    (cdisasm_arm_reg_id)(CDISASM_ARM_REG_S0 + single_start), 4u,
                     CDISASM_OPERAND_ACCESS_WRITE);
                 append_register(instruction,
-                    (cdisasm_arm_reg_id)(CDISASM_ARM_REG_S0 + vm * 2u + 1u),
+                    (cdisasm_arm_reg_id)(CDISASM_ARM_REG_S0 + single_start + 1u),
                     4u, CDISASM_OPERAND_ACCESS_WRITE);
             }
             append_register(instruction, a32_reg(rt), 4u,

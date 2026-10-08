@@ -128,6 +128,7 @@ static cdisasm_cpu_id current_x86_cpu(void)
 
 #if CDISASM_NATIVE_ARM && defined(__linux__)
 #  include <dirent.h>
+#  include <errno.h>
 #  include <stdio.h>
 #  include <string.h>
 #  include <sys/auxv.h>
@@ -206,14 +207,22 @@ static cdisasm_cpu_id arm_cpu_from_sysfs(
     }
 
     for (;;) {
-        struct dirent *entry = readdir(directory);
+        struct dirent *entry;
         const char *digit;
         char path[192];
         int path_size;
         unsigned long long value;
         FILE *stream;
 
+        errno = 0;
+        entry = readdir(directory);
         if (entry == NULL) {
+            if (errno != 0) {
+                /* An incomplete CPU list cannot establish a safe profile. */
+                *had_evidence = 1;
+                closedir(directory);
+                return CDISASM_CPU_UNKNOWN;
+            }
             break;
         }
         if (entry->d_name[0] != 'c'

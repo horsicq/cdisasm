@@ -805,9 +805,9 @@ static cdisasm_status t32_decode_16_extra(
 #else
         instruction->name_id = operation == 0u && immediate == 0u
             ? CDISASM_ARM_NAME_MOV
-            : operation == 0u ? CDISASM_ARM_NAME_LSL
-            : operation == 1u ? CDISASM_ARM_NAME_LSR
-                              : CDISASM_ARM_NAME_ASR;
+            : operation == 0u ? CDISASM_ARM_NAME_LSLS
+            : operation == 1u ? CDISASM_ARM_NAME_LSRS
+                              : CDISASM_ARM_NAME_ASRS;
         instruction->instruction_flags |=
             CDISASM_ARM_INSTRUCTION_FLAG_SETS_FLAGS;
         t32_append_register(

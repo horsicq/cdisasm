@@ -345,6 +345,30 @@ static int arm_is_sve_integer_reduction_name(cdisasm_arm_name_id name_id)
         || name_id == CDISASM_ARM_NAME_ANDV;
 }
 
+static int arm_is_sve_last_scalar_operand(
+    const cdisasm_arm_instruction *instruction,
+    const cdisasm_arm_operand *operand)
+{
+    int last = (instruction->form_id == UINT16_C(2480)
+            && instruction->name_id == CDISASM_ARM_NAME_LASTA)
+        || (instruction->form_id == UINT16_C(2481)
+            && instruction->name_id == CDISASM_ARM_NAME_LASTB);
+    int clast = (instruction->form_id == UINT16_C(2492)
+            && instruction->name_id == CDISASM_ARM_NAME_CLASTA)
+        || (instruction->form_id == UINT16_C(2493)
+            && instruction->name_id == CDISASM_ARM_NAME_CLASTB);
+
+    return instruction->isa_id == CDISASM_ARM_ISA_A64
+        && (instruction->instruction_flags
+            & CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR) != 0u
+        && (last || clast)
+        && (operand == &instruction->operand[0]
+            || (clast && operand == &instruction->operand[2]))
+        && operand->reg >= CDISASM_ARM_REG_D0
+        && operand->reg <= CDISASM_ARM_REG_D31
+        && cdisasm_arm_generated_form_matches(instruction);
+}
+
 static int arm_is_sve_quadword_reduction_name(cdisasm_arm_name_id name_id)
 {
     return name_id == CDISASM_ARM_NAME_ADDQV
@@ -354,7 +378,12 @@ static int arm_is_sve_quadword_reduction_name(cdisasm_arm_name_id name_id)
         || name_id == CDISASM_ARM_NAME_UMINQV
         || name_id == CDISASM_ARM_NAME_ORQV
         || name_id == CDISASM_ARM_NAME_EORQV
-        || name_id == CDISASM_ARM_NAME_ANDQV;
+        || name_id == CDISASM_ARM_NAME_ANDQV
+        || name_id == CDISASM_ARM_NAME_FADDQV
+        || name_id == CDISASM_ARM_NAME_FMAXNMQV
+        || name_id == CDISASM_ARM_NAME_FMINNMQV
+        || name_id == CDISASM_ARM_NAME_FMAXQV
+        || name_id == CDISASM_ARM_NAME_FMINQV;
 }
 
 static int arm_valid_access(cdisasm_operand_access access)
@@ -536,14 +565,27 @@ static int arm_valid_vector_layout(
     uint8_t element_count = CDISASM_ARM_VECTOR_ELEMENT_COUNT(operand);
 
     if ((instruction->isa_id == CDISASM_ARM_ISA_A64
-            && (instruction->form_id == UINT16_C(5780)
+            && (((instruction->form_id == UINT16_C(5741)
+                    && instruction->name_id == CDISASM_ARM_NAME_DUP)
+                    && operand == &instruction->operand[0])
+                || instruction->form_id == UINT16_C(5780)
+                || instruction->form_id == UINT16_C(5781)
+                || instruction->form_id == UINT16_C(5782)
                 || instruction->form_id == UINT16_C(5783)
+                || instruction->form_id == UINT16_C(5787)
                 || instruction->form_id == UINT16_C(5788)
+                || instruction->form_id == UINT16_C(5799)
+                || instruction->form_id == UINT16_C(5800)
+                || instruction->form_id == UINT16_C(5801)
                 || instruction->form_id == UINT16_C(5802)
+                || instruction->form_id == UINT16_C(5805)
                 || instruction->form_id == UINT16_C(5806)
                 || instruction->form_id == UINT16_C(5819)
                 || instruction->form_id == UINT16_C(5820)
                 || instruction->form_id == UINT16_C(5821)
+                || (instruction->form_id >= UINT16_C(5822)
+                    && instruction->form_id <= UINT16_C(5846))
+                || instruction->form_id == UINT16_C(5847)
                 || instruction->form_id == UINT16_C(5858)
                 || instruction->form_id == UINT16_C(5859)
                 || instruction->form_id == UINT16_C(5860)
@@ -730,6 +772,29 @@ static int arm_valid_vector_layout(
             && element_count == 8u;
     }
 
+    if ((instruction->isa_id == CDISASM_ARM_ISA_A32
+            || instruction->isa_id == CDISASM_ARM_ISA_T32)
+        && (instruction->name_id == CDISASM_ARM_NAME_VFMAL
+            || instruction->name_id == CDISASM_ARM_NAME_VFMSL)
+        && ((instruction->isa_id == CDISASM_ARM_ISA_A32
+                && (instruction->form_id == UINT16_C(414)
+                    || instruction->form_id == UINT16_C(423)
+                    || (instruction->form_id >= UINT16_C(478)
+                        && instruction->form_id <= UINT16_C(481))))
+            || (instruction->isa_id == CDISASM_ARM_ISA_T32
+                && (instruction->form_id == UINT16_C(1639)
+                    || instruction->form_id == UINT16_C(1648)
+                    || instruction->form_id == UINT16_C(1703)
+                    || instruction->form_id == UINT16_C(1705))))
+        && (operand == &instruction->operand[1]
+            || operand == &instruction->operand[2])
+        && operand->reg >= CDISASM_ARM_REG_S0
+        && operand->reg <= CDISASM_ARM_REG_S31) {
+        return cdisasm_arm_generated_form_matches(instruction)
+            && operand->size == 4u && element_size == 2u
+            && element_count == 2u;
+    }
+
     if (!arm_is_vector_register(operand->reg)
         || (element_size != 1u && element_size != 2u
             && element_size != 4u && element_size != 8u
@@ -834,6 +899,83 @@ static int arm_valid_register_operand(
                 && instruction->form_id <= UINT16_C(6290)))
         && operand == &instruction->operand[2]
         && operand->flags == CDISASM_ARM_OPERAND_FLAG_HAS_LANE;
+
+    if (!is_advsimd_element_lane && is_simd
+        && instruction->isa_id == CDISASM_ARM_ISA_A64
+        && instruction->form_id >= UINT16_C(5913)
+        && instruction->form_id <= UINT16_C(5917)
+        && instruction->form_id != UINT16_C(5915)
+        && operand == &instruction->operand[1]
+        && operand->flags == CDISASM_ARM_OPERAND_FLAG_HAS_LANE) {
+        is_advsimd_element_lane = 1;
+    }
+
+    if (!is_advsimd_element_lane && is_simd
+        && instruction->isa_id == CDISASM_ARM_ISA_A64
+        && instruction->name_id == CDISASM_ARM_NAME_DUP
+        && (instruction->form_id == UINT16_C(5741)
+            || instruction->form_id == UINT16_C(5911))
+        && operand == &instruction->operand[1]
+        && operand->flags == CDISASM_ARM_OPERAND_FLAG_HAS_LANE) {
+        is_advsimd_element_lane = 1;
+    }
+
+    if (!is_advsimd_element_lane && is_simd
+        && instruction->isa_id == CDISASM_ARM_ISA_A64
+        && instruction->name_id == CDISASM_ARM_NAME_INS
+        && (instruction->form_id == UINT16_C(5915)
+            || instruction->form_id == UINT16_C(5918))
+        && (operand == &instruction->operand[0]
+            || (instruction->form_id == UINT16_C(5918)
+                && operand == &instruction->operand[1]))
+        && operand->flags == CDISASM_ARM_OPERAND_FLAG_HAS_LANE) {
+        is_advsimd_element_lane = 1;
+    }
+
+    if (!is_advsimd_element_lane && is_simd
+        && instruction->isa_id == CDISASM_ARM_ISA_T32
+        && operand->flags == CDISASM_ARM_OPERAND_FLAG_HAS_LANE
+        && (((instruction->form_id == UINT16_C(1390)
+                    || instruction->form_id == UINT16_C(1391))
+                && operand == &instruction->operand[1])
+            || ((instruction->form_id >= UINT16_C(1408)
+                    && instruction->form_id <= UINT16_C(1427))
+                && operand == &instruction->operand[2])
+            || ((instruction->form_id >= UINT16_C(1699)
+                    && instruction->form_id <= UINT16_C(1717))
+                && operand == &instruction->operand[2]))) {
+        is_advsimd_element_lane = 1;
+    }
+
+    if (!is_advsimd_element_lane && is_simd
+        && instruction->isa_id == CDISASM_ARM_ISA_A32
+        && operand->flags == CDISASM_ARM_OPERAND_FLAG_HAS_LANE
+        && (((instruction->form_id >= UINT16_C(474)
+                    && instruction->form_id <= UINT16_C(492))
+                && operand == &instruction->operand[2])
+            || ((instruction->form_id == UINT16_C(863)
+                    || instruction->form_id == UINT16_C(864))
+                && operand == &instruction->operand[1])
+            || ((instruction->form_id >= UINT16_C(881)
+                    && instruction->form_id <= UINT16_C(900))
+                && operand == &instruction->operand[2]))
+        && cdisasm_arm_generated_form_matches(instruction)) {
+        is_advsimd_element_lane = 1;
+    }
+
+    if (!is_advsimd_element_lane && is_simd
+        && (instruction->isa_id == CDISASM_ARM_ISA_A32
+            || instruction->isa_id == CDISASM_ARM_ISA_T32)
+        && instruction->name_id == CDISASM_ARM_NAME_VMOV
+        && (instruction->form_id == UINT16_C(535)
+            || instruction->form_id == UINT16_C(536)
+            || instruction->form_id == UINT16_C(1519)
+            || instruction->form_id == UINT16_C(1520))
+        && (operand == &instruction->operand[0]
+            || operand == &instruction->operand[1])
+        && operand->flags == CDISASM_ARM_OPERAND_FLAG_HAS_LANE) {
+        is_advsimd_element_lane = 1;
+    }
 
     if (!is_advsimd_element_lane && is_simd
         && instruction->isa_id == CDISASM_ARM_ISA_A64
@@ -972,6 +1114,91 @@ static int arm_valid_register_operand(
         }
     }
     if (is_simd) {
+        if (instruction->name_id == CDISASM_ARM_NAME_VDUP
+            && ((instruction->isa_id == CDISASM_ARM_ISA_A32
+                    && (instruction->form_id == UINT16_C(537)
+                        || instruction->form_id == UINT16_C(538)))
+                || (instruction->isa_id == CDISASM_ARM_ISA_T32
+                    && (instruction->form_id == UINT16_C(1522)
+                        || instruction->form_id == UINT16_C(1523))))
+            && operand == &instruction->operand[1]
+            && operand->reg >= CDISASM_ARM_REG_R0
+            && operand->reg <= CDISASM_ARM_REG_LR) {
+            return cdisasm_arm_generated_form_matches(instruction)
+                && operand->shift_type == CDISASM_ARM_SHIFT_NONE
+                && operand->size == 4u
+                && operand->extend_type == CDISASM_ARM_EXTEND_NONE
+                && operand->scale == 0u
+                && operand->access == CDISASM_OPERAND_ACCESS_READ;
+        }
+        if ((instruction->isa_id == CDISASM_ARM_ISA_A32
+                || instruction->isa_id == CDISASM_ARM_ISA_T32)
+            && instruction->name_id == CDISASM_ARM_NAME_VMOV
+            && (instruction->form_id == UINT16_C(535)
+                || instruction->form_id == UINT16_C(536)
+                || instruction->form_id == UINT16_C(1519)
+                || instruction->form_id == UINT16_C(1520))
+            && operand->reg >= CDISASM_ARM_REG_R0
+            && operand->reg <= CDISASM_ARM_REG_LR) {
+            return cdisasm_arm_generated_form_matches(instruction)
+                && operand->shift_type == CDISASM_ARM_SHIFT_NONE
+                && operand->size == 4u
+                && operand->extend_type == CDISASM_ARM_EXTEND_NONE
+                && operand->scale == 0u
+                && operand->access == (operand == &instruction->operand[0]
+                    ? CDISASM_OPERAND_ACCESS_WRITE
+                    : CDISASM_OPERAND_ACCESS_READ);
+        }
+        if (instruction->isa_id == CDISASM_ARM_ISA_A64
+            && ((instruction->form_id == UINT16_C(5912)
+                    && operand == &instruction->operand[1])
+                || ((instruction->form_id == UINT16_C(5913)
+                        || instruction->form_id == UINT16_C(5914)
+                        || instruction->form_id == UINT16_C(5916)
+                        || instruction->form_id == UINT16_C(5917))
+                    && operand == &instruction->operand[0]))) {
+            int gpr_source = instruction->form_id == UINT16_C(5912);
+            unsigned encoded = gpr_source
+                ? (instruction->raw_instruction >> 5) & 31u
+                : instruction->raw_instruction & 31u;
+            int wide = gpr_source
+                ? CDISASM_ARM_VECTOR_ELEMENT_SIZE(&instruction->operand[0])
+                    == 8u
+                : (instruction->raw_instruction & UINT32_C(0x40000000))
+                    != 0u;
+            cdisasm_arm_reg_id expected = wide
+                ? (encoded == 31u ? CDISASM_ARM_REG_XZR
+                    : (cdisasm_arm_reg_id)(CDISASM_ARM_REG_X0 + encoded))
+                : (encoded == 31u ? CDISASM_ARM_REG_WZR
+                    : (cdisasm_arm_reg_id)(CDISASM_ARM_REG_W0 + encoded));
+            return operand->shift_type == CDISASM_ARM_SHIFT_NONE
+                && operand->reg == expected
+                && operand->size == (wide ? 8u : 4u)
+                && operand->extend_type == CDISASM_ARM_EXTEND_NONE
+                && operand->scale == 0u
+                && operand->access == (gpr_source
+                    ? CDISASM_OPERAND_ACCESS_READ
+                    : CDISASM_OPERAND_ACCESS_WRITE);
+        }
+        if (instruction->isa_id == CDISASM_ARM_ISA_A64
+            && instruction->name_id == CDISASM_ARM_NAME_INS
+            && instruction->form_id == UINT16_C(5915)
+            && operand == &instruction->operand[1]) {
+            unsigned encoded = (instruction->raw_instruction >> 5) & 31u;
+            uint8_t element_size =
+                CDISASM_ARM_VECTOR_ELEMENT_SIZE(&instruction->operand[0]);
+            cdisasm_arm_reg_id expected = element_size == 8u
+                ? (encoded == 31u ? CDISASM_ARM_REG_XZR
+                    : (cdisasm_arm_reg_id)(CDISASM_ARM_REG_X0 + encoded))
+                : (encoded == 31u ? CDISASM_ARM_REG_WZR
+                    : (cdisasm_arm_reg_id)(CDISASM_ARM_REG_W0 + encoded));
+            return operand->shift_type == CDISASM_ARM_SHIFT_NONE
+                && operand->reg == expected
+                && operand->size == (element_size == 8u ? 8u : 4u)
+                && operand->extend_type == CDISASM_ARM_EXTEND_NONE
+                && operand->scale == 0u
+                && operand->access == CDISASM_OPERAND_ACCESS_READ;
+        }
         return operand->shift_type == CDISASM_ARM_SHIFT_NONE
             && arm_valid_vector_layout(instruction, operand)
             && (!is_advsimd_element_lane
@@ -987,6 +1214,30 @@ static int arm_valid_register_operand(
         && operand->reg <= CDISASM_ARM_REG_V31
         && arm_valid_vector_layout(instruction, operand)) {
         return 1;
+    }
+    if (instruction->isa_id == CDISASM_ARM_ISA_A64
+        && instruction->form_id >= UINT16_C(5809)
+        && instruction->form_id <= UINT16_C(5818)
+        && operand == &instruction->operand[1]) {
+        static const cdisasm_arm_name_id pairwise_names[5] = {
+            CDISASM_ARM_NAME_FMAXNMP, CDISASM_ARM_NAME_FADDP,
+            CDISASM_ARM_NAME_FMAXP, CDISASM_ARM_NAME_FMINNMP,
+            CDISASM_ARM_NAME_FMINP
+        };
+        uint8_t element_size = CDISASM_ARM_VECTOR_ELEMENT_SIZE(operand);
+
+        return instruction->name_id
+                == pairwise_names[(instruction->form_id - UINT16_C(5809)) % 5u]
+            && instruction->instruction_flags
+                == CDISASM_ARM_INSTRUCTION_FLAG_FLOATING_POINT
+            && cdisasm_arm_generated_form_matches(instruction)
+            && operand->reg >= CDISASM_ARM_REG_V0
+            && operand->reg <= CDISASM_ARM_REG_V31
+            && element_size == instruction->operand[0].size
+            && CDISASM_ARM_VECTOR_ELEMENT_COUNT(operand) == 2u
+            && operand->size == (uint8_t)(element_size * 2u)
+            && operand->shift_type == CDISASM_ARM_SHIFT_NONE
+            && operand->access == CDISASM_OPERAND_ACCESS_READ;
     }
     if (instruction->name_id == CDISASM_ARM_NAME_MOV
         && (instruction->instruction_flags
@@ -1021,7 +1272,15 @@ static int arm_valid_register_operand(
                     & CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR) != 0u
                 && operand == &instruction->operand[1]
                 && operand->reg >= CDISASM_ARM_REG_D0
-                && operand->reg <= CDISASM_ARM_REG_D31))
+                && operand->reg <= CDISASM_ARM_REG_D31)
+            && !(instruction->isa_id == CDISASM_ARM_ISA_A64
+                && instruction->form_id == UINT16_C(2477)
+                && instruction->name_id == CDISASM_ARM_NAME_CPY
+                && operand == &instruction->operand[2]
+                && operand->reg >= CDISASM_ARM_REG_D0
+                && operand->reg <= CDISASM_ARM_REG_D31
+                && cdisasm_arm_generated_form_matches(instruction))
+            && !arm_is_sve_last_scalar_operand(instruction, operand))
         || operand->extend_type > CDISASM_ARM_EXTEND_SXTX
         || (operand->shift_type != CDISASM_ARM_SHIFT_NONE
             && operand->extend_type != CDISASM_ARM_EXTEND_NONE)
@@ -1084,8 +1343,12 @@ static int arm_valid_memory_register(
     if (isa_id != CDISASM_ARM_ISA_A64) {
         return arm_is_a32_register(reg);
     }
-    if (is_index && arm_is_w_register(reg)) {
-        return reg != CDISASM_ARM_REG_WSP;
+    if (is_index) {
+        if (arm_is_w_register(reg)) {
+            return reg != CDISASM_ARM_REG_WSP;
+        }
+        return (reg >= CDISASM_ARM_REG_X0 && reg <= CDISASM_ARM_REG_X30)
+            || reg == CDISASM_ARM_REG_XZR;
     }
     return reg >= CDISASM_ARM_REG_X0 && reg <= CDISASM_ARM_REG_SP;
 }
@@ -1149,6 +1412,8 @@ static int arm_valid_memory_operand(
                 && instruction->form_id <= UINT16_C(3207))
             || (instruction->form_id >= UINT16_C(3208)
                 && instruction->form_id <= UINT16_C(3213))
+            || (instruction->form_id >= UINT16_C(3220)
+                && instruction->form_id <= UINT16_C(3221))
             || (instruction->form_id >= UINT16_C(3222)
                 && instruction->form_id <= UINT16_C(3224))
             || (instruction->form_id >= UINT16_C(3229)
@@ -1161,6 +1426,8 @@ static int arm_valid_memory_operand(
                 && instruction->form_id <= UINT16_C(3398))
             || (instruction->form_id >= UINT16_C(3399)
                 && instruction->form_id <= UINT16_C(3408))
+            || (instruction->form_id >= UINT16_C(3409)
+                && instruction->form_id <= UINT16_C(3411))
             || (instruction->form_id >= UINT16_C(3416)
                 && instruction->form_id <= UINT16_C(3419))
             || (instruction->form_id >= UINT16_C(3412)
@@ -1211,7 +1478,8 @@ static int arm_valid_memory_operand(
                 && instruction->name_id >= CDISASM_ARM_NAME_LD1
                 && instruction->name_id <= CDISASM_ARM_NAME_ST4
                 && (operand->size == 3u || operand->size == 6u
-                    || operand->size == 12u || operand->size == 24u))
+                    || operand->size == 12u || operand->size == 24u
+                    || operand->size == 32u))
             && !(instruction->isa_id == CDISASM_ARM_ISA_A64
                 && instruction->form_id >= UINT16_C(4795)
                 && instruction->form_id <= UINT16_C(4801)
@@ -1439,8 +1707,12 @@ static int arm_valid_scalable_operand(
             || element_size == 1u || element_size == 2u
             || element_size == 4u || element_size == 8u
             || (element_size == 16u
-                && arm_name_accepts_quadword_scalable_elements(
-                    instruction->name_id)))
+                && (arm_name_accepts_quadword_scalable_elements(
+                        instruction->name_id)
+                    || (instruction->form_id == UINT16_C(2808)
+                        && instruction->name_id == CDISASM_ARM_NAME_PMULLB)
+                    || (instruction->form_id == UINT16_C(2812)
+                        && instruction->name_id == CDISASM_ARM_NAME_PMULLT))))
         && operand->scale == 0u
         && operand->shift_type == CDISASM_ARM_SHIFT_NONE
         && operand->shift_amount == 0u
@@ -1624,14 +1896,61 @@ static int arm_valid_vector_list_operand(
         || instruction->isa_id == CDISASM_ARM_ISA_T32)
         && (instruction->name_id == CDISASM_ARM_NAME_VLDM
             || instruction->name_id == CDISASM_ARM_NAME_VLDMDB
+            || instruction->name_id == CDISASM_ARM_NAME_VLDMIA
             || instruction->name_id == CDISASM_ARM_NAME_VSTM
-            || instruction->name_id == CDISASM_ARM_NAME_VSTMDB);
+            || instruction->name_id == CDISASM_ARM_NAME_VSTMDB
+            || instruction->name_id == CDISASM_ARM_NAME_VSTMIA
+            || instruction->name_id == CDISASM_ARM_NAME_FLDMDBX
+            || instruction->name_id == CDISASM_ARM_NAME_FLDMIAX
+            || instruction->name_id == CDISASM_ARM_NAME_FSTMDBX
+            || instruction->name_id == CDISASM_ARM_NAME_FSTMIAX
+            || instruction->name_id == CDISASM_ARM_NAME_VPOP
+            || instruction->name_id == CDISASM_ARM_NAME_VPUSH);
     int fixed_structure = instruction->form_id >= UINT16_C(4573)
         && instruction->form_id <= UINT16_C(4614);
+    int replicate_structure = instruction->isa_id == CDISASM_ARM_ISA_A64
+        && instruction->form_id >= UINT16_C(4639)
+        && instruction->form_id <= UINT16_C(4651)
+        && (instruction->name_id == CDISASM_ARM_NAME_LD1R
+            || instruction->name_id == CDISASM_ARM_NAME_LD2R
+            || instruction->name_id == CDISASM_ARM_NAME_LD3R
+            || instruction->name_id == CDISASM_ARM_NAME_LD4R);
     int lane_structure = instruction->form_id >= UINT16_C(4615)
         && instruction->form_id <= UINT16_C(4724)
-        && instruction->name_id >= CDISASM_ARM_NAME_LD1
-        && instruction->name_id <= CDISASM_ARM_NAME_ST4;
+        && !replicate_structure
+        && ((instruction->name_id >= CDISASM_ARM_NAME_LD1
+                && instruction->name_id <= CDISASM_ARM_NAME_ST4)
+            || (instruction->isa_id == CDISASM_ARM_ISA_A64
+                && ((instruction->form_id == UINT16_C(4623)
+                        && instruction->name_id == CDISASM_ARM_NAME_STL1)
+                    || (instruction->form_id == UINT16_C(4642)
+                        && instruction->name_id == CDISASM_ARM_NAME_LDAP1))));
+
+    if ((instruction->isa_id == CDISASM_ARM_ISA_A32
+            || instruction->isa_id == CDISASM_ARM_ISA_T32)
+        && (((instruction->form_id == UINT16_C(861)
+                    || instruction->form_id == UINT16_C(1388))
+                && instruction->name_id == CDISASM_ARM_NAME_VTBL)
+            || ((instruction->form_id == UINT16_C(862)
+                    || instruction->form_id == UINT16_C(1389))
+                && instruction->name_id == CDISASM_ARM_NAME_VTBX))) {
+        return cdisasm_arm_generated_form_matches(instruction)
+            && operand == &instruction->operand[1]
+            && (instruction->instruction_flags
+                & CDISASM_ARM_INSTRUCTION_FLAG_SIMD) != 0u
+            && operand->reg >= CDISASM_ARM_REG_D0
+            && operand->reg <= CDISASM_ARM_REG_D31
+            && count >= 1u && count <= 4u
+            && (unsigned)(operand->reg - CDISASM_ARM_REG_D0) + count <= 32u
+            && operand->base_reg == CDISASM_ARM_REG_NONE
+            && operand->index_reg == CDISASM_ARM_REG_NONE
+            && operand->address == 0u && operand->imm == 0u
+            && operand->size == 8u && operand->flags == 0u
+            && operand->shift_type == CDISASM_ARM_SHIFT_NONE
+            && operand->shift_amount == 0u
+            && operand->extend_type == 1u && operand->scale == 8u
+            && operand->access == CDISASM_OPERAND_ACCESS_READ;
+    }
 
     if (a32_structure) {
         int lane = (operand->flags
@@ -1693,7 +2012,8 @@ static int arm_valid_vector_list_operand(
         && (lane_structure
             ? operand->imm < 16u / element_size : operand->imm == 0u)
         && (operand->size == 16u
-            || (fixed_structure && operand->size == 8u))
+            || ((fixed_structure || replicate_structure)
+                && operand->size == 8u))
         && operand->flags == (lane_structure
             ? CDISASM_ARM_OPERAND_FLAG_HAS_LANE : 0u)
         && operand->scale == operand->size / element_size
@@ -2421,6 +2741,105 @@ static int arm_lsui_rmw_ordering(
     }
 }
 
+static int arm_is_rcw_scalar_form(cdisasm_arm_form_id form_id)
+{
+    return (form_id >= UINT16_C(1205) && form_id <= UINT16_C(1208))
+        || (form_id >= UINT16_C(1221) && form_id <= UINT16_C(1224))
+        || (form_id >= UINT16_C(1229) && form_id <= UINT16_C(1232))
+        || (form_id >= UINT16_C(1237) && form_id <= UINT16_C(1240))
+        || (form_id >= UINT16_C(1245) && form_id <= UINT16_C(1248))
+        || (form_id >= UINT16_C(1253) && form_id <= UINT16_C(1256));
+}
+
+static uint32_t arm_expected_atomic_flags(
+    const cdisasm_arm_instruction *instruction);
+static int arm_exact_register_operand(
+    const cdisasm_arm_operand *operand, cdisasm_arm_reg_id reg,
+    uint8_t size, cdisasm_operand_access access);
+
+static int arm_rcw_scalar_identity(
+    const cdisasm_arm_instruction *instruction,
+    cdisasm_arm_form_id *form_id,
+    cdisasm_arm_name_id *name_id)
+{
+    static const cdisasm_arm_name_id names[2][3] = {
+        { CDISASM_ARM_NAME_RCWCLR, CDISASM_ARM_NAME_RCWSWP,
+          CDISASM_ARM_NAME_RCWSET },
+        { CDISASM_ARM_NAME_RCWSCLR, CDISASM_ARM_NAME_RCWSSWP,
+          CDISASM_ARM_NAME_RCWSSET }
+    };
+    static const cdisasm_arm_form_id forms[2][4][3] = {
+        { { 1205u, 1253u, 1229u }, { 1208u, 1256u, 1232u },
+          { 1206u, 1254u, 1230u }, { 1207u, 1255u, 1231u } },
+        { { 1221u, 1245u, 1237u }, { 1224u, 1248u, 1240u },
+          { 1222u, 1246u, 1238u }, { 1223u, 1247u, 1239u } }
+    };
+    uint32_t word = instruction->raw_instruction;
+    unsigned operation = (word >> 12) & 15u;
+    unsigned ordering = (word >> 22) & 3u;
+    unsigned signed_parent = (word >> 30) & 1u;
+
+    if (instruction->isa_id != CDISASM_ARM_ISA_A64
+        || operation < 9u || operation > 11u
+        || (word & UINT32_C(0xffe0fc00))
+            != (UINT32_C(0x38209000)
+                + ((uint32_t)(operation - 9u) << 12)
+                | ((uint32_t)signed_parent << 30)
+                | ((uint32_t)ordering << 22))) {
+        return 0;
+    }
+    *form_id = forms[signed_parent][ordering][operation - 9u];
+    *name_id = (cdisasm_arm_name_id)(
+        names[signed_parent][operation - 9u] +
+        (ordering == 0u ? 0u : ordering == 1u ? 3u :
+            ordering == 2u ? 1u : 2u));
+    return 1;
+}
+
+static int arm_valid_rcw_scalar_schema(
+    const cdisasm_arm_instruction *instruction)
+{
+    cdisasm_arm_form_id form_id;
+    cdisasm_arm_name_id name_id;
+    uint32_t word = instruction->raw_instruction;
+    unsigned rd = word & 31u;
+    unsigned rn = (word >> 5) & 31u;
+    unsigned rm = (word >> 16) & 31u;
+    const cdisasm_arm_operand *memory = &instruction->operand[2];
+    int raw = arm_rcw_scalar_identity(instruction, &form_id, &name_id);
+    int form = instruction->isa_id == CDISASM_ARM_ISA_A64
+        && arm_is_rcw_scalar_form(instruction->form_id);
+
+    if (!raw && !form) return 1;
+    if (!raw || !form) return 0;
+    return instruction->form_id == form_id
+        && instruction->name_id == name_id
+        && instruction->opcode_size == 4u
+        && instruction->condition == CDISASM_ARM_CONDITION_AL
+        && instruction->opcode_groups == CDISASM_GROUP_NONE
+        && instruction->instruction_flags == arm_expected_atomic_flags(instruction)
+        && instruction->branch_target == 0u
+        && instruction->operand_count == 3u
+        && arm_exact_register_operand(&instruction->operand[0],
+            rm == 31u ? CDISASM_ARM_REG_XZR
+                : (cdisasm_arm_reg_id)(CDISASM_ARM_REG_X0 + rm),
+            8u, CDISASM_OPERAND_ACCESS_READ)
+        && arm_exact_register_operand(&instruction->operand[1],
+            rd == 31u ? CDISASM_ARM_REG_XZR
+                : (cdisasm_arm_reg_id)(CDISASM_ARM_REG_X0 + rd),
+            8u, CDISASM_OPERAND_ACCESS_READ)
+        && memory->type == CDISASM_OPERAND_MEMORY
+        && memory->base_reg == (rn == 31u ? CDISASM_ARM_REG_SP
+            : (cdisasm_arm_reg_id)(CDISASM_ARM_REG_X0 + rn))
+        && memory->index_reg == CDISASM_ARM_REG_NONE
+        && memory->size == 8u && memory->imm == 0u
+        && memory->flags == CDISASM_OPERAND_FLAG_NONE
+        && memory->shift_type == CDISASM_ARM_SHIFT_NONE
+        && memory->extend_type == CDISASM_ARM_EXTEND_NONE
+        && memory->scale == 0u
+        && memory->access == CDISASM_OPERAND_ACCESS_READ_WRITE;
+}
+
 static uint32_t arm_expected_atomic_flags(
     const cdisasm_arm_instruction *instruction)
 {
@@ -2428,8 +2847,32 @@ static uint32_t arm_expected_atomic_flags(
     const uint32_t exclusive = CDISASM_ARM_INSTRUCTION_FLAG_EXCLUSIVE;
     cdisasm_arm_name_id name_id = instruction->name_id;
     cdisasm_arm_name_id first_name;
+    cdisasm_arm_name_id rcw_name;
+    cdisasm_arm_form_id rcw_form;
     unsigned ordering;
     int lsui_pair;
+
+    if (arm_rcw_scalar_identity(instruction, &rcw_form, &rcw_name)) {
+        uint32_t word = instruction->raw_instruction;
+        (void)rcw_form;
+        (void)rcw_name;
+        return atomic
+            | ((word & UINT32_C(0x00800000)) != 0u
+                ? CDISASM_ARM_INSTRUCTION_FLAG_ACQUIRE : 0u)
+            | ((word & UINT32_C(0x00400000)) != 0u
+                ? CDISASM_ARM_INSTRUCTION_FLAG_RELEASE : 0u);
+    }
+
+    if (instruction->isa_id == CDISASM_ARM_ISA_A64
+        && instruction->form_id >= UINT16_C(5396)
+        && instruction->form_id <= UINT16_C(5515)) {
+        uint32_t word = instruction->raw_instruction;
+        return atomic
+            | ((word & UINT32_C(0x00800000)) != 0u
+                ? CDISASM_ARM_INSTRUCTION_FLAG_ACQUIRE : 0u)
+            | ((word & UINT32_C(0x00400000)) != 0u
+                ? CDISASM_ARM_INSTRUCTION_FLAG_RELEASE : 0u);
+    }
 
     if (instruction->form_id >= UINT16_C(4725)
         && instruction->form_id <= UINT16_C(4732)) {
@@ -2516,6 +2959,16 @@ static uint32_t arm_expected_atomic_flags(
                 ? CDISASM_ARM_INSTRUCTION_FLAG_ACQUIRE : 0u)
             | ((ordering & 2u) != 0u
                 ? CDISASM_ARM_INSTRUCTION_FLAG_RELEASE : 0u);
+    }
+    if (instruction->isa_id == CDISASM_ARM_ISA_A64) {
+        if (instruction->form_id == UINT16_C(4623)
+            && name_id == CDISASM_ARM_NAME_STL1) {
+            return atomic | CDISASM_ARM_INSTRUCTION_FLAG_RELEASE;
+        }
+        if (instruction->form_id == UINT16_C(4642)
+            && name_id == CDISASM_ARM_NAME_LDAP1) {
+            return atomic | CDISASM_ARM_INSTRUCTION_FLAG_ACQUIRE;
+        }
     }
 
     switch (name_id) {
@@ -2608,10 +3061,22 @@ static uint32_t arm_expected_atomic_flags(
 }
 
 static cdisasm_operand_access arm_expected_atomic_memory_access(
-    cdisasm_arm_name_id name_id)
+    const cdisasm_arm_instruction *instruction)
 {
+    cdisasm_arm_name_id name_id = instruction->name_id;
     unsigned lsui_ordering;
     int lsui_pair;
+
+    if (instruction->isa_id == CDISASM_ARM_ISA_A64
+        && arm_is_rcw_scalar_form(instruction->form_id)) {
+        return CDISASM_OPERAND_ACCESS_READ_WRITE;
+    }
+
+    if (instruction->isa_id == CDISASM_ARM_ISA_A64
+        && instruction->form_id >= UINT16_C(5396)
+        && instruction->form_id <= UINT16_C(5515)) {
+        return CDISASM_OPERAND_ACCESS_READ_WRITE;
+    }
 
     if (arm_lsui_rmw_ordering(name_id, &lsui_ordering)) {
         return CDISASM_OPERAND_ACCESS_READ_WRITE;
@@ -2674,6 +3139,7 @@ static cdisasm_operand_access arm_expected_atomic_memory_access(
         case CDISASM_ARM_NAME_LDAPURSH:
         case CDISASM_ARM_NAME_LDAPURSW:
         case CDISASM_ARM_NAME_LDIAPP:
+        case CDISASM_ARM_NAME_LDAP1:
             return CDISASM_OPERAND_ACCESS_READ;
         case CDISASM_ARM_NAME_STILP:
             return CDISASM_OPERAND_ACCESS_WRITE;
@@ -4456,28 +4922,31 @@ static int arm_valid_advsimd_sha_schema(
     int raw_is_envelope = arm_advsimd_sha_raw_is_envelope(instruction);
     int raw_is_family = arm_advsimd_sha_identity_for_instruction(
         instruction, &identity);
-    int form_is_family = (instruction->form_id >= UINT16_C(5731)
+    int form_is_family = (instruction->isa_id == CDISASM_ARM_ISA_A64
+            && instruction->form_id >= UINT16_C(5731)
             && instruction->form_id <= UINT16_C(5740))
-        || instruction->form_id == UINT16_C(676)
-        || instruction->form_id == UINT16_C(687)
-        || instruction->form_id == UINT16_C(716)
-        || instruction->form_id == UINT16_C(728)
-        || instruction->form_id == UINT16_C(743)
-        || instruction->form_id == UINT16_C(748)
-        || instruction->form_id == UINT16_C(768)
-        || instruction->form_id == UINT16_C(819)
-        || instruction->form_id == UINT16_C(831)
-        || instruction->form_id == UINT16_C(832)
-        || instruction->form_id == UINT16_C(1203)
-        || instruction->form_id == UINT16_C(1214)
-        || instruction->form_id == UINT16_C(1243)
-        || instruction->form_id == UINT16_C(1255)
-        || instruction->form_id == UINT16_C(1270)
-        || instruction->form_id == UINT16_C(1275)
-        || instruction->form_id == UINT16_C(1295)
-        || instruction->form_id == UINT16_C(1346)
-        || instruction->form_id == UINT16_C(1358)
-        || instruction->form_id == UINT16_C(1359);
+        || ((instruction->isa_id == CDISASM_ARM_ISA_A32
+                || instruction->isa_id == CDISASM_ARM_ISA_T32)
+            && (instruction->form_id == UINT16_C(676)
+                || instruction->form_id == UINT16_C(687)
+                || instruction->form_id == UINT16_C(716)
+                || instruction->form_id == UINT16_C(728)
+                || instruction->form_id == UINT16_C(743)
+                || instruction->form_id == UINT16_C(748)
+                || instruction->form_id == UINT16_C(768)
+                || instruction->form_id == UINT16_C(819)
+                || instruction->form_id == UINT16_C(831)
+                || instruction->form_id == UINT16_C(832)
+                || instruction->form_id == UINT16_C(1203)
+                || instruction->form_id == UINT16_C(1214)
+                || instruction->form_id == UINT16_C(1243)
+                || instruction->form_id == UINT16_C(1255)
+                || instruction->form_id == UINT16_C(1270)
+                || instruction->form_id == UINT16_C(1275)
+                || instruction->form_id == UINT16_C(1295)
+                || instruction->form_id == UINT16_C(1346)
+                || instruction->form_id == UINT16_C(1358)
+                || instruction->form_id == UINT16_C(1359)));
     int name_is_family = (instruction->instruction_flags
             & CDISASM_ARM_INSTRUCTION_FLAG_OPERANDS_OPAQUE) == 0u
         && arm_is_advsimd_sha_name(instruction->name_id);
@@ -5563,9 +6032,11 @@ static int arm_is_exact_generated_sve_abal(
         && instruction->name_id == expected_name
         && instruction->condition == CDISASM_ARM_CONDITION_AL
         && instruction->opcode_groups == CDISASM_GROUP_NONE
-        && instruction->instruction_flags
-            == (CDISASM_ARM_INSTRUCTION_FLAG_GENERATED_FALLBACK
-                | CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR)
+        && (instruction->instruction_flags
+                == CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR
+            || instruction->instruction_flags
+                == (CDISASM_ARM_INSTRUCTION_FLAG_GENERATED_FALLBACK
+                    | CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR))
         && instruction->branch_target == 0u
         && instruction->operand_count == 3u
         && arm_exact_scalable_operand(
@@ -5742,6 +6213,7 @@ static int arm_valid_advsimd_scalar_immediate_shift_convert_schema(
     uint32_t w=i->raw_instruction,op=w&UINT32_C(0xff80fc00);unsigned enc=(w>>16)&127u,bits=enc>=64?64:enc>=32?32:enc>=16?16:8,rd=w&31,rn=(w>>5)&31,index;int cvt=op==UINT32_C(0x5f00e400)||op==UINT32_C(0x5f00fc00)||op==UINT32_C(0x7f00e400)||op==UINT32_C(0x7f00fc00);static const uint32_t ops[7]={UINT32_C(0x5f007400),UINT32_C(0x5f00e400),UINT32_C(0x5f00fc00),UINT32_C(0x7f006400),UINT32_C(0x7f007400),UINT32_C(0x7f00e400),UINT32_C(0x7f00fc00)};static const cdisasm_arm_name_id names[7]={CDISASM_ARM_NAME_SQSHL,CDISASM_ARM_NAME_SCVTF,CDISASM_ARM_NAME_FCVTZS,CDISASM_ARM_NAME_SQSHLU,CDISASM_ARM_NAME_UQSHL,CDISASM_ARM_NAME_UCVTF,CDISASM_ARM_NAME_FCVTZU};static const uint16_t forms[7]={5858,5861,5862,5869,5870,5875,5876};static const cdisasm_arm_reg_id bases[4]={CDISASM_ARM_REG_B0,CDISASM_ARM_REG_H0,CDISASM_ARM_REG_S0,CDISASM_ARM_REG_D0};uint8_t es=(uint8_t)(bits/8);uint64_t imm=cvt?2u*bits-enc:enc-bits;const cdisasm_arm_operand*d=&i->operand[0],*n=&i->operand[1],*m=&i->operand[2];int form=0;
     for(index=0;index<7;++index)if(i->form_id==forms[index])form=1;
     for(index=0;index<7&&ops[index]!=op;++index){}
+    if (i->isa_id != CDISASM_ARM_ISA_A64) index = 7u;
     if(index==7&&!form)return 1;
     if(index==7||enc<8||(cvt&&enc<32)||i->form_id!=forms[index])return 0;
     return i->isa_id==CDISASM_ARM_ISA_A64&&i->name_id==names[index]&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==(CDISASM_ARM_INSTRUCTION_FLAG_SIMD|(cvt?CDISASM_ARM_INSTRUCTION_FLAG_FLOATING_POINT:0))&&i->operand_count==3&&d->type==CDISASM_OPERAND_REGISTER&&d->reg==bases[bits==8?0:bits==16?1:bits==32?2:3]+rd&&d->size==es&&d->extend_type==es&&d->scale==1&&d->access==CDISASM_OPERAND_ACCESS_WRITE&&n->type==CDISASM_OPERAND_REGISTER&&n->reg==bases[bits==8?0:bits==16?1:bits==32?2:3]+rn&&n->size==es&&n->extend_type==es&&n->scale==1&&n->access==CDISASM_OPERAND_ACCESS_READ&&m->type==CDISASM_OPERAND_IMMEDIATE&&m->imm==imm&&m->size==1&&m->access==CDISASM_OPERAND_ACCESS_READ;
@@ -5833,6 +6305,7 @@ static int arm_valid_advsimd_dot_rdm_three_same_schema(
     uint8_t source_size;
     unsigned rd = w & 31u, rn = (w >> 5) & 31u, rm = (w >> 16) & 31u;
 
+    if (i->isa_id != CDISASM_ARM_ISA_A64) return 1;
     for (index = 0u; index < 4u && operation != values[index]; ++index) {}
     if (index == 4u && !form_claim) return 1;
     if (index == 4u || !form_claim
@@ -5883,6 +6356,7 @@ static int arm_valid_advsimd_extended_dot_three_same_schema(
     uint8_t destination_size, source_size;
 
     for (index = 0u; index < 5u && operation != values[index]; ++index) {}
+    if (i->isa_id != CDISASM_ARM_ISA_A64) return 1;
     if (index == 5u && !form_claim) return 1;
     if (index == 5u || !form_claim) return 0;
     destination_size = index == 1u ? 2u : 4u;
@@ -5927,6 +6401,7 @@ static int arm_valid_advsimd_widening_fp_three_same_schema(
         && i->form_id >= 5988 && i->form_id <= 5993;
     for (index = 0u; index < 6u
             && (w & masks[index]) != values[index]; ++index) {}
+    if (i->isa_id != CDISASM_ARM_ISA_A64) index = 6u;
     if (index == 6u && !form_claim) return 1;
     if (index == 6u || !form_claim) return 0;
     return i->form_id == 5988u + index && i->name_id == names[index]
@@ -5963,6 +6438,7 @@ static int arm_valid_advsimd_i8mm_mmla_schema(
     unsigned rm = (w >> 16) & 31u;
     int form_claim = i->isa_id == CDISASM_ARM_ISA_A64
         && (i->form_id == 5994 || i->form_id == 5995 || i->form_id == 6002);
+    if (i->isa_id != CDISASM_ARM_ISA_A64) return 1;
     for (index = 0u; index < 3u && operation != values[index]; ++index) {}
     if (index == 3u && !form_claim) return 1;
     if (index == 3u || !form_claim) return 0;
@@ -6005,6 +6481,7 @@ static int arm_valid_advsimd_matrix_fp_three_same_schema(
             || i->form_id == 6000 || i->form_id == 6001
             || i->form_id == 5996 || i->form_id == 5999);
     uint8_t destination_size, source_size;
+    if (i->isa_id != CDISASM_ARM_ISA_A64) return 1;
     for (index = 0u; index < 6u && operation != values[index]; ++index) {}
     if (index == 6u && !form_claim) return 1;
     if (index == 6u || !form_claim) return 0;
@@ -6059,6 +6536,7 @@ static int arm_valid_advsimd_fp_convert_vector_schema(
     uint8_t total_size = (w & UINT32_C(0x40000000)) != 0u ? 16u : 8u;
     uint8_t element_size = (w & UINT32_C(0x00400000)) != 0u ? 8u : 4u;
 
+    if (i->isa_id != CDISASM_ARM_ISA_A64) return 1;
     for (index = 0u; index < 12u; ++index) {
         if (i->form_id == forms[index]) owned_form = 1;
         if (operation == values[index]) break;
@@ -6176,6 +6654,7 @@ static int arm_valid_advsimd_fhm_by_element_schema(
     uint8_t ds=(w&UINT32_C(0x40000000))?16u:8u;
     int form=i->form_id==6264||i->form_id==6265||i->form_id==6279||i->form_id==6280;
     for(index=0;index<4u&&op!=values[index];++index){}
+    if (i->isa_id != CDISASM_ARM_ISA_A64) index = 4u;
     if(index==4u&&!form)return 1;if(index==4u||!form)return 0;
     return i->form_id==forms[index]&&i->name_id==names[index]
         &&i->opcode_size==4u&&i->condition==CDISASM_ARM_CONDITION_AL
@@ -6282,8 +6761,7 @@ static int arm_is_advsimd_widening_multiply_name(
 static int arm_is_legacy_widening_multiply_form(
     cdisasm_arm_form_id form_id)
 {
-    return form_id == UINT16_C(56) || form_id == UINT16_C(58)
-        || form_id == UINT16_C(60) || form_id == UINT16_C(62)
+    return (form_id >= UINT16_C(55) && form_id <= UINT16_C(62))
         || form_id == UINT16_C(2206) || form_id == UINT16_C(2207)
         || form_id == UINT16_C(2208) || form_id == UINT16_C(2217);
 }
@@ -6358,7 +6836,7 @@ static int arm_valid_legacy_widening_multiply_schema(
                 expected_name = CDISASM_ARM_NAME_UMULL;
                 break;
             case UINT32_C(0x00900090):
-                expected_form = UINT16_C(56);
+                expected_form = UINT16_C(55);
                 expected_name = CDISASM_ARM_NAME_UMULLS;
                 break;
             case UINT32_C(0x00a00090):
@@ -6366,7 +6844,7 @@ static int arm_valid_legacy_widening_multiply_schema(
                 expected_name = CDISASM_ARM_NAME_UMLAL;
                 break;
             case UINT32_C(0x00b00090):
-                expected_form = UINT16_C(58);
+                expected_form = UINT16_C(57);
                 expected_name = CDISASM_ARM_NAME_UMLALS;
                 break;
             case UINT32_C(0x00c00090):
@@ -6374,7 +6852,7 @@ static int arm_valid_legacy_widening_multiply_schema(
                 expected_name = CDISASM_ARM_NAME_SMULL;
                 break;
             case UINT32_C(0x00d00090):
-                expected_form = UINT16_C(60);
+                expected_form = UINT16_C(59);
                 expected_name = CDISASM_ARM_NAME_SMULLS;
                 break;
             case UINT32_C(0x00e00090):
@@ -6382,7 +6860,7 @@ static int arm_valid_legacy_widening_multiply_schema(
                 expected_name = CDISASM_ARM_NAME_SMLAL;
                 break;
             case UINT32_C(0x00f00090):
-                expected_form = UINT16_C(62);
+                expected_form = UINT16_C(61);
                 expected_name = CDISASM_ARM_NAME_SMLALS;
                 break;
             default:
@@ -6743,6 +7221,31 @@ static int arm_is_generated_saturating_mulh_sibling(
         return instruction->isa_id == CDISASM_ARM_ISA_A64
             && instruction->instruction_flags
                 == CDISASM_ARM_INSTRUCTION_FLAG_SIMD;
+    }
+    if (name_matches && instruction->form_id >= UINT16_C(2778)
+        && instruction->form_id <= UINT16_C(2783)) {
+        return instruction->isa_id == CDISASM_ARM_ISA_A64
+            && instruction->instruction_flags
+                == CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR
+            && cdisasm_arm_generated_form_matches(instruction);
+    }
+    if (name_matches && (instruction->form_id == UINT16_C(2358)
+            || instruction->form_id == UINT16_C(2359))) {
+        return instruction->isa_id == CDISASM_ARM_ISA_A64
+            && instruction->instruction_flags
+                == (CDISASM_ARM_INSTRUCTION_FLAG_GENERATED_FALLBACK
+                    | CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR)
+            && cdisasm_arm_generated_form_matches(instruction);
+    }
+    if (name_matches && (instruction->form_id == UINT16_C(5832)
+            || instruction->form_id == UINT16_C(5847))) {
+        return instruction->isa_id == CDISASM_ARM_ISA_A64
+            && (instruction->instruction_flags
+                    == CDISASM_ARM_INSTRUCTION_FLAG_SIMD
+                || instruction->instruction_flags
+                    == (CDISASM_ARM_INSTRUCTION_FLAG_GENERATED_FALLBACK
+                        | CDISASM_ARM_INSTRUCTION_FLAG_OPERANDS_OPAQUE))
+            && cdisasm_arm_generated_form_matches(instruction);
     }
     return name_matches
         && instruction->isa_id == CDISASM_ARM_ISA_A64
@@ -7530,9 +8033,7 @@ static int arm_valid_sve_mla_indexed_schema(
         return 1;
     }
 
-    if (bf16_raw_is_family || bf16_form_is_family
-        || instruction->name_id == CDISASM_ARM_NAME_BFMLA
-        || instruction->name_id == CDISASM_ARM_NAME_BFMLS) {
+    if (bf16_raw_is_family || bf16_form_is_family) {
         cdisasm_arm_form_id bf16_expected_form = subtract
             ? UINT16_C(2999) : UINT16_C(2995);
         cdisasm_arm_name_id bf16_expected_name = subtract
@@ -8251,12 +8752,43 @@ static int arm_valid_advsimd_compare_schema(
             || (word & UINT32_C(0xfffffc00)) == UINT32_C(0x5ee08800)
             || (word & UINT32_C(0xfffffc00)) == UINT32_C(0x5ee09800)
             || (word & UINT32_C(0xfffffc00)) == UINT32_C(0x7ee08800));
+    int exact_scalar_register_sibling = instruction->isa_id == CDISASM_ARM_ISA_A64
+        && instruction->instruction_flags == CDISASM_ARM_INSTRUCTION_FLAG_SIMD
+        && cdisasm_arm_generated_form_matches(instruction)
+        && ((instruction->form_id == UINT16_C(5824)
+                && instruction->name_id == CDISASM_ARM_NAME_CMGT
+                && (word & UINT32_C(0xffe0fc00)) == UINT32_C(0x5ee03400))
+            || (instruction->form_id == UINT16_C(5825)
+                && instruction->name_id == CDISASM_ARM_NAME_CMGE
+                && (word & UINT32_C(0xffe0fc00)) == UINT32_C(0x5ee03c00))
+            || (instruction->form_id == UINT16_C(5839)
+                && instruction->name_id == CDISASM_ARM_NAME_CMHI
+                && (word & UINT32_C(0xffe0fc00)) == UINT32_C(0x7ee03400))
+            || (instruction->form_id == UINT16_C(5840)
+                && instruction->name_id == CDISASM_ARM_NAME_CMHS
+                && (word & UINT32_C(0xffe0fc00)) == UINT32_C(0x7ee03c00))
+            || (instruction->form_id == UINT16_C(5846)
+                && instruction->name_id == CDISASM_ARM_NAME_CMEQ
+                && (word & UINT32_C(0xffe0fc00)) == UINT32_C(0x7ee08c00)));
+    int exact_fixed_zero_sibling = instruction->isa_id == CDISASM_ARM_ISA_A64
+        && instruction->instruction_flags == CDISASM_ARM_INSTRUCTION_FLAG_SIMD
+        && cdisasm_arm_generated_form_matches(instruction)
+        && ((instruction->form_id == UINT16_C(6011)
+                && instruction->name_id == CDISASM_ARM_NAME_CMGT
+                && (word & UINT32_C(0xbf3ffc00)) == UINT32_C(0x0e208800))
+            || (instruction->form_id == UINT16_C(6012)
+                && instruction->name_id == CDISASM_ARM_NAME_CMEQ
+                && (word & UINT32_C(0xbf3ffc00)) == UINT32_C(0x0e209800))
+            || (instruction->form_id == UINT16_C(6044)
+                && instruction->name_id == CDISASM_ARM_NAME_CMGE
+                && (word & UINT32_C(0xbf3ffc00)) == UINT32_C(0x2e208800)));
 
     /* Scalar-register and compare-with-zero CMGT/CMEQ/CMGE siblings remain
      * catalog-only.  CMLT/CMLE are claimed by their separate exact schema
      * below.  Reject fabricated same-name public instructions until the
      * remaining siblings gain exact schemas of their own. */
-    if (exact_scalar_zero_sibling) {
+    if (exact_scalar_zero_sibling || exact_scalar_register_sibling
+        || exact_fixed_zero_sibling) {
         return 1;
     }
     if (!raw_is_envelope && !form_is_family
@@ -9748,9 +10280,10 @@ static int arm_valid_advsimd_multiply_element_schema(
     static const cdisasm_arm_name_id names[3] = { CDISASM_ARM_NAME_MUL,
         CDISASM_ARM_NAME_SQDMULH, CDISASM_ARM_NAME_SQRDMULH };
     uint32_t w=i->raw_instruction,op=w&UINT32_C(0xbf00f400);unsigned sc=(w>>22)&3u,index,rm,lane,rd=w&31u,rn=(w>>5)&31u;
-    int form_claim=i->isa_id==CDISASM_ARM_ISA_A64&&(i->form_id==6247||i->form_id==6250||i->form_id==6251);
+    int form_claim=i->form_id==6247||i->form_id==6250||i->form_id==6251;
     uint8_t es=(uint8_t)(1u<<sc),vs=(w&UINT32_C(0x40000000))?16u:8u;
     for(index=0;index<3&&ops[index]!=op;++index){}
+    if(i->isa_id!=CDISASM_ARM_ISA_A64)index=3;
     if(index==3&&!form_claim)return 1;
     if(index==3||!form_claim||(sc!=1&&sc!=2))return 0;
     if(sc==1){rm=(w>>16)&15u;lane=((w>>11)&1u)*4u+((w>>21)&1u)*2u+((w>>20)&1u);}
@@ -9773,6 +10306,7 @@ static int arm_valid_advsimd_dot_element_schema(const cdisasm_arm_instruction*i)
     static const cdisasm_arm_name_id names[4]={CDISASM_ARM_NAME_SDOT,CDISASM_ARM_NAME_UDOT,CDISASM_ARM_NAME_SUDOT,CDISASM_ARM_NAME_USDOT};
     uint32_t w=i->raw_instruction;unsigned x,rd=w&31u,rn=(w>>5)&31u,rm=((w>>20)&1u)*16u+((w>>16)&15u),lane=((w>>11)&1u)*2u+((w>>21)&1u);uint8_t vs=(w&0x40000000)?16u:8u;int fc=i->form_id==6252||i->form_id==6274||i->form_id==6257||i->form_id==6266;
     for(x=0;x<4u&&((w&masks[x])!=vals[x]);++x){}
+    if(i->isa_id!=CDISASM_ARM_ISA_A64)x=4u;
     if(x==4u&&!fc)return 1;if(x==4u||!fc)return 0;
     return i->form_id==forms[x]&&i->name_id==names[x]&&i->opcode_size==4
         &&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE
@@ -9789,6 +10323,7 @@ static int arm_valid_advsimd_fp_dot_element_schema(const cdisasm_arm_instruction
     static const cdisasm_arm_name_id names[4]={CDISASM_ARM_NAME_FDOT,CDISASM_ARM_NAME_FDOT,CDISASM_ARM_NAME_FDOT,CDISASM_ARM_NAME_BFDOT};
     uint32_t w=i->raw_instruction;unsigned x,rd=w&31u,rn=(w>>5)&31u,rm,lane;uint8_t de,se,vs=(w&UINT32_C(0x40000000))?16u:8u;int fc=i->form_id==6253||i->form_id==6258||i->form_id==6259||i->form_id==6260;
     for(x=0;x<4u&&((w&UINT32_C(0xbfc0f400))!=vals[x]);++x){}
+    if(i->isa_id!=CDISASM_ARM_ISA_A64)x=4u;
     if(x==4u&&!fc)return 1;if(x==4u||!fc)return 0;
     de=x==1u?2u:4u;se=x<2u?1u:2u;
     if(x==1u){rm=(w>>16)&15u;lane=((w>>11)&1u)*4u+((w>>21)&1u)*2u+((w>>20)&1u);}
@@ -9805,8 +10340,9 @@ static int arm_valid_advsimd_fp_dot_element_schema(const cdisasm_arm_instruction
 static int arm_valid_advsimd_bfmlal_element_schema(const cdisasm_arm_instruction*i)
 {
     uint32_t w=i->raw_instruction;
-    int raw=(w&UINT32_C(0xbfc0f400))==UINT32_C(0x0fc0f000);
-    int form_claim=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id==UINT16_C(6267);
+    int raw=i->isa_id==CDISASM_ARM_ISA_A64
+        &&(w&UINT32_C(0xbfc0f400))==UINT32_C(0x0fc0f000);
+    int form_claim=i->form_id==UINT16_C(6267);
     unsigned rd=w&31u,rn=(w>>5)&31u,rm=(w>>16)&15u;
     uint64_t lane=(uint64_t)(((w>>11)&1u)<<2)
         |(uint64_t)(((w>>21)&1u)<<1)|(uint64_t)((w>>20)&1u);
@@ -9827,6 +10363,7 @@ static int arm_valid_advsimd_fp8_widening_element_schema(const cdisasm_arm_instr
     static const cdisasm_arm_name_id names[6]={CDISASM_ARM_NAME_FMLALB,CDISASM_ARM_NAME_FMLALLBB,CDISASM_ARM_NAME_FMLALLBT,CDISASM_ARM_NAME_FMLALT,CDISASM_ARM_NAME_FMLALLTB,CDISASM_ARM_NAME_FMLALLTT};
     uint32_t w=i->raw_instruction;unsigned x,rd=w&31u,rn=(w>>5)&31u,rm=(w>>16)&7u;uint8_t de;uint64_t lane=(uint64_t)(((w>>11)&1u)<<3)|(uint64_t)(((w>>21)&1u)<<2)|(uint64_t)(((w>>20)&1u)<<1)|(uint64_t)((w>>19)&1u);int fc=i->form_id>=6281&&i->form_id<=6286;
     for(x=0;x<6u&&((w&UINT32_C(0xffc0f400))!=vals[x]);++x){}
+    if(i->isa_id!=CDISASM_ARM_ISA_A64)x=6u;
     if(x==6u&&!fc)return 1;if(x==6u||!fc)return 0;de=(x==0u||x==3u)?2u:4u;
     return i->form_id==forms[x]&&i->name_id==names[x]&&i->opcode_size==4
         &&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE
@@ -9841,7 +10378,7 @@ static int arm_valid_advsimd_fp_multiply_element_schema(const cdisasm_arm_instru
 {
     static const uint32_t masks[8]={0xbfc0f400,0xbfc0f400,0xbfc0f400,0xbf80f400,0xbf80f400,0xbf80f400,0xbfc0f400,0xbf80f400};static const uint32_t vals[8]={0x0f001000,0x0f005000,0x0f009000,0x0f801000,0x0f805000,0x0f809000,0x2f009000,0x2f809000};static const uint16_t forms[8]={6254,6255,6256,6261,6262,6263,6276,6278};static const cdisasm_arm_name_id names[8]={CDISASM_ARM_NAME_FMLA,CDISASM_ARM_NAME_FMLS,CDISASM_ARM_NAME_FMUL,CDISASM_ARM_NAME_FMLA,CDISASM_ARM_NAME_FMLS,CDISASM_ARM_NAME_FMUL,CDISASM_ARM_NAME_FMULX,CDISASM_ARM_NAME_FMULX};
     uint32_t w=i->raw_instruction;unsigned x,rd=w&31u,rn=(w>>5)&31u,rm,lane;uint8_t es,vs=(w&0x40000000)?16u:8u;int fc=(i->form_id>=6254&&i->form_id<=6256)||(i->form_id>=6261&&i->form_id<=6263)||i->form_id==6276||i->form_id==6278,half;
-    for(x=0;x<8u&&((w&masks[x])!=vals[x]);++x){}if(x==8u&&!fc)return 1;if(x==8u||!fc)return 0;half=x<3u||x==6u;es=half?2u:((w&0x00400000)?8u:4u);if(!half&&es==8u&&((w&0x40000000)==0||(w&0x00200000)!=0))return 0;
+    for(x=0;x<8u&&((w&masks[x])!=vals[x]);++x){}if(i->isa_id!=CDISASM_ARM_ISA_A64)x=8u;if(x==8u&&!fc)return 1;if(x==8u||!fc)return 0;half=x<3u||x==6u;es=half?2u:((w&0x00400000)?8u:4u);if(!half&&es==8u&&((w&0x40000000)==0||(w&0x00200000)!=0))return 0;
     if(half){rm=(w>>16)&15u;lane=((w>>11)&1u)*4u+((w>>21)&1u)*2u+((w>>20)&1u);}else{rm=(w>>16)&31u;lane=es==4u?((w>>11)&1u)*2u+((w>>21)&1u):((w>>11)&1u);}
     return i->form_id==forms[x]&&i->name_id==names[x]&&i->opcode_size==4&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==(CDISASM_ARM_INSTRUCTION_FLAG_SIMD|CDISASM_ARM_INSTRUCTION_FLAG_FLOATING_POINT)&&i->branch_target==0&&i->operand_count==3
         &&arm_exact_vector_operand(&i->operand[0],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_V0+rd),vs,es,(x%3u==2u||x>=6u)?CDISASM_OPERAND_ACCESS_WRITE:CDISASM_OPERAND_ACCESS_READ_WRITE)
@@ -9851,7 +10388,7 @@ static int arm_valid_advsimd_fp_multiply_element_schema(const cdisasm_arm_instru
 
 static int arm_valid_advsimd_rdm_element_schema(const cdisasm_arm_instruction*i)
 {
-    uint32_t w=i->raw_instruction,op=w&UINT32_C(0xbf00f400);unsigned sc=(w>>22)&3u,rd=w&31u,rn=(w>>5)&31u,rm,lane;uint8_t es=(uint8_t)(1u<<sc),vs=(w&0x40000000)?16u:8u;int raw=op==UINT32_C(0x2f00d000)||op==UINT32_C(0x2f00f000),fc=i->form_id==6273||i->form_id==6275;
+    uint32_t w=i->raw_instruction,op=w&UINT32_C(0xbf00f400);unsigned sc=(w>>22)&3u,rd=w&31u,rn=(w>>5)&31u,rm,lane;uint8_t es=(uint8_t)(1u<<sc),vs=(w&0x40000000)?16u:8u;int raw=i->isa_id==CDISASM_ARM_ISA_A64&&(op==UINT32_C(0x2f00d000)||op==UINT32_C(0x2f00f000)),fc=i->form_id==6273||i->form_id==6275;
     if(!raw&&!fc)return 1;if(!raw||!fc||(sc!=1u&&sc!=2u))return 0;
     if(sc==1u){rm=(w>>16)&15u;lane=((w>>11)&1u)*4u+((w>>21)&1u)*2u+((w>>20)&1u);}else{rm=(w>>16)&31u;lane=((w>>11)&1u)*2u+((w>>21)&1u);}
     return i->form_id==(op==UINT32_C(0x2f00d000)?6273:6275)&&i->name_id==(op==UINT32_C(0x2f00d000)?CDISASM_ARM_NAME_SQRDMLAH:CDISASM_ARM_NAME_SQRDMLSH)&&i->opcode_size==4&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==CDISASM_ARM_INSTRUCTION_FLAG_SIMD&&i->branch_target==0&&i->operand_count==3
@@ -10923,6 +11460,10 @@ static int arm_valid_sve_clamp_schema(
         && instruction->form_id <= UINT16_C(2702);
     int name_is_family = (instruction->instruction_flags
             & CDISASM_ARM_INSTRUCTION_FLAG_OPERANDS_OPAQUE) == 0u
+        && instruction->form_id != UINT16_C(4293)
+        && instruction->form_id != UINT16_C(4294)
+        && instruction->form_id != UINT16_C(4297)
+        && instruction->form_id != UINT16_C(4298)
         && (instruction->name_id == CDISASM_ARM_NAME_SCLAMP
             || instruction->name_id == CDISASM_ARM_NAME_UCLAMP);
 
@@ -13603,17 +14144,23 @@ static int arm_valid_t32_narrow_mov_shift_schema(
 {
     uint32_t word = instruction->raw_instruction;
     uint32_t encoding = word & UINT32_C(0xffc0);
+    unsigned immediate_operation = (word >> 11) & 3u;
+    unsigned immediate = (word >> 6) & 31u;
+    int raw_is_immediate = instruction->isa_id == CDISASM_ARM_ISA_T32
+        && instruction->opcode_size == 2u
+        && (word & UINT32_C(0xe000)) == 0u
+        && immediate_operation != 3u;
+    int form_is_immediate = instruction->isa_id == CDISASM_ARM_ISA_T32
+        && instruction->form_id == UINT16_C(1104);
     int raw_is_family = instruction->isa_id == CDISASM_ARM_ISA_T32
         && instruction->opcode_size == 2u
-        && (encoding == UINT32_C(0x0000)
-            || encoding == UINT32_C(0x4080)
+        && (encoding == UINT32_C(0x4080)
             || encoding == UINT32_C(0x40c0)
             || encoding == UINT32_C(0x4100)
             || encoding == UINT32_C(0x41c0));
     int form_is_family = instruction->isa_id == CDISASM_ARM_ISA_T32
-        && (instruction->form_id == UINT16_C(1104)
-            || (instruction->form_id >= UINT16_C(1111)
-                && instruction->form_id <= UINT16_C(1114)));
+        && instruction->form_id >= UINT16_C(1111)
+        && instruction->form_id <= UINT16_C(1114);
     cdisasm_arm_form_id expected_form;
     cdisasm_arm_name_id expected_name;
     cdisasm_operand_access destination_access;
@@ -13622,14 +14169,38 @@ static int arm_valid_t32_narrow_mov_shift_schema(
     cdisasm_arm_reg_id source = (cdisasm_arm_reg_id)(
         CDISASM_ARM_REG_R0 + ((word >> 3) & UINT32_C(7)));
 
+    if (raw_is_immediate || form_is_immediate) {
+        cdisasm_arm_name_id expected_immediate_name =
+            immediate_operation == 0u
+                ? (immediate == 0u ? CDISASM_ARM_NAME_MOV
+                                   : CDISASM_ARM_NAME_LSLS)
+                : immediate_operation == 1u ? CDISASM_ARM_NAME_LSRS
+                                            : CDISASM_ARM_NAME_ASRS;
+        unsigned displayed_immediate = immediate == 0u
+            && immediate_operation != 0u ? 32u : immediate;
+
+        return raw_is_immediate && form_is_immediate
+            && instruction->name_id == expected_immediate_name
+            && instruction->condition == CDISASM_ARM_CONDITION_AL
+            && instruction->opcode_groups == CDISASM_GROUP_NONE
+            && instruction->instruction_flags
+                == CDISASM_ARM_INSTRUCTION_FLAG_SETS_FLAGS
+            && instruction->branch_target == 0u
+            && instruction->operand_count
+                == (immediate_operation == 0u && immediate == 0u ? 2u : 3u)
+            && arm_exact_register_operand(&instruction->operand[0],
+                destination, 4u, CDISASM_OPERAND_ACCESS_WRITE)
+            && arm_exact_register_operand(&instruction->operand[1],
+                source, 4u, CDISASM_OPERAND_ACCESS_READ)
+            && (instruction->operand_count == 2u
+                || arm_exact_immediate_operand(&instruction->operand[2],
+                    displayed_immediate))
+            && cdisasm_arm_generated_form_matches(instruction);
+    }
     if (!raw_is_family && !form_is_family) {
         return 1;
     }
-    if (encoding == UINT32_C(0x0000)) {
-        expected_form = UINT16_C(1104);
-        expected_name = CDISASM_ARM_NAME_MOV;
-        destination_access = CDISASM_OPERAND_ACCESS_WRITE;
-    } else if (encoding == UINT32_C(0x4080)) {
+    if (encoding == UINT32_C(0x4080)) {
         expected_form = UINT16_C(1112);
         expected_name = CDISASM_ARM_NAME_LSLS;
         destination_access = CDISASM_OPERAND_ACCESS_READ_WRITE;
@@ -14308,8 +14879,10 @@ static int arm_valid_sve2p1_q_load_store_schema(
                 + ((word >> 5) & 31u)))
         && memory->index_reg == (expected->immediate
             ? CDISASM_ARM_REG_NONE
-            : (cdisasm_arm_reg_id)(CDISASM_ARM_REG_X0
-                + ((word >> 16) & 31u)))
+            : ((word >> 16) & 31u) == 31u
+                ? CDISASM_ARM_REG_XZR
+                : (cdisasm_arm_reg_id)(CDISASM_ARM_REG_X0
+                    + ((word >> 16) & 31u)))
         && memory->register_list == 0u && memory->address == 0u
         && (int64_t)memory->imm == displacement
         && memory->size == expected->memory_size
@@ -14404,7 +14977,9 @@ static int arm_valid_sve2p1_multi_q_schema(
             ? CDISASM_ARM_REG_SP
             : CDISASM_ARM_REG_X0 + ((word >> 5) & 31u))
         && memory->index_reg == (immediate ? CDISASM_ARM_REG_NONE
-            : CDISASM_ARM_REG_X0 + ((word >> 16) & 31u))
+            : ((word >> 16) & 31u) == 31u
+                ? CDISASM_ARM_REG_XZR
+                : CDISASM_ARM_REG_X0 + ((word >> 16) & 31u))
         && (int64_t)memory->imm == displacement && memory->size == 16u
         && memory->flags == memory_flags
         && memory->shift_type == (immediate ? CDISASM_ARM_SHIFT_NONE
@@ -14494,7 +15069,10 @@ static int arm_valid_sve2p1_multi_contiguous_schema(
         && predicate->access == CDISASM_OPERAND_ACCESS_READ
         && memory->type == CDISASM_OPERAND_MEMORY
         && memory->base_reg == (((word >> 5) & 31u) == 31u ? CDISASM_ARM_REG_SP : CDISASM_ARM_REG_X0 + ((word >> 5) & 31u))
-        && memory->index_reg == (immediate ? CDISASM_ARM_REG_NONE : CDISASM_ARM_REG_X0 + ((word >> 16) & 31u))
+        && memory->index_reg == (immediate ? CDISASM_ARM_REG_NONE
+            : ((word >> 16) & 31u) == 31u
+                ? CDISASM_ARM_REG_XZR
+                : CDISASM_ARM_REG_X0 + ((word >> 16) & 31u))
         && (int64_t)memory->imm == displacement && memory->size == size
         && memory->flags == memory_flags
         && memory->shift_type == (!immediate && size_log2 ? CDISASM_ARM_SHIFT_LSL : CDISASM_ARM_SHIFT_NONE)
@@ -14905,7 +15483,7 @@ static int arm_valid_sme2_multi4x4_fp_minmax_schema(const cdisasm_arm_instructio
 
 static int arm_valid_sme_multi_matrix_special_schema(const cdisasm_arm_instruction *i)
 {
-    uint32_t w=i->raw_instruction;unsigned count=(w&UINT32_C(0x800))?4:2,sc=(w>>22)&3,size=sc?1u<<sc:2,zdn=w&(count==4?28:30),zm=(w>>16)&(count==4?28:30);uint32_t opcode=w&(count==4?UINT32_C(0x0000ffe3):UINT32_C(0x0000ffe1)),amax=count==4?UINT32_C(0xb940):UINT32_C(0xb140),amin=amax|1,scale=count==4?UINT32_C(0xb980):UINT32_C(0xb180);int is_scale=opcode==scale,is_min=opcode==amin,b=is_scale&&sc==0,raw=i->isa_id==CDISASM_ARM_ISA_A64&&(opcode==amax||opcode==amin||opcode==scale)&&!(!is_scale&&sc==0),form=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=4265&&i->form_id<=4287&&(i->form_id<=4268||i->form_id>=4284);uint16_t expected=count==4?(is_scale?(b?4287:4286):(is_min?4285:4284)):(is_scale?(b?4268:4267):(is_min?4266:4265));cdisasm_arm_name_id name=is_scale?(b?CDISASM_ARM_NAME_BFSCALE:CDISASM_ARM_NAME_FSCALE):(is_min?CDISASM_ARM_NAME_FAMIN:CDISASM_ARM_NAME_FAMAX);const cdisasm_arm_operand*d=&i->operand[0],*n=&i->operand[1],*m=&i->operand[2];
+    uint32_t w=i->raw_instruction;unsigned count=(w&UINT32_C(0x800))?4:2,sc=(w>>22)&3,size=sc?1u<<sc:2,zdn=w&(count==4?28:30),zm=(w>>16)&(count==4?28:30);uint32_t opcode=w&(count==4?UINT32_C(0x0000ffe3):UINT32_C(0x0000ffe1)),amax=count==4?UINT32_C(0xb940):UINT32_C(0xb140),amin=amax|1,scale=count==4?UINT32_C(0xb980):UINT32_C(0xb180);int is_scale=opcode==scale,is_min=opcode==amin,b=is_scale&&sc==0,raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0xff200000))==UINT32_C(0xc1200000)&&(opcode==amax||opcode==amin||opcode==scale)&&!(!is_scale&&sc==0),form=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=4265&&i->form_id<=4287&&(i->form_id<=4268||i->form_id>=4284);uint16_t expected=count==4?(is_scale?(b?4287:4286):(is_min?4285:4284)):(is_scale?(b?4268:4267):(is_min?4266:4265));cdisasm_arm_name_id name=is_scale?(b?CDISASM_ARM_NAME_BFSCALE:CDISASM_ARM_NAME_FSCALE):(is_min?CDISASM_ARM_NAME_FAMIN:CDISASM_ARM_NAME_FAMAX);const cdisasm_arm_operand*d=&i->operand[0],*n=&i->operand[1],*m=&i->operand[2];
     if(!raw&&!form)return 1;if(!raw||!form)return 0;
     return i->name_id==name&&i->form_id==expected&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==UINT32_C(0x05402000)&&i->operand_count==3
       &&d->type==CDISASM_ARM_OPERAND_SCALABLE_REGISTER_LIST&&d->reg==CDISASM_ARM_REG_Z0+zdn&&d->register_list==(uint16_t)(UINT16_C(0x0100)|count)&&d->extend_type==size&&d->access==CDISASM_OPERAND_ACCESS_WRITE
@@ -14982,6 +15560,10 @@ static int arm_valid_a64_lsui_pair_schema(
         ? (cdisasm_arm_reg_id)(rt2 < 16u ? CDISASM_ARM_REG_Q0
                                          : CDISASM_ARM_REG_Q16 - 16u)
         : CDISASM_ARM_REG_X0;
+    cdisasm_arm_reg_id expected_rt = !vector && rt == 31u
+        ? CDISASM_ARM_REG_XZR : (cdisasm_arm_reg_id)(base + rt);
+    cdisasm_arm_reg_id expected_rt2 = !vector && rt2 == 31u
+        ? CDISASM_ARM_REG_XZR : (cdisasm_arm_reg_id)(base2 + rt2);
     const cdisasm_arm_operand *a = &i->operand[0];
     const cdisasm_arm_operand *b = &i->operand[1];
     const cdisasm_arm_operand *m = &i->operand[2];
@@ -15012,11 +15594,11 @@ static int arm_valid_a64_lsui_pair_schema(
         && i->instruction_flags == flags
         && i->operand_count == 3u
         && a->type == CDISASM_OPERAND_REGISTER
-        && a->reg == base + rt && a->size == size
+        && a->reg == expected_rt && a->size == size
         && a->access == (load ? CDISASM_OPERAND_ACCESS_WRITE
                               : CDISASM_OPERAND_ACCESS_READ)
         && b->type == CDISASM_OPERAND_REGISTER
-        && b->reg == base2 + rt2 && b->size == size
+        && b->reg == expected_rt2 && b->size == size
         && b->access == (load ? CDISASM_OPERAND_ACCESS_WRITE
                               : CDISASM_OPERAND_ACCESS_READ)
         && m->type == CDISASM_OPERAND_MEMORY
@@ -15044,14 +15626,19 @@ static int arm_valid_a64_fp_unsigned_memory_schema(const cdisasm_arm_instruction
 
 static int arm_valid_a64_fp_register_memory_schema(const cdisasm_arm_instruction *i)
 {
-    uint32_t w=i->raw_instruction;unsigned sc=w>>30,q=(w>>23)&1,load=(w>>22)&1,s=(w>>12)&1,option=(w>>13)&7,rm=(w>>16)&31,rt=w&31,rn=(w>>5)&31,type=sc==0?q:sc+1;static const uint8_t sizes[5]={1,16,2,4,8},shifts[5]={0,4,1,2,3};static const cdisasm_arm_reg_id bases[5]={CDISASM_ARM_REG_B0,CDISASM_ARM_REG_Q0,CDISASM_ARM_REG_H0,CDISASM_ARM_REG_S0,CDISASM_ARM_REG_D0};static const uint16_t forms[5][2]={{5525,5527},{5529,5530},{5535,5536},{5540,5541},{5546,5547}};uint16_t fid=i->form_id,expected=(uint16_t)(type==0&&option==3?(load?5528:5526):forms[type][load]);int legal=(option==2||option==3||option==6||option==7)&&!(q&&sc!=0),raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0x3f200c00))==UINT32_C(0x3c200800)&&legal,form=i->isa_id==CDISASM_ARM_ISA_A64&&(fid==5525||fid==5526||fid==5527||fid==5528||fid==5529||fid==5530||fid==5535||fid==5536||fid==5540||fid==5541||fid==5546||fid==5547);const cdisasm_arm_operand*r=&i->operand[0],*m=&i->operand[1];cdisasm_arm_reg_id base=(cdisasm_arm_reg_id)(type==1&&rt>=16?CDISASM_ARM_REG_Q16-16:bases[type]),index=(cdisasm_arm_reg_id)(((option&1)!=0?CDISASM_ARM_REG_X0:CDISASM_ARM_REG_W0)+rm);cdisasm_arm_extend_type ext=(cdisasm_arm_extend_type)(option==2?CDISASM_ARM_EXTEND_UXTW:option==6?CDISASM_ARM_EXTEND_SXTW:option==7?CDISASM_ARM_EXTEND_SXTX:CDISASM_ARM_EXTEND_NONE);if(!raw&&!form)return 1;if(!raw||!form)return 0;
+    uint32_t w=i->raw_instruction;unsigned sc=w>>30,q=(w>>23)&1,load=(w>>22)&1,s=(w>>12)&1,option=(w>>13)&7,rm=(w>>16)&31,rt=w&31,rn=(w>>5)&31,type=sc==0?q:sc+1;static const uint8_t sizes[5]={1,16,2,4,8},shifts[5]={0,4,1,2,3};static const cdisasm_arm_reg_id bases[5]={CDISASM_ARM_REG_B0,CDISASM_ARM_REG_Q0,CDISASM_ARM_REG_H0,CDISASM_ARM_REG_S0,CDISASM_ARM_REG_D0};static const uint16_t forms[5][2]={{5525,5527},{5529,5530},{5535,5536},{5540,5541},{5546,5547}};uint16_t fid=i->form_id,expected=(uint16_t)(type==0&&option==3?(load?5528:5526):forms[type][load]);int legal=(option==2||option==3||option==6||option==7)&&!(q&&sc!=0),raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0x3f200c00))==UINT32_C(0x3c200800)&&legal,form=i->isa_id==CDISASM_ARM_ISA_A64&&(fid==5525||fid==5526||fid==5527||fid==5528||fid==5529||fid==5530||fid==5535||fid==5536||fid==5540||fid==5541||fid==5546||fid==5547);const cdisasm_arm_operand*r=&i->operand[0],*m=&i->operand[1];cdisasm_arm_reg_id base=(cdisasm_arm_reg_id)(type==1&&rt>=16?CDISASM_ARM_REG_Q16-16:bases[type]),index=(cdisasm_arm_reg_id)(rm==31u?((option&1)!=0?CDISASM_ARM_REG_XZR:CDISASM_ARM_REG_WZR):((option&1)!=0?CDISASM_ARM_REG_X0:CDISASM_ARM_REG_W0)+rm);cdisasm_arm_extend_type ext=(cdisasm_arm_extend_type)(option==2?CDISASM_ARM_EXTEND_UXTW:option==6?CDISASM_ARM_EXTEND_SXTW:option==7?CDISASM_ARM_EXTEND_SXTX:CDISASM_ARM_EXTEND_NONE);if(!raw&&!form)return 1;if(!raw||!form)return 0;
     return i->name_id==(load?CDISASM_ARM_NAME_LDR:CDISASM_ARM_NAME_STR)&&i->form_id==expected&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==CDISASM_ARM_INSTRUCTION_FLAG_FLOATING_POINT&&i->operand_count==2&&r->type==CDISASM_OPERAND_REGISTER&&r->reg==base+rt&&r->size==sizes[type]&&r->access==(load?CDISASM_OPERAND_ACCESS_WRITE:CDISASM_OPERAND_ACCESS_READ)&&m->type==CDISASM_OPERAND_MEMORY&&m->base_reg==(rn==31?CDISASM_ARM_REG_SP:CDISASM_ARM_REG_X0+rn)&&m->index_reg==index&&m->size==sizes[type]&&m->access==(load?CDISASM_OPERAND_ACCESS_READ:CDISASM_OPERAND_ACCESS_WRITE)&&m->shift_type==(option==3&&s?CDISASM_ARM_SHIFT_LSL:CDISASM_ARM_SHIFT_NONE)&&m->shift_amount==(option==3&&s?shifts[type]:0)&&m->extend_type==ext&&m->scale==(option!=3&&s?shifts[type]:0)&&m->imm==0&&m->flags==0;
 }
 
 static int arm_valid_a64_register_memory_schema(const cdisasm_arm_instruction *i)
 {
-    uint32_t w=i->raw_instruction;unsigned size=w>>30,opc=(w>>22)&3,s=(w>>12)&1,option=(w>>13)&7,rm=(w>>16)&31,rt=w&31,rn=(w>>5)&31,reg64=0,ms=1u<<size;uint16_t expected=0;cdisasm_arm_name_id name=CDISASM_ARM_NAME_NONE;int legal=option==2||option==3||option==6||option==7;if(size==0){if(opc==0){name=CDISASM_ARM_NAME_STRB;expected=option==3?5518:5517;}else if(opc==1){name=CDISASM_ARM_NAME_LDRB;expected=option==3?5520:5519;}else{name=CDISASM_ARM_NAME_LDRSB;reg64=opc==2;expected=opc==2?(option==3?5522:5521):(option==3?5524:5523);}}else if(size==1){if(opc==0){name=CDISASM_ARM_NAME_STRH;expected=5531;}else if(opc==1){name=CDISASM_ARM_NAME_LDRH;expected=5532;}else{name=CDISASM_ARM_NAME_LDRSH;reg64=opc==2;expected=opc==2?5533:5534;}}else if(size==2){if(opc==0){name=CDISASM_ARM_NAME_STR;expected=5537;}else if(opc==1){name=CDISASM_ARM_NAME_LDR;expected=5538;}else if(opc==2){name=CDISASM_ARM_NAME_LDRSW;reg64=1;expected=5539;}else legal=0;}else{if(opc==0){name=CDISASM_ARM_NAME_STR;reg64=1;expected=5542;}else if(opc==1){name=CDISASM_ARM_NAME_LDR;reg64=1;expected=5543;}else if(opc==2){name=CDISASM_ARM_NAME_PRFM;expected=5544;ms=1;}else legal=0;}int raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0x3f200c00))==UINT32_C(0x38200800)&&legal,form=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=5517&&i->form_id<=5544&&(i->form_id<=5524||(i->form_id>=5531&&i->form_id<=5534)||(i->form_id>=5537&&i->form_id<=5539)||i->form_id>=5542);const cdisasm_arm_operand*r=&i->operand[0],*m=&i->operand[1];cdisasm_arm_reg_id index=(cdisasm_arm_reg_id)(((option&1)?CDISASM_ARM_REG_X0:CDISASM_ARM_REG_W0)+rm);cdisasm_arm_extend_type ext=(cdisasm_arm_extend_type)(option==2?CDISASM_ARM_EXTEND_UXTW:option==6?CDISASM_ARM_EXTEND_SXTW:option==7?CDISASM_ARM_EXTEND_SXTX:CDISASM_ARM_EXTEND_NONE);if(!raw&&!form)return 1;if(!raw||!form)return 0;
-    if(i->name_id!=name||i->form_id!=expected||i->condition!=CDISASM_ARM_CONDITION_AL||i->opcode_groups!=CDISASM_GROUP_NONE||i->instruction_flags!=0||i->operand_count!=2)return 0;if(name==CDISASM_ARM_NAME_PRFM){if(r->type!=CDISASM_OPERAND_IMMEDIATE||r->imm!=rt||r->size!=1)return 0;}else if(r->type!=CDISASM_OPERAND_REGISTER||r->reg!=((reg64?CDISASM_ARM_REG_X0:CDISASM_ARM_REG_W0)+rt)||r->size!=(reg64?8:4)||r->access!=(opc==0?CDISASM_OPERAND_ACCESS_READ:CDISASM_OPERAND_ACCESS_WRITE))return 0;
+    if (i->isa_id == CDISASM_ARM_ISA_A64
+        && (i->raw_instruction & UINT32_C(0xffe04c18))
+            == UINT32_C(0xf8a04818)) {
+        return 1;
+    }
+    uint32_t w=i->raw_instruction;unsigned size=w>>30,opc=(w>>22)&3,s=(w>>12)&1,option=(w>>13)&7,rm=(w>>16)&31,rt=w&31,rn=(w>>5)&31,reg64=0,ms=1u<<size;uint16_t expected=0;cdisasm_arm_name_id name=CDISASM_ARM_NAME_NONE;int legal=option==2||option==3||option==6||option==7;if(size==0){if(opc==0){name=CDISASM_ARM_NAME_STRB;expected=option==3?5518:5517;}else if(opc==1){name=CDISASM_ARM_NAME_LDRB;expected=option==3?5520:5519;}else{name=CDISASM_ARM_NAME_LDRSB;reg64=opc==2;expected=opc==2?(option==3?5522:5521):(option==3?5524:5523);}}else if(size==1){if(opc==0){name=CDISASM_ARM_NAME_STRH;expected=5531;}else if(opc==1){name=CDISASM_ARM_NAME_LDRH;expected=5532;}else{name=CDISASM_ARM_NAME_LDRSH;reg64=opc==2;expected=opc==2?5533:5534;}}else if(size==2){if(opc==0){name=CDISASM_ARM_NAME_STR;expected=5537;}else if(opc==1){name=CDISASM_ARM_NAME_LDR;expected=5538;}else if(opc==2){name=CDISASM_ARM_NAME_LDRSW;reg64=1;expected=5539;}else legal=0;}else{if(opc==0){name=CDISASM_ARM_NAME_STR;reg64=1;expected=5542;}else if(opc==1){name=CDISASM_ARM_NAME_LDR;reg64=1;expected=5543;}else if(opc==2){name=CDISASM_ARM_NAME_PRFM;expected=5544;ms=1;}else legal=0;}int raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0x3f200c00))==UINT32_C(0x38200800)&&legal,form=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=5517&&i->form_id<=5544&&(i->form_id<=5524||(i->form_id>=5531&&i->form_id<=5534)||(i->form_id>=5537&&i->form_id<=5539)||i->form_id>=5542);const cdisasm_arm_operand*r=&i->operand[0],*m=&i->operand[1];cdisasm_arm_reg_id index=(cdisasm_arm_reg_id)(rm==31u?((option&1)?CDISASM_ARM_REG_XZR:CDISASM_ARM_REG_WZR):((option&1)?CDISASM_ARM_REG_X0:CDISASM_ARM_REG_W0)+rm);cdisasm_arm_extend_type ext=(cdisasm_arm_extend_type)(option==2?CDISASM_ARM_EXTEND_UXTW:option==6?CDISASM_ARM_EXTEND_SXTW:option==7?CDISASM_ARM_EXTEND_SXTX:CDISASM_ARM_EXTEND_NONE);if(!raw&&!form)return 1;if(!raw||!form)return 0;
+    if(i->name_id!=name||i->form_id!=expected||i->condition!=CDISASM_ARM_CONDITION_AL||i->opcode_groups!=CDISASM_GROUP_NONE||i->instruction_flags!=0||i->operand_count!=2)return 0;if(name==CDISASM_ARM_NAME_PRFM){if(r->type!=CDISASM_OPERAND_IMMEDIATE||r->imm!=rt||r->size!=1)return 0;}else if(r->type!=CDISASM_OPERAND_REGISTER||r->reg!=(rt==31u?(reg64?CDISASM_ARM_REG_XZR:CDISASM_ARM_REG_WZR):(reg64?CDISASM_ARM_REG_X0:CDISASM_ARM_REG_W0)+rt)||r->size!=(reg64?8:4)||r->access!=(opc==0?CDISASM_OPERAND_ACCESS_READ:CDISASM_OPERAND_ACCESS_WRITE))return 0;
     return m->type==CDISASM_OPERAND_MEMORY&&m->base_reg==(rn==31?CDISASM_ARM_REG_SP:CDISASM_ARM_REG_X0+rn)&&m->index_reg==index&&m->size==ms&&m->access==(opc==0?CDISASM_OPERAND_ACCESS_WRITE:CDISASM_OPERAND_ACCESS_READ)&&m->shift_type==(option==3&&s?CDISASM_ARM_SHIFT_LSL:CDISASM_ARM_SHIFT_NONE)&&m->shift_amount==(option==3&&s?size:0)&&m->extend_type==ext&&m->scale==(option!=3&&s?size:0)&&m->imm==0&&m->flags==0;
 }
 
@@ -15063,7 +15650,7 @@ static int arm_valid_a64_prfm_unsigned_schema(const cdisasm_arm_instruction *i)
 
 static int arm_valid_a64_add_sub_extended_schema(const cdisasm_arm_instruction *i)
 {
-    uint32_t w=i->raw_instruction;unsigned sf=w>>31,sub=(w>>30)&1,set=(w>>29)&1,rm=(w>>16)&31,option=(w>>13)&7,amount=(w>>10)&7,rn=(w>>5)&31,rd=w&31;uint16_t expected=(uint16_t)(5678+sf*4+sub*2+set);int alias=set&&rd==31,raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0x1f200000))==UINT32_C(0x0b200000)&&amount<=4,form=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=5678&&i->form_id<=5685;uint8_t size=sf?8:4;const cdisasm_arm_operand*d=&i->operand[0],*n=&i->operand[alias?0:1],*m=&i->operand[alias?1:2];cdisasm_arm_name_id name=alias?(sub?CDISASM_ARM_NAME_CMP:CDISASM_ARM_NAME_CMN):(sub?(set?CDISASM_ARM_NAME_SUBS:CDISASM_ARM_NAME_SUB):(set?CDISASM_ARM_NAME_ADDS:CDISASM_ARM_NAME_ADD));cdisasm_arm_reg_id mr=(cdisasm_arm_reg_id)(((sf&&(option==3||option==7))?CDISASM_ARM_REG_X0:CDISASM_ARM_REG_W0)+rm);if(!raw&&!form)return 1;if(!raw||!form)return 0;
+    uint32_t w=i->raw_instruction;unsigned sf=w>>31,sub=(w>>30)&1,set=(w>>29)&1,rm=(w>>16)&31,option=(w>>13)&7,amount=(w>>10)&7,rn=(w>>5)&31,rd=w&31;uint16_t expected=(uint16_t)(5678+sf*4+sub*2+set);int alias=set&&rd==31,raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0x1f200000))==UINT32_C(0x0b200000)&&amount<=4,form=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=5678&&i->form_id<=5685;uint8_t size=sf?8:4;const cdisasm_arm_operand*d=&i->operand[0],*n=&i->operand[alias?0:1],*m=&i->operand[alias?1:2];cdisasm_arm_name_id name=alias?(sub?CDISASM_ARM_NAME_CMP:CDISASM_ARM_NAME_CMN):(sub?(set?CDISASM_ARM_NAME_SUBS:CDISASM_ARM_NAME_SUB):(set?CDISASM_ARM_NAME_ADDS:CDISASM_ARM_NAME_ADD));cdisasm_arm_reg_id mr=rm==31u?(sf&&(option==3||option==7)?CDISASM_ARM_REG_XZR:CDISASM_ARM_REG_WZR):(cdisasm_arm_reg_id)(((sf&&(option==3||option==7))?CDISASM_ARM_REG_X0:CDISASM_ARM_REG_W0)+rm);if(!raw&&!form)return 1;if(!raw||!form)return 0;
     if(i->name_id!=name||i->form_id!=expected||i->condition!=CDISASM_ARM_CONDITION_AL||i->opcode_groups!=CDISASM_GROUP_NONE||i->instruction_flags!=(set?CDISASM_ARM_INSTRUCTION_FLAG_SETS_FLAGS:0)||i->operand_count!=(alias?2:3))return 0;if(!alias&&(d->type!=CDISASM_OPERAND_REGISTER||d->reg!=(rd==31&&!set?(sf?CDISASM_ARM_REG_SP:CDISASM_ARM_REG_WSP):(sf?CDISASM_ARM_REG_X0:CDISASM_ARM_REG_W0)+rd)||d->size!=size||d->access!=CDISASM_OPERAND_ACCESS_WRITE))return 0;
     return n->type==CDISASM_OPERAND_REGISTER&&n->reg==(rn==31?(sf?CDISASM_ARM_REG_SP:CDISASM_ARM_REG_WSP):(sf?CDISASM_ARM_REG_X0:CDISASM_ARM_REG_W0)+rn)&&n->size==size&&n->access==CDISASM_OPERAND_ACCESS_READ&&m->type==CDISASM_OPERAND_REGISTER&&m->reg==mr&&m->size==(sf&&(option==3||option==7)?8:4)&&m->access==CDISASM_OPERAND_ACCESS_READ&&m->shift_type==(sf&&option==3?CDISASM_ARM_SHIFT_LSL:CDISASM_ARM_SHIFT_NONE)&&m->shift_amount==(sf&&option==3?amount:0)&&m->extend_type==(sf&&option==3?CDISASM_ARM_EXTEND_NONE:CDISASM_ARM_EXTEND_UXTB+option)&&m->scale==(sf&&option==3?0:amount);
 }
@@ -15071,7 +15658,7 @@ static int arm_valid_a64_add_sub_extended_schema(const cdisasm_arm_instruction *
 static int arm_valid_a64_add_sub_pointer_schema(const cdisasm_arm_instruction *i)
 {
     uint32_t w=i->raw_instruction;unsigned sub=(w>>30)&1,rm=(w>>16)&31,amount=(w>>10)&7,rn=(w>>5)&31,rd=w&31;int raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0xbfe0e000))==UINT32_C(0x9a002000),form=i->isa_id==CDISASM_ARM_ISA_A64&&(i->form_id==5694||i->form_id==5695);const cdisasm_arm_operand*d=&i->operand[0],*n=&i->operand[1],*m=&i->operand[2];if(!raw&&!form)return 1;if(!raw||!form)return 0;
-    return i->name_id==(sub?CDISASM_ARM_NAME_SUBPT:CDISASM_ARM_NAME_ADDPT)&&i->form_id==(sub?5695:5694)&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==0&&i->operand_count==3&&d->type==CDISASM_OPERAND_REGISTER&&d->reg==(rd==31?CDISASM_ARM_REG_SP:CDISASM_ARM_REG_X0+rd)&&d->size==8&&d->access==CDISASM_OPERAND_ACCESS_WRITE&&n->type==CDISASM_OPERAND_REGISTER&&n->reg==(rn==31?CDISASM_ARM_REG_SP:CDISASM_ARM_REG_X0+rn)&&n->size==8&&n->access==CDISASM_OPERAND_ACCESS_READ&&m->type==CDISASM_OPERAND_REGISTER&&m->reg==CDISASM_ARM_REG_X0+rm&&m->size==8&&m->access==CDISASM_OPERAND_ACCESS_READ&&m->shift_type==(amount?CDISASM_ARM_SHIFT_LSL:CDISASM_ARM_SHIFT_NONE)&&m->shift_amount==amount&&m->extend_type==CDISASM_ARM_EXTEND_NONE&&m->scale==0;
+    return i->name_id==(sub?CDISASM_ARM_NAME_SUBPT:CDISASM_ARM_NAME_ADDPT)&&i->form_id==(sub?5695:5694)&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==0&&i->operand_count==3&&d->type==CDISASM_OPERAND_REGISTER&&d->reg==(rd==31?CDISASM_ARM_REG_SP:CDISASM_ARM_REG_X0+rd)&&d->size==8&&d->access==CDISASM_OPERAND_ACCESS_WRITE&&n->type==CDISASM_OPERAND_REGISTER&&n->reg==(rn==31?CDISASM_ARM_REG_SP:CDISASM_ARM_REG_X0+rn)&&n->size==8&&n->access==CDISASM_OPERAND_ACCESS_READ&&m->type==CDISASM_OPERAND_REGISTER&&m->reg==(rm==31u?CDISASM_ARM_REG_XZR:CDISASM_ARM_REG_X0+rm)&&m->size==8&&m->access==CDISASM_OPERAND_ACCESS_READ&&m->shift_type==(amount?CDISASM_ARM_SHIFT_LSL:CDISASM_ARM_SHIFT_NONE)&&m->shift_amount==amount&&m->extend_type==CDISASM_ARM_EXTEND_NONE&&m->scale==0;
 }
 
 static int arm_valid_sme2_multi_clamp_int_schema(const cdisasm_arm_instruction *i)
@@ -15237,6 +15824,23 @@ static int arm_valid_sme_tmop_schema(const cdisasm_arm_instruction *i)
  * the older indexed multi-vector envelope but use distinct mnemonics; keep a
  * separate schema so formatter validation cannot accidentally accept them as
  * FDOT/UDOT. */
+static int arm_is_sme_fvdot_raw(uint32_t word)
+{
+    return (word & UINT32_C(0xfff09038)) == UINT32_C(0xc1500008)
+        || (word & UINT32_C(0xfff09038)) == UINT32_C(0xc1500018)
+        || (word & UINT32_C(0xfff09830)) == UINT32_C(0xc1d00800)
+        || (word & UINT32_C(0xfff09830)) == UINT32_C(0xc1d00810)
+        || (word & UINT32_C(0xfff09030)) == UINT32_C(0xc1d01020);
+}
+
+static int arm_is_sme_fvdot_name(cdisasm_arm_name_id name)
+{
+    return name == CDISASM_ARM_NAME_FVDOT
+        || name == CDISASM_ARM_NAME_BFVDOT
+        || name == CDISASM_ARM_NAME_FVDOTB
+        || name == CDISASM_ARM_NAME_FVDOTT;
+}
+
 static int arm_valid_sme_fvdot_schema(const cdisasm_arm_instruction *i)
 {
     uint32_t w = i->raw_instruction;
@@ -15251,6 +15855,13 @@ static int arm_valid_sme_fvdot_schema(const cdisasm_arm_instruction *i)
     const cdisasm_arm_operand *tile;
     const cdisasm_arm_operand *list;
     const cdisasm_arm_operand *indexed;
+
+    if (!arm_is_sme_fvdot_raw(w)
+        && !(i->form_id >= UINT16_C(6500)
+            && i->form_id <= UINT16_C(6504)
+            && arm_is_sme_fvdot_name(i->name_id))) {
+        return 1;
+    }
 
     if (i->form_id == UINT16_C(6500)
             || i->form_id == UINT16_C(6501)) {
@@ -15311,7 +15922,7 @@ static int arm_valid_sme_fvdot_schema(const cdisasm_arm_instruction *i)
         && list->type == CDISASM_ARM_OPERAND_SCALABLE_REGISTER_LIST
         && list->reg == (cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0
             + (count == 4u ? ((w >> 7) & 7u) * 4u
-                           : ((w >> 6) & 15u) * 2u))
+                           : ((w >> 6) & 30u)))
         && list->register_list == UINT16_C(0x0102)
         && list->extend_type == source_size
         && list->access == CDISASM_OPERAND_ACCESS_READ
@@ -15468,7 +16079,7 @@ static int arm_valid_sve_widening_fp_mla_indexed_schema(const cdisasm_arm_instru
 {
     static const uint16_t forms[8]={3014,3015,3016,3017,3018,3019,3020,3021};
     static const cdisasm_arm_name_id names[8]={CDISASM_ARM_NAME_FMLALB,CDISASM_ARM_NAME_BFMLALB,CDISASM_ARM_NAME_FMLSLB,CDISASM_ARM_NAME_BFMLSLB,CDISASM_ARM_NAME_FMLALT,CDISASM_ARM_NAME_BFMLALT,CDISASM_ARM_NAME_FMLSLT,CDISASM_ARM_NAME_BFMLSLT};
-    uint32_t w=i->raw_instruction;int raw=(w&UINT32_C(0xffa0d000))==UINT32_C(0x64a04000);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=3014&&i->form_id<=3021;unsigned bf=(w>>22)&1u,sub=(w>>13)&1u,top=(w>>10)&1u,index=(top<<2)|(sub<<1)|bf,zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&7u;uint64_t lane=(((w>>19)&1u)<<1)|((w>>11)&1u);
+    uint32_t w=i->raw_instruction;int raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0xffa0d000))==UINT32_C(0x64a04000);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=3014&&i->form_id<=3021;unsigned bf=(w>>22)&1u,sub=(w>>13)&1u,top=(w>>10)&1u,index=(top<<2)|(sub<<1)|bf,zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&7u;uint64_t lane=(((w>>19)&1u)<<1)|((w>>11)&1u);
     if(!raw&&!fc)return 1;if(!raw||!fc)return 0;
     return i->form_id==forms[index]&&i->name_id==names[index]&&i->opcode_size==4
         &&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE
@@ -15481,7 +16092,7 @@ static int arm_valid_sve_widening_fp_mla_indexed_schema(const cdisasm_arm_instru
 
 static int arm_valid_sve_fp8_widening_fp_mla_indexed_schema(const cdisasm_arm_instruction*i)
 {
-    uint32_t w=i->raw_instruction;int raw=(w&UINT32_C(0xff60f000))==UINT32_C(0x64205000);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&(i->form_id==3022||i->form_id==3023);unsigned top=(w>>23)&1u,zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&7u;uint64_t lane=(((w>>19)&1u)<<2)|(((w>>11)&1u)<<1)|((w>>10)&1u);
+    uint32_t w=i->raw_instruction;int raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0xff60f000))==UINT32_C(0x64205000);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&(i->form_id==3022||i->form_id==3023);unsigned top=(w>>23)&1u,zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&7u;uint64_t lane=(((w>>19)&1u)<<2)|(((w>>11)&1u)<<1)|((w>>10)&1u);
     if(!raw&&!fc)return 1;if(!raw||!fc)return 0;
     return i->form_id==(top?3023:3022)&&i->name_id==(top?CDISASM_ARM_NAME_FMLALT:CDISASM_ARM_NAME_FMLALB)&&i->opcode_size==4
         &&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE
@@ -15494,21 +16105,21 @@ static int arm_valid_sve_fp8_widening_fp_mla_indexed_schema(const cdisasm_arm_in
 
 static int arm_valid_sve_fp8_widening_schema(const cdisasm_arm_instruction*i)
 {
-    static const cdisasm_arm_name_id names[6]={CDISASM_ARM_NAME_FMLALLBB,CDISASM_ARM_NAME_FMLALLBT,CDISASM_ARM_NAME_FMLALLTB,CDISASM_ARM_NAME_FMLALLTT,CDISASM_ARM_NAME_FMLALB,CDISASM_ARM_NAME_FMLALT};uint32_t w=i->raw_instruction;int ll=(w&UINT32_C(0xffe0cc00))==UINT32_C(0x64208800),l=(w&UINT32_C(0xffe0ec00))==UINT32_C(0x64a08800);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=3036&&i->form_id<=3041;unsigned index=ll?((w>>12)&3u):(4u+((w>>12)&1u)),zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&31u;
+    static const cdisasm_arm_name_id names[6]={CDISASM_ARM_NAME_FMLALLBB,CDISASM_ARM_NAME_FMLALLBT,CDISASM_ARM_NAME_FMLALLTB,CDISASM_ARM_NAME_FMLALLTT,CDISASM_ARM_NAME_FMLALB,CDISASM_ARM_NAME_FMLALT};uint32_t w=i->raw_instruction;int ll=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0xffe0cc00))==UINT32_C(0x64208800),l=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0xffe0ec00))==UINT32_C(0x64a08800);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=3036&&i->form_id<=3041;unsigned index=ll?((w>>12)&3u):(4u+((w>>12)&1u)),zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&31u;
     if(!ll&&!l&&!fc)return 1;if((!ll&&!l)||!fc)return 0;
     return i->form_id==3036+index&&i->name_id==names[index]&&i->opcode_size==4&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==(CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR|CDISASM_ARM_INSTRUCTION_FLAG_FLOATING_POINT)&&i->branch_target==0&&i->operand_count==3&&arm_exact_scalable_operand(&i->operand[0],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zd),ll?4u:2u,CDISASM_OPERAND_ACCESS_READ_WRITE)&&arm_exact_scalable_operand(&i->operand[1],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zn),1u,CDISASM_OPERAND_ACCESS_READ)&&arm_exact_scalable_operand(&i->operand[2],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zm),1u,CDISASM_OPERAND_ACCESS_READ);
 }
 
 static int arm_valid_sve_fp8_widening_long_long_indexed_schema(const cdisasm_arm_instruction*i)
 {
-    static const cdisasm_arm_name_id names[4]={CDISASM_ARM_NAME_FMLALLBB,CDISASM_ARM_NAME_FMLALLBT,CDISASM_ARM_NAME_FMLALLTB,CDISASM_ARM_NAME_FMLALLTT};uint32_t w=i->raw_instruction;int raw=(w&UINT32_C(0xff20f000))==UINT32_C(0x6420c000);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=3042&&i->form_id<=3045;unsigned variant=(w>>22)&3u,zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&7u;uint64_t lane=(((w>>19)&1u)<<2)|(((w>>11)&1u)<<1)|((w>>10)&1u);
+    static const cdisasm_arm_name_id names[4]={CDISASM_ARM_NAME_FMLALLBB,CDISASM_ARM_NAME_FMLALLBT,CDISASM_ARM_NAME_FMLALLTB,CDISASM_ARM_NAME_FMLALLTT};uint32_t w=i->raw_instruction;int raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0xff20f000))==UINT32_C(0x6420c000);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=3042&&i->form_id<=3045;unsigned variant=(w>>22)&3u,zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&7u;uint64_t lane=(((w>>19)&1u)<<2)|(((w>>11)&1u)<<1)|((w>>10)&1u);
     if(!raw&&!fc)return 1;if(!raw||!fc)return 0;
     return i->form_id==3042+variant&&i->name_id==names[variant]&&i->opcode_size==4&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==(CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR|CDISASM_ARM_INSTRUCTION_FLAG_FLOATING_POINT)&&i->branch_target==0&&i->operand_count==3&&arm_exact_scalable_operand(&i->operand[0],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zd),4u,CDISASM_OPERAND_ACCESS_READ_WRITE)&&arm_exact_scalable_operand(&i->operand[1],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zn),1u,CDISASM_OPERAND_ACCESS_READ)&&arm_exact_scalable_lane_operand(&i->operand[2],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zm),1u,lane,CDISASM_OPERAND_ACCESS_READ);
 }
 
 static int arm_valid_sve_fp8_fmmla_schema(const cdisasm_arm_instruction*i)
 {
-    uint32_t w=i->raw_instruction;int raw=(w&UINT32_C(0xffa0fc00))==UINT32_C(0x6420e000);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&(i->form_id==3046||i->form_id==3047);unsigned half=(w>>22)&1u,zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&31u;
+    uint32_t w=i->raw_instruction;int raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0xffa0fc00))==UINT32_C(0x6420e000);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&(i->form_id==3046||i->form_id==3047);unsigned half=(w>>22)&1u,zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&31u;
     if(!raw&&!fc)return 1;if(!raw||!fc)return 0;
     return i->form_id==3046+half&&i->name_id==CDISASM_ARM_NAME_FMMLA&&i->opcode_size==4&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==(CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR|CDISASM_ARM_INSTRUCTION_FLAG_FLOATING_POINT)&&i->branch_target==0&&i->operand_count==3&&arm_exact_scalable_operand(&i->operand[0],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zd),half?2u:4u,CDISASM_OPERAND_ACCESS_READ_WRITE)&&arm_exact_scalable_operand(&i->operand[1],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zn),1u,CDISASM_OPERAND_ACCESS_READ)&&arm_exact_scalable_operand(&i->operand[2],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zm),1u,CDISASM_OPERAND_ACCESS_READ);
 }
@@ -15516,6 +16127,7 @@ static int arm_valid_sve_fp8_fmmla_schema(const cdisasm_arm_instruction*i)
 static int arm_valid_sve_fmmla_schema(const cdisasm_arm_instruction*i)
 {
     uint32_t w=i->raw_instruction;int narrow=(w&UINT32_C(0xffa0fc00))==UINT32_C(0x64a0e000),regular=(w&UINT32_C(0xff20fc00))==UINT32_C(0x6420e400);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=3048&&i->form_id<=3053;unsigned v=narrow?((w>>22)&1u):((w>>22)&3u),form=narrow?3048u+v:3050u+v,zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&31u,ds=narrow?2u:(v==3?8u:4u),ss=narrow?2u:(v<2?2u:ds);cdisasm_arm_name_id name=((narrow&&v)||(!narrow&&v==1))?CDISASM_ARM_NAME_BFMMLA:CDISASM_ARM_NAME_FMMLA;
+    if (i->isa_id != CDISASM_ARM_ISA_A64) return 1;
     if(!narrow&&!regular&&!fc)return 1;if((!narrow&&!regular)||!fc)return 0;
     return i->form_id==form&&i->name_id==name&&i->opcode_size==4&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==(CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR|CDISASM_ARM_INSTRUCTION_FLAG_FLOATING_POINT)&&i->branch_target==0&&i->operand_count==3&&arm_exact_scalable_operand(&i->operand[0],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zd),ds,CDISASM_OPERAND_ACCESS_READ_WRITE)&&arm_exact_scalable_operand(&i->operand[1],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zn),ss,CDISASM_OPERAND_ACCESS_READ)&&arm_exact_scalable_operand(&i->operand[2],(cdisasm_arm_reg_id)(CDISASM_ARM_REG_Z0+zm),ss,CDISASM_OPERAND_ACCESS_READ);
 }
@@ -15524,7 +16136,7 @@ static int arm_valid_sve_widening_fp_mla_schema(const cdisasm_arm_instruction*i)
 {
     static const uint16_t forms[8]={3028,3029,3030,3031,3032,3033,3034,3035};
     static const cdisasm_arm_name_id names[8]={CDISASM_ARM_NAME_FMLALB,CDISASM_ARM_NAME_BFMLALB,CDISASM_ARM_NAME_FMLSLB,CDISASM_ARM_NAME_BFMLSLB,CDISASM_ARM_NAME_FMLALT,CDISASM_ARM_NAME_BFMLALT,CDISASM_ARM_NAME_FMLSLT,CDISASM_ARM_NAME_BFMLSLT};
-    uint32_t w=i->raw_instruction;int raw=(w&UINT32_C(0xffa0d800))==UINT32_C(0x64a08000);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=3028&&i->form_id<=3035;unsigned bf=(w>>22)&1u,sub=(w>>13)&1u,top=(w>>10)&1u,index=(top<<2)|(sub<<1)|bf,zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&31u;
+    uint32_t w=i->raw_instruction;int raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&UINT32_C(0xffa0d800))==UINT32_C(0x64a08000);int fc=i->isa_id==CDISASM_ARM_ISA_A64&&i->form_id>=3028&&i->form_id<=3035;unsigned bf=(w>>22)&1u,sub=(w>>13)&1u,top=(w>>10)&1u,index=(top<<2)|(sub<<1)|bf,zd=w&31u,zn=(w>>5)&31u,zm=(w>>16)&31u;
     if(!raw&&!fc)return 1;if(!raw||!fc)return 0;
     return i->form_id==forms[index]&&i->name_id==names[index]&&i->opcode_size==4
         &&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE
@@ -15561,7 +16173,7 @@ static int arm_valid_advsimd_sat_round_narrow_schema(const cdisasm_arm_instructi
 {
     uint32_t w=i->raw_instruction,so=w&UINT32_C(0xff80fc00),vo=w&UINT32_C(0xbf80fc00),op;unsigned immh=(w>>19)&15u,encoded=(immh<<3)|((w>>16)&7u),bits=(immh&4u)?32u:(immh&2u)?16u:8u,rd=w&31u,rn=(w>>5)&31u,q=(w>>30)&1u;uint8_t ns=(uint8_t)(bits/8u),ws=(uint8_t)(ns*2u);int scalar=so==UINT32_C(0x5f009400)||so==UINT32_C(0x7f008400)||so==UINT32_C(0x7f009400)||so==UINT32_C(0x5f009c00)||so==UINT32_C(0x7f008c00)||so==UINT32_C(0x7f009c00);cdisasm_arm_form_id form;cdisasm_arm_name_id name;const cdisasm_arm_operand*d=&i->operand[0],*n=&i->operand[1];cdisasm_arm_reg_id dr,nr;
     op=scalar?so:vo;if(scalar)form=op==UINT32_C(0x5f009400)?5859:op==UINT32_C(0x7f008400)?5871:op==UINT32_C(0x7f009400)?5873:op==UINT32_C(0x5f009c00)?5860:op==UINT32_C(0x7f008c00)?5872:op==UINT32_C(0x7f009c00)?5874:0;else form=op==UINT32_C(0x0f009400)?6223:op==UINT32_C(0x2f008400)?6236:op==UINT32_C(0x2f009400)?6238:op==UINT32_C(0x0f009c00)?6224:op==UINT32_C(0x2f008c00)?6237:op==UINT32_C(0x2f009c00)?6239:0;
-    if(immh==0u)form=0;if(form==0&&i->form_id!=5859&&i->form_id!=5871&&i->form_id!=5873&&i->form_id!=5860&&i->form_id!=5872&&i->form_id!=5874&&i->form_id!=6223&&i->form_id!=6236&&i->form_id!=6238&&i->form_id!=6224&&i->form_id!=6237&&i->form_id!=6239)return 1;if(form==0||immh>7u)return 0;
+    if(immh==0u||i->isa_id!=CDISASM_ARM_ISA_A64)form=0;if(form==0&&i->form_id!=5859&&i->form_id!=5871&&i->form_id!=5873&&i->form_id!=5860&&i->form_id!=5872&&i->form_id!=5874&&i->form_id!=6223&&i->form_id!=6236&&i->form_id!=6238&&i->form_id!=6224&&i->form_id!=6237&&i->form_id!=6239)return 1;if(form==0||immh>7u)return 0;
     name=op==UINT32_C(0x7f008400)||op==UINT32_C(0x2f008400)?CDISASM_ARM_NAME_SQSHRUN:op==UINT32_C(0x7f009400)||op==UINT32_C(0x2f009400)?CDISASM_ARM_NAME_UQSHRN:op==UINT32_C(0x5f009400)||op==UINT32_C(0x0f009400)?CDISASM_ARM_NAME_SQSHRN:op==UINT32_C(0x7f008c00)||op==UINT32_C(0x2f008c00)?CDISASM_ARM_NAME_SQRSHRUN:op==UINT32_C(0x7f009c00)||op==UINT32_C(0x2f009c00)?CDISASM_ARM_NAME_UQRSHRN:CDISASM_ARM_NAME_SQRSHRN;
     if(i->isa_id!=CDISASM_ARM_ISA_A64||i->name_id!=name||i->form_id!=form||i->opcode_size!=4u||i->condition!=CDISASM_ARM_CONDITION_AL||i->opcode_groups!=CDISASM_GROUP_NONE||i->instruction_flags!=CDISASM_ARM_INSTRUCTION_FLAG_SIMD||i->branch_target!=0u||i->operand_count!=3u)return 0;
     if(scalar){dr=(cdisasm_arm_reg_id)((ns==1u?CDISASM_ARM_REG_B0:ns==2u?CDISASM_ARM_REG_H0:CDISASM_ARM_REG_S0)+rd);nr=(cdisasm_arm_reg_id)((ws==2u?CDISASM_ARM_REG_H0:ws==4u?CDISASM_ARM_REG_S0:CDISASM_ARM_REG_D0)+rn);if(d->type!=CDISASM_OPERAND_REGISTER||d->reg!=dr||d->size!=ns||d->extend_type!=ns||d->scale!=1u||d->access!=CDISASM_OPERAND_ACCESS_WRITE||n->type!=CDISASM_OPERAND_REGISTER||n->reg!=nr||n->size!=ws||n->extend_type!=ws||n->scale!=1u||n->access!=CDISASM_OPERAND_ACCESS_READ)return 0;}else if(!arm_exact_advsimd_shift_narrow_widen_vector_operand(d,(cdisasm_arm_reg_id)(CDISASM_ARM_REG_V0+rd),q?16u:8u,ns,q?CDISASM_OPERAND_ACCESS_READ_WRITE:CDISASM_OPERAND_ACCESS_WRITE)||!arm_exact_advsimd_shift_narrow_widen_vector_operand(n,(cdisasm_arm_reg_id)(CDISASM_ARM_REG_V0+rn),16u,ws,CDISASM_OPERAND_ACCESS_READ))return 0;
@@ -15571,23 +16183,34 @@ static int arm_valid_advsimd_sat_round_narrow_schema(const cdisasm_arm_instructi
 static int arm_valid_sve2_gather_non_temporal_load_schema(
     const cdisasm_arm_instruction *i)
 {
-    static const uint32_t values[7] = {
+    static const uint32_t values[12] = {
+        UINT32_C(0x84008000), UINT32_C(0x84808000),
         UINT32_C(0x8500a000), UINT32_C(0x8400a000),
-        UINT32_C(0x8480a000), UINT32_C(0xc580c000),
+        UINT32_C(0x8480a000), UINT32_C(0xc4008000),
+        UINT32_C(0xc4808000), UINT32_C(0xc5008000),
+        UINT32_C(0xc580c000),
         UINT32_C(0xc400c000), UINT32_C(0xc480c000),
         UINT32_C(0xc500c000)
     };
-    static const cdisasm_arm_name_id names[7] = {
+    static const cdisasm_arm_name_id names[12] = {
+        CDISASM_ARM_NAME_LDNT1SB, CDISASM_ARM_NAME_LDNT1SH,
         CDISASM_ARM_NAME_LDNT1W, CDISASM_ARM_NAME_LDNT1B,
-        CDISASM_ARM_NAME_LDNT1H, CDISASM_ARM_NAME_LDNT1D,
+        CDISASM_ARM_NAME_LDNT1H, CDISASM_ARM_NAME_LDNT1SB,
+        CDISASM_ARM_NAME_LDNT1SH, CDISASM_ARM_NAME_LDNT1SW,
+        CDISASM_ARM_NAME_LDNT1D,
         CDISASM_ARM_NAME_LDNT1B, CDISASM_ARM_NAME_LDNT1H,
         CDISASM_ARM_NAME_LDNT1W
     };
-    static const cdisasm_arm_form_id forms[7] = {
-        3222u, 3223u, 3224u, 3412u, 3413u, 3414u, 3415u
+    static const cdisasm_arm_form_id forms[12] = {
+        3220u, 3221u, 3222u, 3223u, 3224u,
+        3409u, 3410u, 3411u, 3412u, 3413u, 3414u, 3415u
     };
-    static const uint8_t element_sizes[7] = { 4u, 4u, 4u, 8u, 8u, 8u, 8u };
-    static const uint8_t memory_sizes[7] = { 4u, 1u, 2u, 8u, 1u, 2u, 4u };
+    static const uint8_t element_sizes[12] = {
+        4u, 4u, 4u, 4u, 4u, 8u, 8u, 8u, 8u, 8u, 8u, 8u
+    };
+    static const uint8_t memory_sizes[12] = {
+        1u, 2u, 4u, 1u, 2u, 1u, 2u, 4u, 8u, 1u, 2u, 4u
+    };
     uint32_t value = i->raw_instruction & UINT32_C(0xffe0e000);
     unsigned index, zt = i->raw_instruction & 31u;
     unsigned zn = (i->raw_instruction >> 5) & 31u;
@@ -15598,13 +16221,14 @@ static int arm_valid_sve2_gather_non_temporal_load_schema(
     const cdisasm_arm_operand *p = &i->operand[1];
     const cdisasm_arm_operand *m = &i->operand[2];
 
-    for (index = 0u; index < 7u; ++index) {
-        raw |= value == values[index];
+    for (index = 0u; index < 12u; ++index) {
+        raw |= i->isa_id == CDISASM_ARM_ISA_A64
+            && value == values[index];
         claimed |= i->form_id == forms[index];
         if (value == values[index]) break;
     }
     if (!raw && !claimed) return 1;
-    if (!raw || !claimed || index == 7u) return 0;
+    if (!raw || !claimed || index == 12u) return 0;
     return i->isa_id == CDISASM_ARM_ISA_A64
         && i->name_id == names[index] && i->form_id == forms[index]
         && i->opcode_size == 4u && i->condition == CDISASM_ARM_CONDITION_AL
@@ -15705,7 +16329,9 @@ static int arm_valid_sve_gather32_unscaled_remaining_schema(
     const cdisasm_arm_operand *m = &i->operand[2];
 
     for (n = 0u; n < 7u; ++n) {
-        raw |= value == values[n]; claimed |= i->form_id == forms[n];
+        raw |= i->isa_id == CDISASM_ARM_ISA_A64
+            && value == values[n];
+        claimed |= i->form_id == forms[n];
         if (value == values[n]) break;
     }
     if (!raw && !claimed) return 1;
@@ -15916,7 +16542,8 @@ static int arm_valid_sve_gather32_scaled_remaining_schema(
     const cdisasm_arm_operand *m = &i->operand[2];
 
     for (n = 0u; n < 4u; ++n) {
-        raw |= value == values[n];
+        raw |= i->isa_id == CDISASM_ARM_ISA_A64
+            && value == values[n];
         claimed |= i->form_id == forms[n];
         if (value == values[n]) break;
     }
@@ -16183,7 +16810,9 @@ static int arm_valid_sve_gather32_vector_immediate_remaining_schema(
     const cdisasm_arm_operand *m = &i->operand[2];
 
     for (n = 0u; n < 7u; ++n) {
-        raw |= value == values[n]; claimed |= i->form_id == forms[n];
+        raw |= i->isa_id == CDISASM_ARM_ISA_A64
+            && value == values[n];
+        claimed |= i->form_id == forms[n];
         if (value == values[n]) break;
     }
     if (!raw && !claimed) return 1;
@@ -16250,7 +16879,9 @@ static int arm_valid_sve_gather64_x32_unscaled_remaining_schema(
     const cdisasm_arm_operand *m = &i->operand[2];
 
     for (n = 0u; n < 10u; ++n) {
-        raw |= value == values[n]; claimed |= i->form_id == forms[n];
+        raw |= i->isa_id == CDISASM_ARM_ISA_A64
+            && value == values[n];
+        claimed |= i->form_id == forms[n];
         if (value == values[n]) break;
     }
     if (!raw && !claimed) return 1;
@@ -16309,7 +16940,9 @@ static int arm_valid_sve_gather64_x32_scaled_remaining_schema(
     const cdisasm_arm_operand *m = &i->operand[2];
 
     for (n = 0u; n < 7u; ++n) {
-        raw |= value == values[n]; claimed |= i->form_id == forms[n];
+        raw |= i->isa_id == CDISASM_ARM_ISA_A64
+            && value == values[n];
+        claimed |= i->form_id == forms[n];
         if (value == values[n]) break;
     }
     if (!raw && !claimed) return 1;
@@ -16376,7 +17009,9 @@ static int arm_valid_sve_gather64_x64_unscaled_remaining_schema(
     const cdisasm_arm_operand *m = &i->operand[2];
 
     for (n = 0u; n < 10u; ++n) {
-        raw |= value == values[n]; claimed |= i->form_id == forms[n];
+        raw |= i->isa_id == CDISASM_ARM_ISA_A64
+            && value == values[n];
+        claimed |= i->form_id == forms[n];
         if (value == values[n]) break;
     }
     if (!raw && !claimed) return 1;
@@ -16445,7 +17080,9 @@ static int arm_valid_sve_gather64_x64_scaled_schema(
     const cdisasm_arm_operand *m = &i->operand[2];
 
     for (n = 0u; n < 10u; ++n) {
-        raw |= value == values[n]; claimed |= i->form_id == forms[n];
+        raw |= i->isa_id == CDISASM_ARM_ISA_A64
+            && value == values[n];
+        claimed |= i->form_id == forms[n];
         if (value == values[n]) break;
     }
     if (!raw && !claimed) return 1;
@@ -16506,7 +17143,9 @@ static int arm_valid_sve_gather64_vector_immediate_remaining_schema(
     const cdisasm_arm_operand *p = &i->operand[1];
     const cdisasm_arm_operand *m = &i->operand[2];
     for (n = 0u; n < 10u; ++n) {
-        raw |= value == values[n]; claimed |= i->form_id == forms[n];
+        raw |= i->isa_id == CDISASM_ARM_ISA_A64
+            && value == values[n];
+        claimed |= i->form_id == forms[n];
         if (value == values[n]) break;
     }
     if (!raw && !claimed) return 1;
@@ -16571,7 +17210,8 @@ static int arm_valid_sve2_scatter_non_temporal_store_schema(
     const cdisasm_arm_operand *m = &i->operand[2];
 
     for (index = 0u; index < 7u; ++index) {
-        raw |= value == values[index];
+        raw |= i->isa_id == CDISASM_ARM_ISA_A64
+            && value == values[index];
         claimed |= i->form_id == forms[index];
         if (value == values[index]) break;
     }
@@ -16708,8 +17348,10 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     /* The FVDOT/BFVDOT indexed forms use encodings which overlap older SME
      * envelope validators.  Validate their complete structured shape once,
      * before those legacy schemas inspect the same raw word. */
-    if (instruction->form_id >= UINT16_C(6500)
-            && instruction->form_id <= UINT16_C(6504)) {
+    if (arm_is_sme_fvdot_raw(instruction->raw_instruction)
+        || (instruction->form_id >= UINT16_C(6500)
+            && instruction->form_id <= UINT16_C(6504)
+            && arm_is_sme_fvdot_name(instruction->name_id))) {
         if (!arm_valid_sme_fvdot_schema(instruction)
                 || instruction->opcode_size != 4u
                 || instruction->branch_target != 0u) {
@@ -16810,9 +17452,14 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
             != expected_atomic_flags
         || (expected_atomic_flags != 0u
             && ((instruction->isa_id != CDISASM_ARM_ISA_A64
-                    && !(instruction->isa_id == CDISASM_ARM_ISA_T32
+                    && !((instruction->isa_id == CDISASM_ARM_ISA_T32
+                            || instruction->isa_id == CDISASM_ARM_ISA_A32)
                         && arm_is_t32_atomic_name(instruction->name_id)))
-                || instruction->opcode_groups != CDISASM_GROUP_NONE))) {
+                || instruction->opcode_groups !=
+                    (instruction->isa_id == CDISASM_ARM_ISA_A32
+                        && instruction->condition != CDISASM_ARM_CONDITION_AL
+                        ? CDISASM_GROUP_CONDITIONAL
+                        : CDISASM_GROUP_NONE)))) {
         return 0;
     }
     if ((instruction->isa_id == CDISASM_ARM_ISA_A32
@@ -16888,10 +17535,22 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
         return 0;
     }
     if ((instruction->instruction_flags
-            & (CDISASM_ARM_INSTRUCTION_FLAG_ADDRESS_INCREMENT
-                | CDISASM_ARM_INSTRUCTION_FLAG_ADDRESS_DECREMENT
-                | CDISASM_ARM_INSTRUCTION_FLAG_USER_REGISTERS)) != 0u
+            & CDISASM_ARM_INSTRUCTION_FLAG_USER_REGISTERS) != 0u
         && !arm_is_multiple_transfer_name(instruction->name_id)) {
+        return 0;
+    }
+    if ((instruction->instruction_flags
+            & (CDISASM_ARM_INSTRUCTION_FLAG_ADDRESS_INCREMENT
+                | CDISASM_ARM_INSTRUCTION_FLAG_ADDRESS_DECREMENT)) != 0u
+        && !arm_is_multiple_transfer_name(instruction->name_id)
+        && !((instruction->name_id == CDISASM_ARM_NAME_LDC
+                || instruction->name_id == CDISASM_ARM_NAME_STC)
+            && ((instruction->isa_id == CDISASM_ARM_ISA_A32
+                    && instruction->form_id >= UINT16_C(520)
+                    && instruction->form_id <= UINT16_C(528))
+                || (instruction->isa_id == CDISASM_ARM_ISA_T32
+                    && instruction->form_id >= UINT16_C(1505)
+                    && instruction->form_id <= UINT16_C(1513))))) {
         return 0;
     }
     if (instruction->condition != CDISASM_ARM_CONDITION_AL
@@ -16959,7 +17618,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (expected_atomic_flags != 0u
         && (atomic_memory_count != 1u
             || atomic_memory_access != arm_expected_atomic_memory_access(
-                instruction->name_id))) {
+                instruction))) {
         return 0;
     }
     (void)arm_lsui_cas_ordering(instruction->name_id,
@@ -16971,6 +17630,9 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
         return 0;
     }
     if (!arm_valid_extra_atomic_schema(instruction)) {
+        return 0;
+    }
+    if (!arm_valid_rcw_scalar_schema(instruction)) {
         return 0;
     }
     if (!arm_valid_a64_udf_schema(instruction)) {
@@ -17799,7 +18461,10 @@ static void arm_format_vector_arrangement(
         || ((instruction->instruction_flags
                 & CDISASM_ARM_INSTRUCTION_FLAG_SIMD) == 0u
             && !(arm_is_sve_quadword_reduction_name(instruction->name_id)
-                && operand == &instruction->operand[0]))
+                && operand == &instruction->operand[0])
+            && !(instruction->form_id >= UINT16_C(5809)
+                && instruction->form_id <= UINT16_C(5818)
+                && operand == &instruction->operand[1]))
         || (instruction->form_id == UINT16_C(5808)
             && instruction->name_id == CDISASM_ARM_NAME_ADDP
             && operand == &instruction->operand[0])
@@ -17838,10 +18503,30 @@ static void arm_format_vector_arrangement(
                     && instruction->name_id == CDISASM_ARM_NAME_UADDLV))
             && operand == &instruction->operand[0])
         || arm_is_scalar_advsimd_d_layout(instruction)
+        || (instruction->form_id == UINT16_C(5741)
+            && instruction->name_id == CDISASM_ARM_NAME_DUP
+            && operand == &instruction->operand[0])
+        || (instruction->form_id >= UINT16_C(5822)
+            && instruction->form_id <= UINT16_C(5846))
+        || instruction->form_id == UINT16_C(5847)
+        || (instruction->form_id == UINT16_C(5912)
+            && operand == &instruction->operand[1])
+        || ((instruction->form_id == UINT16_C(5913)
+                || instruction->form_id == UINT16_C(5914)
+                || instruction->form_id == UINT16_C(5916)
+                || instruction->form_id == UINT16_C(5917))
+            && operand == &instruction->operand[0])
         || instruction->form_id == UINT16_C(5780)
+        || instruction->form_id == UINT16_C(5781)
+        || instruction->form_id == UINT16_C(5782)
         || instruction->form_id == UINT16_C(5783)
+        || instruction->form_id == UINT16_C(5787)
         || instruction->form_id == UINT16_C(5788)
+        || instruction->form_id == UINT16_C(5799)
+        || instruction->form_id == UINT16_C(5800)
+        || instruction->form_id == UINT16_C(5801)
         || instruction->form_id == UINT16_C(5802)
+        || instruction->form_id == UINT16_C(5805)
         || instruction->form_id == UINT16_C(5806)
         || instruction->form_id == UINT16_C(5819)
         || instruction->form_id == UINT16_C(5820)
@@ -17864,6 +18549,9 @@ static void arm_format_vector_arrangement(
         || arm_is_a64_advsimd_sha_scalar_operand(instruction, operand)
         || (arm_is_lrcpc3_simd_unscaled(instruction)
             && operand == &instruction->operand[0])
+        || (instruction->name_id == CDISASM_ARM_NAME_INS
+            && instruction->form_id == UINT16_C(5915)
+            && operand == &instruction->operand[1])
         || (instruction->instruction_flags
             & CDISASM_ARM_INSTRUCTION_FLAG_APPLE_MUL53) != 0u) {
         return;
@@ -17953,8 +18641,14 @@ static void arm_format_register(
     }
     if ((instruction->instruction_flags
             & CDISASM_ARM_INSTRUCTION_FLAG_SIMD) == 0u
+        && !(instruction->isa_id == CDISASM_ARM_ISA_A64
+            && instruction->form_id >= UINT16_C(5396)
+            && instruction->form_id <= UINT16_C(5515))
         && !(arm_is_sve_quadword_reduction_name(instruction->name_id)
-            && operand == &instruction->operand[0])) {
+            && operand == &instruction->operand[0])
+        && !(instruction->form_id >= UINT16_C(5809)
+            && instruction->form_id <= UINT16_C(5818)
+            && operand == &instruction->operand[1])) {
         arm_format_modifier(writer, operand);
     }
     if ((operand->flags & CDISASM_ARM_OPERAND_FLAG_WRITEBACK) != 0u) {
@@ -18738,12 +19432,18 @@ static void arm_format_vector_list(
     const cdisasm_arm_operand *operand,
     size_t operand_index)
 {
-    int a32_registers = operand->reg >= CDISASM_ARM_REG_D0
+    int a32_d_registers = operand->reg >= CDISASM_ARM_REG_D0
         && operand->reg <= CDISASM_ARM_REG_D31;
+    int a32_s_registers = operand->reg >= CDISASM_ARM_REG_S0
+        && operand->reg <= CDISASM_ARM_REG_S31;
+    int a32_registers = a32_d_registers || a32_s_registers;
     unsigned first = (unsigned)(operand->reg
-        - (a32_registers ? CDISASM_ARM_REG_D0 : CDISASM_ARM_REG_V0));
-    cdisasm_arm_reg_id register_base = a32_registers
-        ? CDISASM_ARM_REG_D0 : CDISASM_ARM_REG_V0;
+        - (a32_d_registers ? CDISASM_ARM_REG_D0
+            : a32_s_registers ? CDISASM_ARM_REG_S0
+                : CDISASM_ARM_REG_V0));
+    cdisasm_arm_reg_id register_base = a32_d_registers
+        ? CDISASM_ARM_REG_D0 : a32_s_registers
+            ? CDISASM_ARM_REG_S0 : CDISASM_ARM_REG_V0;
     unsigned index;
 
     arm_writer_putc(writer, '{');
@@ -18766,6 +19466,8 @@ static void arm_format_vector_list(
             } else {
                 arm_format_vector_arrangement(writer, instruction, &member);
             }
+        } else if (a32_registers) {
+            arm_writer_puts(writer, arm_register_names[member.reg]);
         } else {
             arm_format_register(writer, instruction, &member, operand_index);
         }

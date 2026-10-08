@@ -1784,6 +1784,26 @@ static int register_low3_matches(
     return ((unsigned int)(reg - base) & 7u) == selector;
 }
 
+static int valid_evex_scalar_gpr(
+    cdisasm_x86_reg_id reg,
+    uint8_t size,
+    int allow_egpr,
+    uint8_t selector)
+{
+    const cdisasm_x86_reg_id legacy_base = size == 8u
+        ? CDISASM_X86_REG_RAX : CDISASM_X86_REG_EAX;
+    const cdisasm_x86_reg_id egpr_base = size == 8u
+        ? CDISASM_X86_REG_R16 : CDISASM_X86_REG_R16D;
+
+    /* R16-R31 were appended to the public register catalog, so they are
+     * not numerically adjacent to the original RAX-R15 or EAX-R15D IDs. */
+    if (reg >= legacy_base && reg <= legacy_base + 15u) {
+        return register_low3_matches(reg, legacy_base, selector);
+    }
+    return allow_egpr && reg >= egpr_base && reg <= egpr_base + 15u
+        && register_low3_matches(reg, egpr_base, selector);
+}
+
 static int valid_decorators(const cdisasm_instruction *instruction)
 {
     if (instruction->default_flags > (CDISASM_X86_DEFAULT_FLAG_CF
@@ -7192,8 +7212,6 @@ static int valid_vpextr_schema(const cdisasm_instruction *instruction)
     int memory_form = 0;
     int allow_egpr = 0;
     unsigned int native_prefix_size;
-    cdisasm_x86_reg_id destination_base;
-    unsigned int destination_limit;
     unsigned int source_limit;
     const cdisasm_opcode *destination;
     const cdisasm_opcode *source;
@@ -7285,9 +7303,6 @@ static int valid_vpextr_schema(const cdisasm_instruction *instruction)
     destination = &instruction->opcode[0];
     source = &instruction->opcode[1];
     immediate = &instruction->opcode[2];
-    destination_base = shape->register_size == 8u
-        ? CDISASM_X86_REG_RAX : CDISASM_X86_REG_EAX;
-    destination_limit = allow_egpr ? 31u : 15u;
     source_limit = evex_form ? 31u : 15u;
     if (!evex_form && shape->map1_c5
         && instruction->encoding.prefix_size
@@ -7313,10 +7328,10 @@ static int valid_vpextr_schema(const cdisasm_instruction *instruction)
                 instruction, destination, allow_egpr)) {
             return 0;
         }
-    } else if (destination->reg < destination_base
-        || destination->reg > destination_base + destination_limit
-        || destination->flags != 0u
-        || !register_low3_matches(destination->reg, destination_base,
+    } else if (destination->flags != 0u
+        || !valid_evex_scalar_gpr(
+            destination->reg, shape->register_size,
+            evex_form && allow_egpr,
             shape->map1_c5
                 ? (uint8_t)((instruction->encoding.modrm >> 3)
                     & UINT8_C(7))
@@ -7407,9 +7422,6 @@ static int valid_vpinsr_schema(const cdisasm_instruction *instruction)
             | CDISASM_X86_INSTRUCTION_FLAG_GENERATED_FALLBACK;
         const cdisasm_opcode *scalar;
         const cdisasm_opcode *immediate;
-        const cdisasm_x86_reg_id scalar_base = shape != NULL
-                && shape->register_size == 8u
-            ? CDISASM_X86_REG_RAX : CDISASM_X86_REG_EAX;
         int allow_egpr;
 
         if (!family_name || !evex_form || shape == NULL
@@ -7483,10 +7495,9 @@ static int valid_vpinsr_schema(const cdisasm_instruction *instruction)
                     instruction, scalar, allow_egpr)) {
                 return 0;
             }
-        } else if (scalar->reg < scalar_base
-            || scalar->reg > scalar_base + (allow_egpr ? 31u : 15u)
-            || scalar->flags != 0u
-            || !register_low3_matches(scalar->reg, scalar_base,
+        } else if (scalar->flags != 0u
+            || !valid_evex_scalar_gpr(
+                scalar->reg, shape->register_size, allow_egpr,
                 (uint8_t)(instruction->encoding.modrm & UINT8_C(7)))) {
             return 0;
         }
