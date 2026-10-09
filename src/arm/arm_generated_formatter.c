@@ -1424,7 +1424,7 @@ static size_t arm_asmgen_render_recipe(
             arm_asmgen_putc(&writer, ',');
             arm_asmgen_putc(&writer, ' ');
             arm_asmgen_putc(&writer, '#');
-            arm_asmgen_put_hex(&writer, immediate);
+            arm_asmgen_put_unsigned(&writer, immediate);
         } else if (operation->opcode
             == CDISASM_ARM_ASMGEN_A64_ISB_OPTION) {
             uint32_t option = (word >> 8) & 15u;

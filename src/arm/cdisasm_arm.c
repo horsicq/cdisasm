@@ -1009,3 +1009,119 @@ uint32_t CDISASM_CALL cdisasm_arm_decode_with_context(
         &context->flags,
         instruction);
 }
+
+cdisasm_status CDISASM_CALL cdisasm_arm_validate_form(
+    cdisasm_arm_cpu_id cpu_id,
+    cdisasm_arm_mode mode,
+    uint32_t raw_instruction,
+    uint32_t opcode_size,
+    cdisasm_arm_form_id form_id)
+{
+    cdisasm_arm_mode_mask selected_mode = mode_bit(mode);
+    if (!valid_cpu(cpu_id) || selected_mode == CDISASM_ARM_MODE_MASK_NONE
+        || !(arm_cpu_profiles[cpu_profile_index(cpu_id)].mode_mask & selected_mode)
+        || form_id == CDISASM_ARM_FORM_NONE
+        || (mode == CDISASM_ARM_MODE_T32
+            ? (opcode_size != 2u && opcode_size != 4u)
+            : opcode_size != 4u)
+        || (opcode_size == 2u && (raw_instruction >> 16) != 0u)) {
+        return CDISASM_STATUS_INVALID_ARGUMENT;
+    }
+#if USE_EXTRA_OPCODES
+    {
+        cdisasm_arm_instruction decoded;
+        cdisasm_arm_requirements native_requirements =
+            CDISASM_ARM_REQUIREMENTS_NONE_INITIALIZER;
+        cdisasm_status status;
+        if (form_id > CDISASM_ARM_FORM_LAST)
+            return CDISASM_STATUS_INVALID_ARGUMENT;
+        if (mode == CDISASM_ARM_MODE_T32
+            && cdisasm_arm_t32_instruction_size((uint16_t)raw_instruction) != opcode_size)
+            return CDISASM_STATUS_INVALID_INSTRUCTION;
+        if (mode == CDISASM_ARM_MODE_A32
+            && (raw_instruction >> 28) != CDISASM_ARM_CONDITION_AL) {
+            uint32_t exception = raw_instruction & UINT32_C(0x0ff000f0);
+            /* Arm's HLT/BKPT/HVC A1 definitions require AL; other condition
+             * values are constrained unpredictable. Their recognition masks
+             * leave cond free, but they are not ordinary conditional forms. */
+            if (exception == UINT32_C(0x01000070)
+                || exception == UINT32_C(0x01200070)
+                || exception == UINT32_C(0x01400070))
+                return CDISASM_STATUS_INVALID_INSTRUCTION;
+        }
+        /* A32 PC-based LDR/LDRB literal recognition leaves P/W unconstrained,
+         * but writeback to PC is constrained unpredictable (Arm A1 decode). */
+        if (mode == CDISASM_ARM_MODE_A32
+            && (form_id == 264u || form_id == 265u)
+            && (!(raw_instruction & UINT32_C(0x01000000))
+                || (raw_instruction & UINT32_C(0x00200000))))
+            return CDISASM_STATUS_INVALID_INSTRUCTION;
+        /* CPSID/CPSIE must affect at least one of A/I/F. The raw assembler
+         * spelling "none" otherwise constructs constrained-unpredictable
+         * T1/T2 words (Arm CPS encoding-specific decode). */
+        if (mode == CDISASM_ARM_MODE_T32
+            && (((form_id == 1159u || form_id == 1160u) && !(raw_instruction & 7u))
+                || ((form_id >= 1837u && form_id <= 1840u)
+                    && !(raw_instruction & UINT32_C(0x00e00000)))))
+            return CDISASM_STATUS_INVALID_INSTRUCTION;
+        memset(&decoded, 0, sizeof(decoded));
+        if (form_id == CDISASM_ARM_FORM_HINTE) {
+            return cpu_id == CDISASM_ARM_CPU_ANY
+                && cdisasm_arm_decode_generated_priority(raw_instruction, opcode_size, 0, mode, &decoded)
+                    == CDISASM_STATUS_OK
+                && decoded.form_id == form_id
+                    ? CDISASM_STATUS_OK : CDISASM_STATUS_INVALID_INSTRUCTION;
+        }
+        /* Catalog masks describe recognition, and can leave operand-reserved
+         * bits unconstrained. Preserve the native decoder's stricter checks
+         * where it recognizes an encoding (for example SHA Q-register bits).
+         * Unsupported structured lowering still proceeds to exact identity. */
+        status = mode == CDISASM_ARM_MODE_T32
+            ? cdisasm_arm_decode_t32_core(raw_instruction, opcode_size, 0,
+                &decoded, &native_requirements)
+            : cdisasm_arm_decode_core(raw_instruction, 0, mode,
+                &decoded, &native_requirements);
+        if (status == CDISASM_STATUS_INVALID_INSTRUCTION
+            || (status == CDISASM_STATUS_OK
+                && ((decoded.instruction_flags & CDISASM_ARM_INSTRUCTION_FLAG_ILLEGAL)
+                    || !capabilities_satisfy_requirements(
+                    &arm_cpu_profiles[cpu_profile_index(cpu_id)].capabilities,
+                    &native_requirements))))
+            return CDISASM_STATUS_INVALID_INSTRUCTION;
+        memset(&decoded, 0, sizeof(decoded));
+        status = cdisasm_arm_decode_generated(raw_instruction, opcode_size, 0,
+            mode, &arm_cpu_profiles[cpu_profile_index(cpu_id)].capabilities,
+            cpu_id == CDISASM_ARM_CPU_ANY, 0, &decoded);
+        /* The internal decoder preserves exact identity when its only missing
+         * component is public operand lowering. It does not preserve identity
+         * when feature, tree, or reserved-encoding checks fail. */
+        if ((status == CDISASM_STATUS_OK || status == CDISASM_STATUS_UNSUPPORTED_INSTRUCTION)
+            && decoded.form_id == form_id && cdisasm_arm_generated_form_matches(&decoded))
+            return CDISASM_STATUS_OK;
+        return CDISASM_STATUS_INVALID_INSTRUCTION;
+    }
+#else
+    (void)raw_instruction;
+    return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+#endif
+}
+
+cdisasm_status CDISASM_CALL cdisasm_arm_validate_alias(
+    cdisasm_arm_cpu_id cpu_id, cdisasm_arm_mode mode,
+    uint32_t raw_instruction, uint32_t opcode_size,
+    cdisasm_arm_form_id form_id, uint16_t alias_id)
+{
+    cdisasm_status status;
+    if (alias_id == 0u || alias_id > CDISASM_ARM_ALIAS_AARCHMRS_2026_03_LAST)
+        return CDISASM_STATUS_INVALID_ARGUMENT;
+    status = cdisasm_arm_validate_form(cpu_id, mode, raw_instruction, opcode_size, form_id);
+    if (status != CDISASM_STATUS_OK) return status;
+#if USE_EXTRA_OPCODES
+    return cdisasm_arm_generated_alias_matches(
+        &arm_cpu_profiles[cpu_profile_index(cpu_id)].capabilities,
+        mode, raw_instruction, form_id, alias_id)
+        ? CDISASM_STATUS_OK : CDISASM_STATUS_INVALID_INSTRUCTION;
+#else
+    return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+#endif
+}

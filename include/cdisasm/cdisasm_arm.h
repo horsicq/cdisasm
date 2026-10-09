@@ -871,6 +871,38 @@ CDISASM_ARM_API uint32_t CDISASM_CALL cdisasm_arm_decode_with_context(
     uint64_t address,
     cdisasm_arm_instruction *instruction);
 
+#define CDISASM_ARM_HAS_FORM_VALIDATION 1
+/**
+ * Validates one exact canonical generated encoding against a CPU and mode,
+ * including forms whose structured operands cannot yet be returned by decode.
+ * raw_instruction uses the public instruction-result layout: little-endian
+ * byte order, with the first T32 halfword in bits 0..15. opcode_size is two or
+ * four for T32 and four for A32/A64. form_id must be a canonical catalog ID.
+ * Native reserved-operand checks are also applied where implemented. This
+ * does not return operands or validate an assembly alias's preference.
+ * Returns OK on a match, INVALID_ARGUMENT for an invalid CPU/mode/width/ID,
+ * INVALID_INSTRUCTION for a nonmatching or unavailable form, or
+ * UNSUPPORTED_INSTRUCTION when the generated catalog is disabled.
+ */
+CDISASM_ARM_API cdisasm_status CDISASM_CALL cdisasm_arm_validate_form(
+    cdisasm_arm_cpu_id cpu_id,
+    cdisasm_arm_mode mode,
+    uint32_t raw_instruction,
+    uint32_t opcode_size,
+    cdisasm_arm_form_id form_id);
+
+#define CDISASM_ARM_HAS_ALIAS_VALIDATION 1
+#define CDISASM_ARM_ALIAS_AARCHMRS_2026_03_LAST UINT16_C(611)
+/** Validates canonical form/CPU and evaluates one alias catalog condition.
+ * alias_id is the one-based index in arm_tree_aliases.tsv. Context is outside
+ * a T32 IT block. This does not evaluate the preferred-spelling predicate or
+ * compare assembly operands; callers must also enforce operand bindings,
+ * including equality constraints carried by preferred-spelling expressions. */
+CDISASM_ARM_API cdisasm_status CDISASM_CALL cdisasm_arm_validate_alias(
+    cdisasm_arm_cpu_id cpu_id, cdisasm_arm_mode mode,
+    uint32_t raw_instruction, uint32_t opcode_size,
+    cdisasm_arm_form_id form_id, uint16_t alias_id);
+
 #ifdef __cplusplus
 }
 #endif

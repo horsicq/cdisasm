@@ -6164,6 +6164,21 @@ static void arm_modern_decode_sve(
             };
             unsigned operation = (word >> 10) & 3u;
             int immediate_form = (word & UINT32_C(0x00001000)) != 0u;
+            unsigned immediate = 0u;
+
+            if (immediate_form) {
+                unsigned encoded_immediate = (((word >> 22) & 3u) << 5)
+                    | (((word >> 19) & 3u) << 3) | ((word >> 16) & 7u);
+                unsigned element_bits = encoded_immediate >= 64u ? 64u
+                    : encoded_immediate >= 32u ? 32u
+                    : encoded_immediate >= 16u ? 16u : 8u;
+                immediate = operation == 3u
+                    ? encoded_immediate - element_bits
+                    : 2u * element_bits - encoded_immediate;
+                /* The immediate shares the size field. Derive the datatype
+                 * before constructing either register operand. */
+                element_size = (uint8_t)(element_bits / 8u);
+            }
 
             instruction->name_id = names[operation];
             cdisasm_arm_requirements_set_legacy(
@@ -6174,15 +6189,6 @@ static void arm_modern_decode_sve(
             arm_modern_append_zreg(
                 instruction, zn, element_size, CDISASM_OPERAND_ACCESS_READ);
             if (immediate_form) {
-                unsigned encoded_immediate = (((word >> 22) & 3u) << 5)
-                    | (((word >> 19) & 3u) << 3) | ((word >> 16) & 7u);
-                unsigned element_bits = encoded_immediate >= 64u ? 64u
-                    : encoded_immediate >= 32u ? 32u
-                    : encoded_immediate >= 16u ? 16u : 8u;
-                unsigned immediate = operation == 3u
-                    ? encoded_immediate - element_bits
-                    : 2u * element_bits - encoded_immediate;
-
                 arm_modern_append_immediate(
                     instruction, (uint64_t)immediate, 1u);
             } else {
@@ -13530,7 +13536,7 @@ static void arm_modern_decode_sme(
         return;
     }
     if (form == ARM_MODERN_SME_FP8_INDEXED_LONG_MLA_MULTI) {
-        unsigned count=(word&UINT32_C(0x8000))?4u:2u,lane=(((word>>12)&1u)<<3)|(((word>>10)&3u)<<1)|((word>>3)&1u),zn=count==4?((word>>7)&7u)*4u:((word>>6)&15u)*2u;cdisasm_arm_operand *operand;
+        unsigned count=(word&UINT32_C(0x8000))?4u:2u,lane=(((word>>10)&3u)<<2)|((word>>2)&3u),zn=count==4?((word>>7)&7u)*4u:((word>>6)&15u)*2u;cdisasm_arm_operand *operand;
         instruction->name_id=CDISASM_ARM_NAME_FMLAL;instruction->form_id=count==4?4041u:3993u;instruction->instruction_flags|=CDISASM_ARM_INSTRUCTION_FLAG_MATRIX|CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR|CDISASM_ARM_INSTRUCTION_FLAG_FLOATING_POINT;cdisasm_arm_requirements_add_feature(required_capabilities,ARM_MODERN_FEATURE_SME_F8F16);
         operand=arm_modern_append_operand(instruction);if(operand){operand->type=CDISASM_ARM_OPERAND_TILE;operand->reg=CDISASM_ARM_REG_ZA;operand->base_reg=(cdisasm_arm_reg_id)(CDISASM_ARM_REG_W8+((word>>13)&3u));operand->imm=(word&3u)*2u;operand->register_list=(uint16_t)count;operand->extend_type=2u;operand->access=CDISASM_OPERAND_ACCESS_READ_WRITE;}arm_modern_append_zlist(instruction,zn,1u,count,CDISASM_OPERAND_ACCESS_READ);operand=arm_modern_append_zreg(instruction,(word>>16)&15u,1u,CDISASM_OPERAND_ACCESS_READ);if(operand){operand->flags=CDISASM_ARM_OPERAND_FLAG_HAS_LANE;operand->imm=lane;}return;
     }

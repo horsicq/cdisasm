@@ -21,4 +21,11 @@ int cdisasm_arm_apply_generated_it_context(
     const cdisasm_arm_capabilities *capabilities,
     cdisasm_arm_instruction *instruction);
 
+/* Test one alias's applicability, without requiring it to be the preferred
+ * disassembly spelling. IDs are one-based arm_tree_aliases.tsv indices. */
+int cdisasm_arm_generated_alias_matches(
+    const cdisasm_arm_capabilities *capabilities,
+    cdisasm_arm_mode mode, uint32_t raw_instruction,
+    cdisasm_arm_form_id form_id, uint16_t alias_id);
+
 #endif

@@ -1173,6 +1173,13 @@ static cdisasm_status t32_decode_extra_load_store(
             default: return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
         }
         if (((word >> 12) & 15u) == 15u) {
+            /* Rt=PC selects hint/branch aliases for some loads, but there
+             * is no corresponding store alias. Do not let a reserved
+             * STR[B/H] PC encoding fall through to the generated masks. */
+            if (operation == 0u || operation == 4u || operation == 6u) {
+                *recognized = 1;
+                return CDISASM_STATUS_INVALID_INSTRUCTION;
+            }
             return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
         }
         *recognized = 1;
@@ -1213,7 +1220,13 @@ static cdisasm_status t32_decode_extra_load_store(
                 CDISASM_ARM_INSTRUCTION_FLAG_BYTE;
         }
         memory = NULL;
-        if (positive_immediate != 0u) {
+        if (rn == 15u) {
+            /* Literal loads use an unsigned imm12 with a separate U bit,
+             * including the encodings otherwise used for register/imm8
+             * addressing. PC never selects those addressing modes. */
+            offset = word & UINT32_C(0x0fff);
+            add = positive_immediate;
+        } else if (positive_immediate != 0u) {
             offset = word & UINT32_C(0x0fff);
         } else if ((word & UINT32_C(0x00000fc0)) == 0u) {
             unsigned rm = word & 15u;
@@ -1232,6 +1245,9 @@ static cdisasm_status t32_decode_extra_load_store(
                 pre_index = 0u;
                 writeback = 1u;
                 add = 0u;
+            } else if (mode == UINT32_C(0x00000b00)) {
+                pre_index = 0u;
+                writeback = 1u;
             } else if (mode == UINT32_C(0x00000c00)) {
                 add = 0u;
             } else if (mode == UINT32_C(0x00000d00)) {
@@ -1249,6 +1265,8 @@ static cdisasm_status t32_decode_extra_load_store(
                     : operation == 5u ? CDISASM_ARM_NAME_LDRBT
                     : operation == 6u ? CDISASM_ARM_NAME_STRT
                                       : CDISASM_ARM_NAME_LDRT;
+            } else if (mode == UINT32_C(0x00000f00)) {
+                writeback = 1u;
             } else {
                 return CDISASM_STATUS_INVALID_INSTRUCTION;
             }

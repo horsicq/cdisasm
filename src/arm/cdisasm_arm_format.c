@@ -15212,7 +15212,7 @@ static int arm_valid_sme2_indexed_fp_long_mla4_schema(const cdisasm_arm_instruct
 
 static int arm_valid_sme_fp8_indexed_long_mla_multi_schema(const cdisasm_arm_instruction*i)
 {
-    uint32_t w=i->raw_instruction;unsigned count=(w&UINT32_C(0x8000))?4u:2u,lane=(((w>>12)&1u)<<3)|(((w>>10)&3u)<<1)|((w>>3)&1u),zn=count==4?((w>>7)&7u)*4u:((w>>6)&15u)*2u;uint32_t mask=count==4?UINT32_C(0xfff09070):UINT32_C(0xfff09030),value=count==4?UINT32_C(0xc1909020):UINT32_C(0xc1901030);int raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&mask)==value;int form=i->isa_id==CDISASM_ARM_ISA_A64&&(i->form_id==3993||i->form_id==4041);const cdisasm_arm_operand*t=&i->operand[0],*l=&i->operand[1];
+    uint32_t w=i->raw_instruction;unsigned count=(w&UINT32_C(0x8000))?4u:2u,lane=(((w>>10)&3u)<<2)|((w>>2)&3u),zn=count==4?((w>>7)&7u)*4u:((w>>6)&15u)*2u;uint32_t mask=count==4?UINT32_C(0xfff09070):UINT32_C(0xfff09030),value=count==4?UINT32_C(0xc1909020):UINT32_C(0xc1901030);int raw=i->isa_id==CDISASM_ARM_ISA_A64&&(w&mask)==value;int form=i->isa_id==CDISASM_ARM_ISA_A64&&(i->form_id==3993||i->form_id==4041);const cdisasm_arm_operand*t=&i->operand[0],*l=&i->operand[1];
     if(!raw&&!form)return 1;if(!raw||!form)return 0;
     return i->name_id==CDISASM_ARM_NAME_FMLAL&&i->form_id==(count==4?4041:3993)&&i->condition==CDISASM_ARM_CONDITION_AL&&i->opcode_groups==CDISASM_GROUP_NONE&&i->instruction_flags==UINT32_C(0x05402000)&&i->operand_count==3&&t->type==CDISASM_ARM_OPERAND_TILE&&t->reg==CDISASM_ARM_REG_ZA&&t->base_reg==CDISASM_ARM_REG_W8+((w>>13)&3u)&&t->index_reg==CDISASM_ARM_REG_NONE&&t->register_list==count&&t->imm==(w&3u)*2u&&t->size==0&&t->flags==0&&t->extend_type==2&&t->access==CDISASM_OPERAND_ACCESS_READ_WRITE&&l->type==CDISASM_ARM_OPERAND_SCALABLE_REGISTER_LIST&&l->reg==CDISASM_ARM_REG_Z0+zn&&l->register_list==(uint16_t)(UINT16_C(0x0100)|count)&&l->extend_type==1&&l->access==CDISASM_OPERAND_ACCESS_READ&&arm_exact_scalable_lane_operand(&i->operand[2],CDISASM_ARM_REG_Z0+((w>>16)&15u),1,lane,CDISASM_OPERAND_ACCESS_READ);
 }
@@ -18286,6 +18286,20 @@ static void arm_format_it_suffix(
     }
 }
 
+static int arm_is_fp16_scalar_memory(
+    const cdisasm_arm_instruction *instruction)
+{
+    return instruction->isa_id != CDISASM_ARM_ISA_A64
+        && (instruction->name_id == CDISASM_ARM_NAME_VLDR
+            || instruction->name_id == CDISASM_ARM_NAME_VSTR)
+        && instruction->operand_count == 2u
+        && instruction->operand[0].type == CDISASM_OPERAND_REGISTER
+        && instruction->operand[0].size == 2u
+        && instruction->operand[0].reg >= CDISASM_ARM_REG_H0
+        && instruction->operand[0].reg <= CDISASM_ARM_REG_H31
+        && instruction->operand[1].type == CDISASM_OPERAND_MEMORY;
+}
+
 static void arm_format_mnemonic(
     arm_text_writer *writer,
     const cdisasm_arm_instruction *instruction,
@@ -18424,6 +18438,12 @@ static void arm_format_mnemonic(
             writer,
             arm_condition_names[instruction->condition],
             uppercase);
+    }
+    if (arm_is_fp16_scalar_memory(instruction)) {
+        /* A32/T32 FP16 transfers name the architectural S register and
+         * put the half precision on the mnemonic, despite the ABI's H
+         * register record describing the accessed 16-bit portion. */
+        arm_writer_puts(writer, ".16");
     }
 }
 
@@ -18633,10 +18653,10 @@ static void arm_format_register(
         arm_writer_putc(writer, ']');
     }
     if (operand_index == 0u
-        && (instruction->name_id == CDISASM_ARM_NAME_LDM
-            || instruction->name_id == CDISASM_ARM_NAME_STM)
+        && arm_is_multiple_transfer_name(instruction->name_id)
         && (instruction->instruction_flags
-            & CDISASM_ARM_INSTRUCTION_FLAG_WRITEBACK) != 0u) {
+            & CDISASM_ARM_INSTRUCTION_FLAG_WRITEBACK) != 0u
+        && (operand->flags & CDISASM_ARM_OPERAND_FLAG_WRITEBACK) == 0u) {
         arm_writer_putc(writer, '!');
     }
     if ((instruction->instruction_flags
@@ -18661,7 +18681,11 @@ static int arm_immediate_shift_is_displayed(
     const cdisasm_arm_operand *operand)
 {
     return operand->shift_type != CDISASM_ARM_SHIFT_NONE
-        && instruction->isa_id == CDISASM_ARM_ISA_A64;
+        && (instruction->isa_id == CDISASM_ARM_ISA_A64
+            || (instruction->isa_id == CDISASM_ARM_ISA_A32
+                && operand->shift_type == CDISASM_ARM_SHIFT_ROR
+                && (instruction->instruction_flags
+                    & CDISASM_ARM_INSTRUCTION_FLAG_SETS_FLAGS) != 0u));
 }
 
 static uint64_t arm_immediate_display_value(
@@ -20079,6 +20103,13 @@ size_t CDISASM_CALL cdisasm_arm_format(
     for (index = 0; index < display_operand_count; ++index) {
         if (index != 0u) {
             arm_writer_puts(&writer, ", ");
+        }
+        if (index == 0u && arm_is_fp16_scalar_memory(instruction)) {
+            arm_writer_putc(&writer, 's');
+            arm_writer_decimal(&writer,
+                (uint64_t)(instruction->operand[0].reg
+                    - CDISASM_ARM_REG_H0));
+            continue;
         }
 #if USE_EXTRA_OPCODES
         /* LDC/STC keep the coprocessor p#/c# selectors packed into the

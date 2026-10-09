@@ -10278,7 +10278,7 @@ static int decode_avx_ne_convert_vex(
     return add_vector_register_operand_access(
                decoder, modrm.reg, vector_bits,
                CDISASM_OPERAND_ACCESS_WRITE)
-        && add_rm_operand(decoder, &modrm, vector_bits / 4u, 1)
+        && add_rm_operand(decoder, &modrm, vector_bits, 1)
         && set_last_operand_access(
                decoder, CDISASM_OPERAND_ACCESS_READ);
 #endif
@@ -13037,7 +13037,8 @@ static int decode_apx_evex(
         if (!decode_modrm(decoder, &modrm)) {
             return 0;
         }
-        if (u != modrm.is_register) {
+        /* Memory U is inverted X4, independently of the ModRM mode. */
+        if (!u && modrm.is_register) {
             return decoder_fail(
                 decoder, CDISASM_STATUS_INVALID_INSTRUCTION);
         }
@@ -13107,7 +13108,7 @@ static int decode_apx_evex(
         if (!decode_modrm(decoder, &modrm)) {
             return 0;
         }
-        if (u != modrm.is_register) {
+        if (!u && modrm.is_register) {
             return decoder_fail(
                 decoder, CDISASM_STATUS_INVALID_INSTRUCTION);
         }
@@ -17256,7 +17257,8 @@ static int decode_evex(x86_decoder *decoder)
                 CDISASM_OPERAND_ACCESS_WRITE)
             && add_register_operand_access(
                 decoder, source, bits,
-                CDISASM_OPERAND_ACCESS_READ)
+                is_mulx ? CDISASM_OPERAND_ACCESS_WRITE
+                        : CDISASM_OPERAND_ACCESS_READ)
             && add_rm_operand(decoder, &modrm, bits, 1)
             && set_last_operand_access(
                 decoder, CDISASM_OPERAND_ACCESS_READ);
@@ -20174,13 +20176,11 @@ static int decode_endbr(x86_decoder *decoder)
 {
     uint8_t suffix;
 
-    if (decoder->repeat_prefix != UINT8_C(0xf3)) {
-        return decoder_fail(decoder, CDISASM_STATUS_INVALID_INSTRUCTION);
-    }
     if (!read_u8(decoder, &suffix)) {
         return 0;
     }
-    if (suffix == UINT8_C(0xfa) || suffix == UINT8_C(0xfb)) {
+    if (decoder->repeat_prefix == UINT8_C(0xf3)
+        && (suffix == UINT8_C(0xfa) || suffix == UINT8_C(0xfb))) {
         ++decoder->encoding.opcode_size;
         if (decoder_has_caps(decoder, X86_CAP_CET_IBT)) {
             decoder->name_id = suffix == UINT8_C(0xfa)
@@ -20230,7 +20230,11 @@ static int decode_endbr(x86_decoder *decoder)
             return decoder_fail(
                 decoder, CDISASM_STATUS_INVALID_INSTRUCTION);
         }
-        if (!modrm.is_register || modrm.reg3 != 1) {
+        /* Intel SDM Vol. 3B, Architecture Compatibility, Reserved NOP:
+         * unallocated 0F18..0F1F encodings accept normal prefix options.
+         * F3 selects the CET allocations; absent/F2/66 prefixes retain NOP. */
+        if (decoder->repeat_prefix != UINT8_C(0xf3)
+            || !modrm.is_register || modrm.reg3 != 1) {
             decoder->name_id = CDISASM_X86_NAME_NOP;
             decoder_require_caps(decoder, X86_CAP_P6);
             return add_rm_operand(

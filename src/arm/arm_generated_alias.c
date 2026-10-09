@@ -1,8 +1,12 @@
 #include "arm_generated_alias.h"
+#include "arm_t32_decoder.h"
 
 #if USE_EXTRA_OPCODES
 
 #include "generated/cdisasm_arm_alias_decode.inc"
+
+_Static_assert(CDISASM_ARM_ALIASGEN_ALIAS_COUNT == CDISASM_ARM_ALIAS_AARCHMRS_2026_03_LAST,
+               "public ARM alias catalog bound is stale");
 
 _Static_assert(
     CDISASM_ARM_FEATURE_PMULL
@@ -993,6 +997,26 @@ static int arm_alias_eval_program(
     return 1;
 }
 
+int cdisasm_arm_generated_alias_matches(
+    const cdisasm_arm_capabilities *capabilities,
+    cdisasm_arm_mode mode, uint32_t raw_instruction,
+    cdisasm_arm_form_id form_id, uint16_t alias_id)
+{
+    const cdisasm_arm_aliasgen_alias *alias;
+    uint32_t word = raw_instruction;
+    int condition = 0;
+    if (capabilities == NULL || alias_id == 0u
+        || alias_id > CDISASM_ARM_ALIASGEN_ALIAS_COUNT || form_id == 0u)
+        return 0;
+    alias = &cdisasm_arm_aliasgen_aliases[alias_id - 1u];
+    if (alias->leaf_index + 1u != form_id) return 0;
+    if (mode == CDISASM_ARM_MODE_T32
+        && cdisasm_arm_t32_instruction_size((uint16_t)word) == 4u)
+        word = (word << 16) | (word >> 16);
+    return arm_alias_eval_program(alias->condition_program_id, word,
+        capabilities, 0, &condition) && condition;
+}
+
 int cdisasm_arm_select_generated_alias(
     const cdisasm_arm_capabilities *capabilities,
     int in_it_block,
@@ -1182,6 +1206,16 @@ int cdisasm_arm_apply_generated_it_context(
 }
 
 #else
+
+int cdisasm_arm_generated_alias_matches(
+    const cdisasm_arm_capabilities *capabilities,
+    cdisasm_arm_mode mode, uint32_t raw_instruction,
+    cdisasm_arm_form_id form_id, uint16_t alias_id)
+{
+    (void)capabilities; (void)mode; (void)raw_instruction;
+    (void)form_id; (void)alias_id;
+    return 0;
+}
 
 int cdisasm_arm_select_generated_alias(
     const cdisasm_arm_capabilities *capabilities,

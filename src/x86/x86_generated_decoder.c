@@ -1668,15 +1668,27 @@ static cdisasm_status x86_gen_commit(
             |= CDISASM_X86_INSTRUCTION_FLAG_WRITES_STATUS_FLAGS;
     }
     if (state->values[CDISASM_X86_GEN_FIELD_ND] != 0u
-        && (descriptor->flags
-            & (CDISASM_X86_GEN_FLAG_EVAPX
-                | CDISASM_X86_GEN_FLAG_EVAPX_SCC)) != 0u) {
-        instruction->opcode_flags |= CDISASM_PREFIX_APX_NDD;
+        && (descriptor->flags & CDISASM_X86_GEN_FLAG_EVAPX) != 0u) {
+        uint32_t operand_index;
+        int has_vvvv = 0;
+        for (operand_index = 0u; operand_index < descriptor->operand_count; ++operand_index) {
+            const cdisasm_x86_gen_operand *recipe =
+                &cdisasm_x86_gen_operands[descriptor->first_operand + operand_index];
+            if (recipe->source == CDISASM_X86_GEN_SOURCE_VVVV
+                || recipe->source == CDISASM_X86_GEN_SOURCE_VVVV_HIGH) {
+                has_vvvv = 1;
+                break;
+            }
+        }
+        /* SETcc and immediate IMUL repurpose ND as zero-upper; NDD and
+         * stack-pair forms have an actual VVVV operand in their recipe. */
+        instruction->opcode_flags |= has_vvvv
+            ? CDISASM_PREFIX_APX_NDD : CDISASM_PREFIX_APX_ZU;
     }
+    /* SCC bit 2 is part of the conditional-compare/test condition code,
+     * not an independent no-flags selector. */
     if (state->values[CDISASM_X86_GEN_FIELD_NF] != 0u
-        && (descriptor->flags
-            & (CDISASM_X86_GEN_FLAG_EVAPX
-                | CDISASM_X86_GEN_FLAG_EVAPX_SCC)) != 0u) {
+        && (descriptor->flags & CDISASM_X86_GEN_FLAG_EVAPX) != 0u) {
         instruction->opcode_flags |= CDISASM_PREFIX_APX_NF;
     }
     instruction->name_id = descriptor->name_id;
