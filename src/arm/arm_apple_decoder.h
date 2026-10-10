@@ -3,9 +3,6 @@
 
 #include "arm_decoder.h"
 
-cdisasm_status cdisasm_arm_decode_a64_apple(
-    uint32_t word,
-    cdisasm_arm_instruction *instruction,
-    cdisasm_arm_requirements *required_capabilities);
+cdisasm_status cdisasm_arm_decode_a64_apple(uint32_t word, cdisasm_arm_instruction *instruction, cdisasm_arm_requirements *required_capabilities);
 
 #endif

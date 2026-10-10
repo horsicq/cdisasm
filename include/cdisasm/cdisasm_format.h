@@ -6,17 +6,17 @@
 #include "cdisasm_common.h"
 
 #if !USE_DISASM_FORMAT
-#  error "cdisasm formatting is disabled in this build"
+#error "cdisasm formatting is disabled in this build"
 #elif !USE_ARCH_X86 && !USE_ARCH_ARM
-#  error "cdisasm formatting requires an enabled architecture"
+#error "cdisasm formatting requires an enabled architecture"
 #endif
 
 #if USE_DISASM_FORMAT && USE_ARCH_X86
-#  include "cdisasm_x86.h"
+#include "cdisasm_x86.h"
 #endif
 
 #if USE_DISASM_FORMAT && USE_ARCH_ARM
-#  include "cdisasm_arm.h"
+#include "cdisasm_arm.h"
 #endif
 
 /* Formatter exports are owned by the same cdisasm library as decoder exports. */
@@ -67,11 +67,7 @@ extern "C" {
 
 #if USE_DISASM_FORMAT && USE_ARCH_X86
 /** Formats one successfully decoded x86 instruction using the selected syntax. */
-CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_x86_format(
-    const cdisasm_x86_instruction *instruction,
-    uint32_t flags,
-    char *buffer,
-    size_t buffer_size);
+CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_x86_format(const cdisasm_x86_instruction *instruction, uint32_t flags, char *buffer, size_t buffer_size);
 
 /**
  * Formats one x86 instruction with its decode mode available to the formatter.
@@ -82,19 +78,11 @@ CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_x86_format(
  * Intel output is identical to cdisasm_x86_format for the same instruction and
  * flags.
  */
-CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_x86_format_mode(
-    const cdisasm_x86_instruction *instruction,
-    cdisasm_mode mode,
-    uint32_t flags,
-    char *buffer,
-    size_t buffer_size);
+CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_x86_format_mode(const cdisasm_x86_instruction *instruction, cdisasm_mode mode, uint32_t flags, char *buffer,
+                                                               size_t buffer_size);
 
 /** Compatibility spelling for cdisasm_x86_format. */
-CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_format(
-    const cdisasm_instruction *instruction,
-    uint32_t flags,
-    char *buffer,
-    size_t buffer_size);
+CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_format(const cdisasm_instruction *instruction, uint32_t flags, char *buffer, size_t buffer_size);
 #endif
 
 #if USE_DISASM_FORMAT && USE_ARCH_ARM
@@ -104,11 +92,7 @@ CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_format(
  * that an exact generated recipe rendered every operand; otherwise the call
  * returns zero and leaves a nonempty buffer as an empty string.
  */
-CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_arm_format(
-    const cdisasm_arm_instruction *instruction,
-    uint32_t flags,
-    char *buffer,
-    size_t buffer_size);
+CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_arm_format(const cdisasm_arm_instruction *instruction, uint32_t flags, char *buffer, size_t buffer_size);
 #endif
 
 #ifdef __cplusplus

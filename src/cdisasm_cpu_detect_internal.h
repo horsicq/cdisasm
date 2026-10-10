@@ -24,8 +24,7 @@ typedef struct cdisasm_internal_x86_cpu_snapshot {
     uint32_t extended1_edx;
 } cdisasm_internal_x86_cpu_snapshot;
 
-cdisasm_cpu_id cdisasm_internal_classify_x86_cpu(
-    const cdisasm_internal_x86_cpu_snapshot *snapshot);
+cdisasm_cpu_id cdisasm_internal_classify_x86_cpu(const cdisasm_internal_x86_cpu_snapshot *snapshot);
 #endif
 
 #if USE_ARCH_ARM
@@ -39,18 +38,12 @@ cdisasm_cpu_id cdisasm_internal_classify_x86_cpu(
 #define CDISASM_INTERNAL_APPLE_CPUFAMILY_TYPHOON UINT32_C(0x2c91a47e)
 #define CDISASM_INTERNAL_APPLE_CPUFAMILY_TWISTER UINT32_C(0x92fb37c8)
 #define CDISASM_INTERNAL_APPLE_CPUFAMILY_HURRICANE UINT32_C(0x67ceee93)
-#define CDISASM_INTERNAL_APPLE_CPUFAMILY_MONSOON_MISTRAL \
-    UINT32_C(0xe81e7ef6)
-#define CDISASM_INTERNAL_APPLE_CPUFAMILY_VORTEX_TEMPEST \
-    UINT32_C(0x07d34b9f)
-#define CDISASM_INTERNAL_APPLE_CPUFAMILY_LIGHTNING_THUNDER \
-    UINT32_C(0x462504d2)
-#define CDISASM_INTERNAL_APPLE_CPUFAMILY_FIRESTORM_ICESTORM \
-    UINT32_C(0x1b588bb3)
-#define CDISASM_INTERNAL_APPLE_CPUFAMILY_BLIZZARD_AVALANCHE \
-    UINT32_C(0xda33d83d)
-#define CDISASM_INTERNAL_APPLE_CPUFAMILY_EVEREST_SAWTOOTH \
-    UINT32_C(0x8765edea)
+#define CDISASM_INTERNAL_APPLE_CPUFAMILY_MONSOON_MISTRAL UINT32_C(0xe81e7ef6)
+#define CDISASM_INTERNAL_APPLE_CPUFAMILY_VORTEX_TEMPEST UINT32_C(0x07d34b9f)
+#define CDISASM_INTERNAL_APPLE_CPUFAMILY_LIGHTNING_THUNDER UINT32_C(0x462504d2)
+#define CDISASM_INTERNAL_APPLE_CPUFAMILY_FIRESTORM_ICESTORM UINT32_C(0x1b588bb3)
+#define CDISASM_INTERNAL_APPLE_CPUFAMILY_BLIZZARD_AVALANCHE UINT32_C(0xda33d83d)
+#define CDISASM_INTERNAL_APPLE_CPUFAMILY_EVEREST_SAWTOOTH UINT32_C(0x8765edea)
 #define CDISASM_INTERNAL_APPLE_CPUFAMILY_IBIZA UINT32_C(0xfa33415e)
 #define CDISASM_INTERNAL_APPLE_CPUFAMILY_PALMA UINT32_C(0x72015832)
 #define CDISASM_INTERNAL_APPLE_CPUFAMILY_COLL UINT32_C(0x2876f5b5)
@@ -76,28 +69,19 @@ typedef struct cdisasm_internal_arm_cpuinfo_state {
     int invalid;
 } cdisasm_internal_arm_cpuinfo_state;
 
-cdisasm_cpu_id cdisasm_internal_classify_arm_midr(
-    uint32_t midr,
-    int has_neon);
+cdisasm_cpu_id cdisasm_internal_classify_arm_midr(uint32_t midr, int has_neon);
 
-void cdisasm_internal_arm_cpuinfo_init(
-    cdisasm_internal_arm_cpuinfo_state *state,
-    int has_neon);
+void cdisasm_internal_arm_cpuinfo_init(cdisasm_internal_arm_cpuinfo_state *state, int has_neon);
 
-int cdisasm_internal_arm_cpuinfo_feed(
-    cdisasm_internal_arm_cpuinfo_state *state,
-    const char *line);
+int cdisasm_internal_arm_cpuinfo_feed(cdisasm_internal_arm_cpuinfo_state *state, const char *line);
 
 int cdisasm_internal_arm_cpuinfo_line_is_relevant(const char *line);
 
-cdisasm_cpu_id cdisasm_internal_arm_cpuinfo_finish(
-    cdisasm_internal_arm_cpuinfo_state *state);
+cdisasm_cpu_id cdisasm_internal_arm_cpuinfo_finish(cdisasm_internal_arm_cpuinfo_state *state);
 
 cdisasm_cpu_id cdisasm_internal_classify_apple_brand(const char *brand);
 
-cdisasm_cpu_id cdisasm_internal_classify_apple_family(
-    uint32_t family,
-    cdisasm_cpu_id brand_profile);
+cdisasm_cpu_id cdisasm_internal_classify_apple_family(uint32_t family, cdisasm_cpu_id brand_profile);
 #endif
 
 #endif

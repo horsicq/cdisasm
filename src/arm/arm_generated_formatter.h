@@ -8,10 +8,6 @@
  * opaque (or that the supplied generated record is inconsistent), in which
  * case the ordinary mnemonic-only fallback remains available.
  */
-size_t cdisasm_arm_format_generated(
-    const cdisasm_arm_instruction *instruction,
-    uint32_t flags,
-    char *buffer,
-    size_t buffer_size);
+size_t cdisasm_arm_format_generated(const cdisasm_arm_instruction *instruction, uint32_t flags, char *buffer, size_t buffer_size);
 
 #endif

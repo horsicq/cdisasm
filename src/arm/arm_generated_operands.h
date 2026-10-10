@@ -9,7 +9,6 @@
  * register-31 interpretation, size, and access mode is known.  A zero return
  * leaves the instruction byte-for-byte unchanged and therefore opaque.
  */
-int cdisasm_arm_lower_generated_operands(
-    cdisasm_arm_instruction *instruction);
+int cdisasm_arm_lower_generated_operands(cdisasm_arm_instruction *instruction);
 
 #endif

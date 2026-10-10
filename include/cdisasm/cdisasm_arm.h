@@ -4,28 +4,27 @@
 #include "cdisasm_common.h"
 
 #if !USE_ARCH_ARM
-#  error "cdisasm ARM support is disabled in this build"
+#error "cdisasm ARM support is disabled in this build"
 #endif
 
 #include "cdisasm_arm_ids.h"
 
 #if defined(_WIN32) || defined(__CYGWIN__)
-#  if defined(CDISASM_STATIC) || defined(CDISASM_ARM_STATIC)
-#    define CDISASM_ARM_API
-#  elif defined(CDISASM_BUILDING_LIBRARY) \
-        || defined(CDISASM_ARM_BUILDING_LIBRARY)
-#    define CDISASM_ARM_API __declspec(dllexport)
-#  else
-#    define CDISASM_ARM_API __declspec(dllimport)
-#  endif
-#elif defined(__GNUC__) || defined(__clang__)
-#  if defined(CDISASM_STATIC) || defined(CDISASM_ARM_STATIC)
-#    define CDISASM_ARM_API __attribute__((visibility("hidden")))
-#  else
-#    define CDISASM_ARM_API __attribute__((visibility("default")))
-#  endif
+#if defined(CDISASM_STATIC) || defined(CDISASM_ARM_STATIC)
+#define CDISASM_ARM_API
+#elif defined(CDISASM_BUILDING_LIBRARY) || defined(CDISASM_ARM_BUILDING_LIBRARY)
+#define CDISASM_ARM_API __declspec(dllexport)
 #else
-#  define CDISASM_ARM_API
+#define CDISASM_ARM_API __declspec(dllimport)
+#endif
+#elif defined(__GNUC__) || defined(__clang__)
+#if defined(CDISASM_STATIC) || defined(CDISASM_ARM_STATIC)
+#define CDISASM_ARM_API __attribute__((visibility("hidden")))
+#else
+#define CDISASM_ARM_API __attribute__((visibility("default")))
+#endif
+#else
+#define CDISASM_ARM_API
 #endif
 
 #define CDISASM_ARM_MAX_INSTRUCTION_SIZE 4
@@ -120,138 +119,72 @@ typedef uint64_t cdisasm_arm_family_mask;
 #define CDISASM_ARM_FAMILY_FIRST CDISASM_ARM_FAMILY_V4
 #define CDISASM_ARM_FAMILY_LAST CDISASM_ARM_FAMILY_SPE
 
-#define CDISASM_ARM_FAMILY_MASK_FOR_ID(family_id_) \
-    (UINT64_C(1) << ((family_id_) - UINT16_C(1)))
+#define CDISASM_ARM_FAMILY_MASK_FOR_ID(family_id_) (UINT64_C(1) << ((family_id_) - UINT16_C(1)))
 #define CDISASM_ARM_FAMILY_MASK_NONE UINT64_C(0)
-#define CDISASM_ARM_FAMILY_MASK_V4 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_V4)
-#define CDISASM_ARM_FAMILY_MASK_V5 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_V5)
-#define CDISASM_ARM_FAMILY_MASK_V6 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_V6)
-#define CDISASM_ARM_FAMILY_MASK_V7 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_V7)
-#define CDISASM_ARM_FAMILY_MASK_V8 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_V8)
-#define CDISASM_ARM_FAMILY_MASK_NEON \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_NEON)
-#define CDISASM_ARM_FAMILY_MASK_VFP \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_VFP)
-#define CDISASM_ARM_FAMILY_MASK_FP16 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FP16)
-#define CDISASM_ARM_FAMILY_MASK_SVE \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SVE)
-#define CDISASM_ARM_FAMILY_MASK_SVE2 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SVE2)
-#define CDISASM_ARM_FAMILY_MASK_SME \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SME)
-#define CDISASM_ARM_FAMILY_MASK_SME2 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SME2)
-#define CDISASM_ARM_FAMILY_MASK_LSE \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_LSE)
-#define CDISASM_ARM_FAMILY_MASK_LSE2 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_LSE2)
-#define CDISASM_ARM_FAMILY_MASK_LSE128 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_LSE128)
-#define CDISASM_ARM_FAMILY_MASK_RCPC \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_RCPC)
-#define CDISASM_ARM_FAMILY_MASK_RCPC3 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_RCPC3)
-#define CDISASM_ARM_FAMILY_MASK_BTI \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_BTI)
-#define CDISASM_ARM_FAMILY_MASK_PAUTH \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_PAUTH)
-#define CDISASM_ARM_FAMILY_MASK_MTE \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_MTE)
-#define CDISASM_ARM_FAMILY_MASK_MOPS \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_MOPS)
-#define CDISASM_ARM_FAMILY_MASK_LS64 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_LS64)
-#define CDISASM_ARM_FAMILY_MASK_CSSC \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_CSSC)
-#define CDISASM_ARM_FAMILY_MASK_BF16 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_BF16)
-#define CDISASM_ARM_FAMILY_MASK_FP8 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FP8)
-#define CDISASM_ARM_FAMILY_MASK_F64MM \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_F64MM)
-#define CDISASM_ARM_FAMILY_MASK_APPLE_MUL53 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_APPLE_MUL53)
-#define CDISASM_ARM_FAMILY_MASK_APPLE_AMX \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_APPLE_AMX)
-#define CDISASM_ARM_FAMILY_MASK_APPLE_SYS \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_APPLE_SYS)
-#define CDISASM_ARM_FAMILY_MASK_APPLE_A7_SYSREG \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_APPLE_A7_SYSREG)
-#define CDISASM_ARM_FAMILY_MASK_CPA \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_CPA)
-#define CDISASM_ARM_FAMILY_MASK_MP \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_MP)
-#define CDISASM_ARM_FAMILY_MASK_CRC32 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_CRC32)
-#define CDISASM_ARM_FAMILY_MASK_AES \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_AES)
-#define CDISASM_ARM_FAMILY_MASK_PMULL \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_PMULL)
-#define CDISASM_ARM_FAMILY_MASK_SHA \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SHA)
-#define CDISASM_ARM_FAMILY_MASK_SM3 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SM3)
-#define CDISASM_ARM_FAMILY_MASK_SM4 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SM4)
-#define CDISASM_ARM_FAMILY_MASK_DOTPROD \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_DOTPROD)
-#define CDISASM_ARM_FAMILY_MASK_FCMA \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FCMA)
-#define CDISASM_ARM_FAMILY_MASK_FHM \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FHM)
-#define CDISASM_ARM_FAMILY_MASK_AA32I8MM \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_AA32I8MM)
-#define CDISASM_ARM_FAMILY_MASK_PAN \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_PAN)
-#define CDISASM_ARM_FAMILY_MASK_RAS \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_RAS)
-#define CDISASM_ARM_FAMILY_MASK_TRF \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_TRF)
-#define CDISASM_ARM_FAMILY_MASK_CLRBHB \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_CLRBHB)
-#define CDISASM_ARM_FAMILY_MASK_GCS \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_GCS)
-#define CDISASM_ARM_FAMILY_MASK_PAUTH_LR \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_PAUTH_LR)
-#define CDISASM_ARM_FAMILY_MASK_SVE2P1 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SVE2P1)
-#define CDISASM_ARM_FAMILY_MASK_SME2P1 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SME2P1)
-#define CDISASM_ARM_FAMILY_MASK_SVE2P2 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SVE2P2)
-#define CDISASM_ARM_FAMILY_MASK_SME2P2 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SME2P2)
-#define CDISASM_ARM_FAMILY_MASK_SVE2P3 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SVE2P3)
-#define CDISASM_ARM_FAMILY_MASK_SME2P3 \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SME2P3)
-#define CDISASM_ARM_FAMILY_MASK_FAMINMAX \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FAMINMAX)
-#define CDISASM_ARM_FAMILY_MASK_FPRCVT \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FPRCVT)
-#define CDISASM_ARM_FAMILY_MASK_JSCVT \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_JSCVT)
-#define CDISASM_ARM_FAMILY_MASK_CHK \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_CHK)
-#define CDISASM_ARM_FAMILY_MASK_DGH \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_DGH)
-#define CDISASM_ARM_FAMILY_MASK_SPE \
-    CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SPE)
-#define CDISASM_ARM_FAMILY_MASK_ALL \
-    ((UINT64_C(1) << CDISASM_ARM_FAMILY_LAST) - UINT64_C(1))
+#define CDISASM_ARM_FAMILY_MASK_V4 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_V4)
+#define CDISASM_ARM_FAMILY_MASK_V5 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_V5)
+#define CDISASM_ARM_FAMILY_MASK_V6 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_V6)
+#define CDISASM_ARM_FAMILY_MASK_V7 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_V7)
+#define CDISASM_ARM_FAMILY_MASK_V8 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_V8)
+#define CDISASM_ARM_FAMILY_MASK_NEON CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_NEON)
+#define CDISASM_ARM_FAMILY_MASK_VFP CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_VFP)
+#define CDISASM_ARM_FAMILY_MASK_FP16 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FP16)
+#define CDISASM_ARM_FAMILY_MASK_SVE CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SVE)
+#define CDISASM_ARM_FAMILY_MASK_SVE2 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SVE2)
+#define CDISASM_ARM_FAMILY_MASK_SME CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SME)
+#define CDISASM_ARM_FAMILY_MASK_SME2 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SME2)
+#define CDISASM_ARM_FAMILY_MASK_LSE CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_LSE)
+#define CDISASM_ARM_FAMILY_MASK_LSE2 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_LSE2)
+#define CDISASM_ARM_FAMILY_MASK_LSE128 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_LSE128)
+#define CDISASM_ARM_FAMILY_MASK_RCPC CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_RCPC)
+#define CDISASM_ARM_FAMILY_MASK_RCPC3 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_RCPC3)
+#define CDISASM_ARM_FAMILY_MASK_BTI CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_BTI)
+#define CDISASM_ARM_FAMILY_MASK_PAUTH CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_PAUTH)
+#define CDISASM_ARM_FAMILY_MASK_MTE CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_MTE)
+#define CDISASM_ARM_FAMILY_MASK_MOPS CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_MOPS)
+#define CDISASM_ARM_FAMILY_MASK_LS64 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_LS64)
+#define CDISASM_ARM_FAMILY_MASK_CSSC CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_CSSC)
+#define CDISASM_ARM_FAMILY_MASK_BF16 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_BF16)
+#define CDISASM_ARM_FAMILY_MASK_FP8 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FP8)
+#define CDISASM_ARM_FAMILY_MASK_F64MM CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_F64MM)
+#define CDISASM_ARM_FAMILY_MASK_APPLE_MUL53 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_APPLE_MUL53)
+#define CDISASM_ARM_FAMILY_MASK_APPLE_AMX CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_APPLE_AMX)
+#define CDISASM_ARM_FAMILY_MASK_APPLE_SYS CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_APPLE_SYS)
+#define CDISASM_ARM_FAMILY_MASK_APPLE_A7_SYSREG CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_APPLE_A7_SYSREG)
+#define CDISASM_ARM_FAMILY_MASK_CPA CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_CPA)
+#define CDISASM_ARM_FAMILY_MASK_MP CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_MP)
+#define CDISASM_ARM_FAMILY_MASK_CRC32 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_CRC32)
+#define CDISASM_ARM_FAMILY_MASK_AES CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_AES)
+#define CDISASM_ARM_FAMILY_MASK_PMULL CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_PMULL)
+#define CDISASM_ARM_FAMILY_MASK_SHA CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SHA)
+#define CDISASM_ARM_FAMILY_MASK_SM3 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SM3)
+#define CDISASM_ARM_FAMILY_MASK_SM4 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SM4)
+#define CDISASM_ARM_FAMILY_MASK_DOTPROD CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_DOTPROD)
+#define CDISASM_ARM_FAMILY_MASK_FCMA CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FCMA)
+#define CDISASM_ARM_FAMILY_MASK_FHM CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FHM)
+#define CDISASM_ARM_FAMILY_MASK_AA32I8MM CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_AA32I8MM)
+#define CDISASM_ARM_FAMILY_MASK_PAN CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_PAN)
+#define CDISASM_ARM_FAMILY_MASK_RAS CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_RAS)
+#define CDISASM_ARM_FAMILY_MASK_TRF CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_TRF)
+#define CDISASM_ARM_FAMILY_MASK_CLRBHB CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_CLRBHB)
+#define CDISASM_ARM_FAMILY_MASK_GCS CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_GCS)
+#define CDISASM_ARM_FAMILY_MASK_PAUTH_LR CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_PAUTH_LR)
+#define CDISASM_ARM_FAMILY_MASK_SVE2P1 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SVE2P1)
+#define CDISASM_ARM_FAMILY_MASK_SME2P1 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SME2P1)
+#define CDISASM_ARM_FAMILY_MASK_SVE2P2 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SVE2P2)
+#define CDISASM_ARM_FAMILY_MASK_SME2P2 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SME2P2)
+#define CDISASM_ARM_FAMILY_MASK_SVE2P3 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SVE2P3)
+#define CDISASM_ARM_FAMILY_MASK_SME2P3 CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SME2P3)
+#define CDISASM_ARM_FAMILY_MASK_FAMINMAX CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FAMINMAX)
+#define CDISASM_ARM_FAMILY_MASK_FPRCVT CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_FPRCVT)
+#define CDISASM_ARM_FAMILY_MASK_JSCVT CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_JSCVT)
+#define CDISASM_ARM_FAMILY_MASK_CHK CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_CHK)
+#define CDISASM_ARM_FAMILY_MASK_DGH CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_DGH)
+#define CDISASM_ARM_FAMILY_MASK_SPE CDISASM_ARM_FAMILY_MASK_FOR_ID(CDISASM_ARM_FAMILY_SPE)
+#define CDISASM_ARM_FAMILY_MASK_ALL ((UINT64_C(1) << CDISASM_ARM_FAMILY_LAST) - UINT64_C(1))
 #define CDISASM_ARM_FAMILY_MASK_APPLE \
-    (CDISASM_ARM_FAMILY_MASK_APPLE_MUL53 \
-        | CDISASM_ARM_FAMILY_MASK_APPLE_AMX \
-        | CDISASM_ARM_FAMILY_MASK_APPLE_SYS \
-        | CDISASM_ARM_FAMILY_MASK_APPLE_A7_SYSREG)
-#define CDISASM_ARM_FAMILY_MASK_DEFAULT \
-    (CDISASM_ARM_FAMILY_MASK_ALL & ~CDISASM_ARM_FAMILY_MASK_APPLE)
+    (CDISASM_ARM_FAMILY_MASK_APPLE_MUL53 | CDISASM_ARM_FAMILY_MASK_APPLE_AMX | CDISASM_ARM_FAMILY_MASK_APPLE_SYS | CDISASM_ARM_FAMILY_MASK_APPLE_A7_SYSREG)
+#define CDISASM_ARM_FAMILY_MASK_DEFAULT (CDISASM_ARM_FAMILY_MASK_ALL & ~CDISASM_ARM_FAMILY_MASK_APPLE)
 
 typedef uint8_t cdisasm_arm_family_vendor;
 #define CDISASM_ARM_FAMILY_VENDOR_ANY UINT8_C(0)
@@ -274,89 +207,48 @@ typedef struct cdisasm_arm_family_descriptor {
  * ordered feature hierarchy.
  */
 typedef cdisasm_cpu_id cdisasm_arm_cpu_id;
-#define CDISASM_ARM_CPU_ANY \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0000))
+#define CDISASM_ARM_CPU_ANY (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0000))
 #define CDISASM_ARM_CPU_GENERIC CDISASM_ARM_CPU_ANY
-#define CDISASM_ARM_CPU_ARM7TDMI \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0001))
-#define CDISASM_ARM_CPU_CORTEX_A7 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0002))
-#define CDISASM_ARM_CPU_CORTEX_A9 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0003))
-#define CDISASM_ARM_CPU_CORTEX_A32 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0004))
-#define CDISASM_ARM_CPU_CORTEX_A34 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0005))
-#define CDISASM_ARM_CPU_CORTEX_A35 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0006))
-#define CDISASM_ARM_CPU_CORTEX_A53 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0007))
-#define CDISASM_ARM_CPU_CORTEX_A9_NEON \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0008))
-#define CDISASM_ARM_CPU_CORTEX_A9_WITH_NEON \
-    CDISASM_ARM_CPU_CORTEX_A9_NEON
-#define CDISASM_ARM_CPU_APPLE_A4 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0009))
-#define CDISASM_ARM_CPU_APPLE_A5 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000a))
-#define CDISASM_ARM_CPU_APPLE_A6 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000b))
-#define CDISASM_ARM_CPU_APPLE_A7 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000c))
-#define CDISASM_ARM_CPU_APPLE_A8 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000d))
-#define CDISASM_ARM_CPU_APPLE_A9 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000e))
-#define CDISASM_ARM_CPU_APPLE_A10 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000f))
-#define CDISASM_ARM_CPU_APPLE_A11 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0010))
-#define CDISASM_ARM_CPU_APPLE_A12 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0011))
-#define CDISASM_ARM_CPU_APPLE_A13 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0012))
-#define CDISASM_ARM_CPU_APPLE_A14 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0013))
-#define CDISASM_ARM_CPU_APPLE_A15 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0014))
-#define CDISASM_ARM_CPU_APPLE_A16 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0015))
-#define CDISASM_ARM_CPU_APPLE_A17 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0016))
-#define CDISASM_ARM_CPU_APPLE_A18 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0017))
-#define CDISASM_ARM_CPU_APPLE_A19 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0018))
-#define CDISASM_ARM_CPU_APPLE_M1 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0019))
-#define CDISASM_ARM_CPU_APPLE_M2 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001a))
-#define CDISASM_ARM_CPU_APPLE_M3 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001b))
-#define CDISASM_ARM_CPU_APPLE_M4 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001c))
-#define CDISASM_ARM_CPU_APPLE_M5 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001d))
-#define CDISASM_ARM_CPU_CORTEX_A7_NEON \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001e))
-#define CDISASM_ARM_CPU_CORTEX_A7_WITH_NEON \
-    CDISASM_ARM_CPU_CORTEX_A7_NEON
-#define CDISASM_ARM_CPU_APPLE_S4 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001f))
-#define CDISASM_ARM_CPU_APPLE_S5 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0020))
-#define CDISASM_ARM_CPU_APPLE_S6 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0021))
-#define CDISASM_ARM_CPU_APPLE_S7 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0022))
-#define CDISASM_ARM_CPU_APPLE_S8 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0023))
-#define CDISASM_ARM_CPU_APPLE_S9 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0024))
-#define CDISASM_ARM_CPU_APPLE_S10 \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0025))
-#define CDISASM_ARM_CPU_FUJITSU_A64FX \
-    (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0026))
+#define CDISASM_ARM_CPU_ARM7TDMI (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0001))
+#define CDISASM_ARM_CPU_CORTEX_A7 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0002))
+#define CDISASM_ARM_CPU_CORTEX_A9 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0003))
+#define CDISASM_ARM_CPU_CORTEX_A32 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0004))
+#define CDISASM_ARM_CPU_CORTEX_A34 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0005))
+#define CDISASM_ARM_CPU_CORTEX_A35 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0006))
+#define CDISASM_ARM_CPU_CORTEX_A53 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0007))
+#define CDISASM_ARM_CPU_CORTEX_A9_NEON (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0008))
+#define CDISASM_ARM_CPU_CORTEX_A9_WITH_NEON CDISASM_ARM_CPU_CORTEX_A9_NEON
+#define CDISASM_ARM_CPU_APPLE_A4 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0009))
+#define CDISASM_ARM_CPU_APPLE_A5 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000a))
+#define CDISASM_ARM_CPU_APPLE_A6 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000b))
+#define CDISASM_ARM_CPU_APPLE_A7 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000c))
+#define CDISASM_ARM_CPU_APPLE_A8 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000d))
+#define CDISASM_ARM_CPU_APPLE_A9 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000e))
+#define CDISASM_ARM_CPU_APPLE_A10 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x000f))
+#define CDISASM_ARM_CPU_APPLE_A11 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0010))
+#define CDISASM_ARM_CPU_APPLE_A12 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0011))
+#define CDISASM_ARM_CPU_APPLE_A13 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0012))
+#define CDISASM_ARM_CPU_APPLE_A14 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0013))
+#define CDISASM_ARM_CPU_APPLE_A15 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0014))
+#define CDISASM_ARM_CPU_APPLE_A16 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0015))
+#define CDISASM_ARM_CPU_APPLE_A17 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0016))
+#define CDISASM_ARM_CPU_APPLE_A18 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0017))
+#define CDISASM_ARM_CPU_APPLE_A19 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0018))
+#define CDISASM_ARM_CPU_APPLE_M1 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0019))
+#define CDISASM_ARM_CPU_APPLE_M2 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001a))
+#define CDISASM_ARM_CPU_APPLE_M3 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001b))
+#define CDISASM_ARM_CPU_APPLE_M4 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001c))
+#define CDISASM_ARM_CPU_APPLE_M5 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001d))
+#define CDISASM_ARM_CPU_CORTEX_A7_NEON (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001e))
+#define CDISASM_ARM_CPU_CORTEX_A7_WITH_NEON CDISASM_ARM_CPU_CORTEX_A7_NEON
+#define CDISASM_ARM_CPU_APPLE_S4 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x001f))
+#define CDISASM_ARM_CPU_APPLE_S5 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0020))
+#define CDISASM_ARM_CPU_APPLE_S6 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0021))
+#define CDISASM_ARM_CPU_APPLE_S7 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0022))
+#define CDISASM_ARM_CPU_APPLE_S8 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0023))
+#define CDISASM_ARM_CPU_APPLE_S9 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0024))
+#define CDISASM_ARM_CPU_APPLE_S10 (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0025))
+#define CDISASM_ARM_CPU_FUJITSU_A64FX (CDISASM_CPU_GROUP_ARM | UINT32_C(0x0026))
 #define CDISASM_ARM_CPU_A64FX CDISASM_ARM_CPU_FUJITSU_A64FX
 /* Product suffixes do not change the instruction-state profile. */
 #define CDISASM_ARM_CPU_APPLE_A17_PRO CDISASM_ARM_CPU_APPLE_A17
@@ -391,16 +283,12 @@ typedef cdisasm_cpu_id cdisasm_arm_cpu_id;
 #define CDISASM_ARM_CPU_APPLE_FIRST CDISASM_ARM_CPU_APPLE_A_FIRST
 #define CDISASM_ARM_CPU_APPLE_LAST CDISASM_ARM_CPU_APPLE_S_LAST
 /* Stable append-only IDs leave the A/M and S Apple ranges non-contiguous. */
-static inline int cdisasm_arm_cpu_is_apple_value(
-    cdisasm_arm_cpu_id cpu_id)
+static inline int cdisasm_arm_cpu_is_apple_value(cdisasm_arm_cpu_id cpu_id)
 {
-    return (cpu_id >= CDISASM_ARM_CPU_APPLE_A_FIRST
-            && cpu_id <= CDISASM_ARM_CPU_APPLE_M_LAST)
-        || (cpu_id >= CDISASM_ARM_CPU_APPLE_S_FIRST
-            && cpu_id <= CDISASM_ARM_CPU_APPLE_S_LAST);
+    return (cpu_id >= CDISASM_ARM_CPU_APPLE_A_FIRST && cpu_id <= CDISASM_ARM_CPU_APPLE_M_LAST) ||
+           (cpu_id >= CDISASM_ARM_CPU_APPLE_S_FIRST && cpu_id <= CDISASM_ARM_CPU_APPLE_S_LAST);
 }
-#define CDISASM_ARM_CPU_IS_APPLE(cpu_id) \
-    cdisasm_arm_cpu_is_apple_value((cdisasm_arm_cpu_id)(cpu_id))
+#define CDISASM_ARM_CPU_IS_APPLE(cpu_id) cdisasm_arm_cpu_is_apple_value((cdisasm_arm_cpu_id)(cpu_id))
 #define CDISASM_ARM_CPU_FIRST CDISASM_ARM_CPU_ARM7TDMI
 #define CDISASM_ARM_CPU_LAST CDISASM_ARM_CPU_FUJITSU_A64FX
 
@@ -421,19 +309,15 @@ typedef uint32_t cdisasm_arm_decode_bit_id;
  * first one decoded, including for a 32-bit Thumb instruction.
  */
 #define CDISASM_ARM_DECODE_OPTION_BIG_ENDIAN (UINT64_C(1) << 0)
-#define CDISASM_ARM_DECODE_OPTION_BE \
-    CDISASM_ARM_DECODE_OPTION_BIG_ENDIAN
+#define CDISASM_ARM_DECODE_OPTION_BE CDISASM_ARM_DECODE_OPTION_BIG_ENDIAN
 /**
  * Decode one T32 instruction as a member of an active IT block.  This state
  * changes the architecturally preferred alias for encodings whose assembly
  * rule calls InITBlock().  It is rejected for A32 and A64.
  */
 #define CDISASM_ARM_DECODE_OPTION_IN_IT_BLOCK (UINT64_C(1) << 1)
-#define CDISASM_ARM_DECODE_OPTION_KNOWN_MASK \
-    (CDISASM_ARM_DECODE_OPTION_BIG_ENDIAN \
-        | CDISASM_ARM_DECODE_OPTION_IN_IT_BLOCK)
-#define CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_0 \
-    CDISASM_ARM_DECODE_OPTION_KNOWN_MASK
+#define CDISASM_ARM_DECODE_OPTION_KNOWN_MASK (CDISASM_ARM_DECODE_OPTION_BIG_ENDIAN | CDISASM_ARM_DECODE_OPTION_IN_IT_BLOCK)
+#define CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_0 CDISASM_ARM_DECODE_OPTION_KNOWN_MASK
 #define CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_1 UINT64_C(0)
 #define CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_2 UINT64_C(0)
 #define CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_3 UINT64_C(0)
@@ -441,21 +325,16 @@ typedef uint32_t cdisasm_arm_decode_bit_id;
 #define CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_5 UINT64_C(0)
 #define CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_6 UINT64_C(0)
 #define CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_7 UINT64_C(0)
-#define CDISASM_ARM_DECODE_FLAGS_INITIALIZER(bitmap0_) \
-    CDISASM_DECODE_FLAGS_INITIALIZER(bitmap0_)
-#define CDISASM_ARM_DECODE_FLAGS_NONE_INITIALIZER \
-    CDISASM_ARM_DECODE_FLAGS_INITIALIZER(UINT64_C(0))
-#define CDISASM_ARM_DECODE_FLAGS_ALL_INITIALIZER \
-    {{ \
-        CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_0, \
-        CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_1, \
-        CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_2, \
-        CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_3, \
-        CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_4, \
-        CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_5, \
-        CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_6, \
-        CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_7 \
-    }}
+#define CDISASM_ARM_DECODE_FLAGS_INITIALIZER(bitmap0_) CDISASM_DECODE_FLAGS_INITIALIZER(bitmap0_)
+#define CDISASM_ARM_DECODE_FLAGS_NONE_INITIALIZER CDISASM_ARM_DECODE_FLAGS_INITIALIZER(UINT64_C(0))
+#define CDISASM_ARM_DECODE_FLAGS_ALL_INITIALIZER                                                                                        \
+    {                                                                                                                                   \
+        {                                                                                                                               \
+            CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_0, CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_1, CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_2,     \
+                CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_3, CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_4, CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_5, \
+                CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_6, CDISASM_ARM_DECODE_OPTION_KNOWN_MASK_7                                          \
+        }                                                                                                                               \
+    }
 
 typedef uint8_t cdisasm_arm_isa_id;
 #define CDISASM_ARM_ISA_NONE UINT8_C(0)
@@ -601,12 +480,9 @@ typedef uint8_t cdisasm_arm_pstate_field_id;
  */
 #define CDISASM_ARM_OPERAND_FLAG_HAS_ROTATION UINT8_C(128)
 
-#define CDISASM_ARM_SCALABLE_ELEMENT_SIZE(operand_pointer) \
-    ((uint8_t)((operand_pointer)->extend_type))
-#define CDISASM_ARM_SCALABLE_LIST_COUNT(operand_pointer) \
-    ((uint8_t)((operand_pointer)->register_list & UINT16_C(0xff)))
-#define CDISASM_ARM_SCALABLE_LIST_STRIDE(operand_pointer) \
-    ((uint8_t)((operand_pointer)->register_list >> 8))
+#define CDISASM_ARM_SCALABLE_ELEMENT_SIZE(operand_pointer) ((uint8_t)((operand_pointer)->extend_type))
+#define CDISASM_ARM_SCALABLE_LIST_COUNT(operand_pointer) ((uint8_t)((operand_pointer)->register_list & UINT16_C(0xff)))
+#define CDISASM_ARM_SCALABLE_LIST_STRIDE(operand_pointer) ((uint8_t)((operand_pointer)->register_list >> 8))
 
 /** Numeric state selector carried by SMSTART/SMSTOP immediate operands. */
 typedef uint8_t cdisasm_arm_sme_state;
@@ -718,10 +594,8 @@ typedef struct cdisasm_arm_operand {
     uint8_t scale;
 } cdisasm_arm_operand;
 
-#define CDISASM_ARM_VECTOR_ELEMENT_SIZE(operand_pointer) \
-    ((uint8_t)((operand_pointer)->extend_type))
-#define CDISASM_ARM_VECTOR_ELEMENT_COUNT(operand_pointer) \
-    ((uint8_t)((operand_pointer)->scale))
+#define CDISASM_ARM_VECTOR_ELEMENT_SIZE(operand_pointer) ((uint8_t)((operand_pointer)->extend_type))
+#define CDISASM_ARM_VECTOR_ELEMENT_COUNT(operand_pointer) ((uint8_t)((operand_pointer)->scale))
 
 /** Fixed-layout numeric result produced by cdisasm_arm_decode. */
 typedef struct cdisasm_arm_instruction {
@@ -741,23 +615,15 @@ typedef struct cdisasm_arm_instruction {
 } cdisasm_arm_instruction;
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
-static_assert(sizeof(cdisasm_arm_operand) == CDISASM_ARM_OPERAND_SIZE,
-              "unexpected cdisasm ARM operand ABI size");
-static_assert(offsetof(cdisasm_arm_instruction, operand) == 40,
-              "unexpected cdisasm ARM instruction ABI layout");
-static_assert(offsetof(cdisasm_arm_instruction, form_id) == 38,
-              "unexpected cdisasm ARM form-id ABI layout");
-static_assert(sizeof(cdisasm_arm_instruction) == CDISASM_ARM_INSTRUCTION_SIZE,
-              "unexpected cdisasm ARM instruction ABI size");
+static_assert(sizeof(cdisasm_arm_operand) == CDISASM_ARM_OPERAND_SIZE, "unexpected cdisasm ARM operand ABI size");
+static_assert(offsetof(cdisasm_arm_instruction, operand) == 40, "unexpected cdisasm ARM instruction ABI layout");
+static_assert(offsetof(cdisasm_arm_instruction, form_id) == 38, "unexpected cdisasm ARM form-id ABI layout");
+static_assert(sizeof(cdisasm_arm_instruction) == CDISASM_ARM_INSTRUCTION_SIZE, "unexpected cdisasm ARM instruction ABI size");
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-_Static_assert(sizeof(cdisasm_arm_operand) == CDISASM_ARM_OPERAND_SIZE,
-               "unexpected cdisasm ARM operand ABI size");
-_Static_assert(offsetof(cdisasm_arm_instruction, operand) == 40,
-               "unexpected cdisasm ARM instruction ABI layout");
-_Static_assert(offsetof(cdisasm_arm_instruction, form_id) == 38,
-               "unexpected cdisasm ARM form-id ABI layout");
-_Static_assert(sizeof(cdisasm_arm_instruction) == CDISASM_ARM_INSTRUCTION_SIZE,
-               "unexpected cdisasm ARM instruction ABI size");
+_Static_assert(sizeof(cdisasm_arm_operand) == CDISASM_ARM_OPERAND_SIZE, "unexpected cdisasm ARM operand ABI size");
+_Static_assert(offsetof(cdisasm_arm_instruction, operand) == 40, "unexpected cdisasm ARM instruction ABI layout");
+_Static_assert(offsetof(cdisasm_arm_instruction, form_id) == 38, "unexpected cdisasm ARM form-id ABI layout");
+_Static_assert(sizeof(cdisasm_arm_instruction) == CDISASM_ARM_INSTRUCTION_SIZE, "unexpected cdisasm ARM instruction ABI size");
 #endif
 
 /**
@@ -786,8 +652,7 @@ extern "C" {
  * cdisasm_arm_decoder_mode_mask when selecting a state for the decoder.
  * Returns zero for an invalid CPU ID.
  */
-CDISASM_ARM_API cdisasm_arm_mode_mask CDISASM_CALL cdisasm_arm_cpu_mode_mask(
-    cdisasm_arm_cpu_id cpu_id);
+CDISASM_ARM_API cdisasm_arm_mode_mask CDISASM_CALL cdisasm_arm_cpu_mode_mask(cdisasm_arm_cpu_id cpu_id);
 
 /**
  * Returns the selected CPU's states currently implemented by this decoder.
@@ -795,8 +660,7 @@ CDISASM_ARM_API cdisasm_arm_mode_mask CDISASM_CALL cdisasm_arm_cpu_mode_mask(
  * The result is the intersection of cdisasm_arm_cpu_mode_mask(cpu_id) and the
  * decoder implementation. Returns zero for an invalid CPU ID.
  */
-CDISASM_ARM_API cdisasm_arm_mode_mask CDISASM_CALL
-cdisasm_arm_decoder_mode_mask(cdisasm_arm_cpu_id cpu_id);
+CDISASM_ARM_API cdisasm_arm_mode_mask CDISASM_CALL cdisasm_arm_decoder_mode_mask(cdisasm_arm_cpu_id cpu_id);
 
 /**
  * Writes every ARM decode option accepted for one valid CPU/mode pair.
@@ -804,44 +668,24 @@ cdisasm_arm_decoder_mode_mask(cdisasm_arm_cpu_id cpu_id);
  * CDISASM_STATUS_INVALID_ARGUMENT. BIG_ENDIAN is available for every
  * supported ARM CPU/mode pair; IN_IT_BLOCK is available only for T32.
  */
-CDISASM_ARM_API cdisasm_status CDISASM_CALL
-cdisasm_arm_cpu_decode_flag_mask(
-    cdisasm_arm_cpu_id cpu_id,
-    cdisasm_arm_mode mode,
-    cdisasm_arm_decode_flags *flags);
+CDISASM_ARM_API cdisasm_status CDISASM_CALL cdisasm_arm_cpu_decode_flag_mask(cdisasm_arm_cpu_id cpu_id, cdisasm_arm_mode mode, cdisasm_arm_decode_flags *flags);
 
 /** Returns the direct ARM families available for a CPU and instruction state. */
-CDISASM_ARM_API cdisasm_arm_family_mask CDISASM_CALL
-cdisasm_arm_cpu_family_mask(
-    cdisasm_arm_cpu_id cpu_id,
-    cdisasm_arm_mode mode);
+CDISASM_ARM_API cdisasm_arm_family_mask CDISASM_CALL cdisasm_arm_cpu_family_mask(cdisasm_arm_cpu_id cpu_id, cdisasm_arm_mode mode);
 
 /** Returns immutable metadata for a direct ARM family, or NULL if invalid. */
-CDISASM_ARM_API const cdisasm_arm_family_descriptor *CDISASM_CALL
-cdisasm_arm_family_descriptor_get(cdisasm_arm_family_id family_id);
+CDISASM_ARM_API const cdisasm_arm_family_descriptor *CDISASM_CALL cdisasm_arm_family_descriptor_get(cdisasm_arm_family_id family_id);
 
 /** Initializes a reusable ARM CPU/mode context. */
-CDISASM_ARM_API cdisasm_status CDISASM_CALL
-cdisasm_arm_cpu_decode_context(
-    cdisasm_arm_cpu_id cpu_id,
-    cdisasm_arm_mode mode,
-    cdisasm_arm_decode_context *context);
+CDISASM_ARM_API cdisasm_status CDISASM_CALL cdisasm_arm_cpu_decode_context(cdisasm_arm_cpu_id cpu_id, cdisasm_arm_mode mode, cdisasm_arm_decode_context *context);
 
 /** Adds/removes one available family from context->family_value. */
-CDISASM_ARM_API int CDISASM_CALL cdisasm_arm_decode_context_add_family(
-    cdisasm_arm_decode_context *context,
-    cdisasm_arm_family_id family_id);
-CDISASM_ARM_API int CDISASM_CALL cdisasm_arm_decode_context_remove_family(
-    cdisasm_arm_decode_context *context,
-    cdisasm_arm_family_id family_id);
+CDISASM_ARM_API int CDISASM_CALL cdisasm_arm_decode_context_add_family(cdisasm_arm_decode_context *context, cdisasm_arm_family_id family_id);
+CDISASM_ARM_API int CDISASM_CALL cdisasm_arm_decode_context_remove_family(cdisasm_arm_decode_context *context, cdisasm_arm_family_id family_id);
 
 /** Reads available and selected family masks without exposing context fields. */
-CDISASM_ARM_API cdisasm_arm_family_mask CDISASM_CALL
-cdisasm_arm_decode_context_get_available_families(
-    const cdisasm_arm_decode_context *context);
-CDISASM_ARM_API cdisasm_arm_family_mask CDISASM_CALL
-cdisasm_arm_decode_context_get_set_families(
-    const cdisasm_arm_decode_context *context);
+CDISASM_ARM_API cdisasm_arm_family_mask CDISASM_CALL cdisasm_arm_decode_context_get_available_families(const cdisasm_arm_decode_context *context);
+CDISASM_ARM_API cdisasm_arm_family_mask CDISASM_CALL cdisasm_arm_decode_context_get_set_families(const cdisasm_arm_decode_context *context);
 
 /**
  * Decodes one A32, T32, or A64 instruction into numeric metadata. Input is
@@ -854,22 +698,12 @@ cdisasm_arm_decode_context_get_set_families(
  * exact structured operands are unavailable fail with
  * CDISASM_STATUS_UNSUPPORTED_INSTRUCTION.
  */
-CDISASM_ARM_API uint32_t CDISASM_CALL cdisasm_arm_decode(
-    cdisasm_arm_cpu_id cpu_id,
-    cdisasm_arm_mode mode,
-    const uint8_t *code,
-    size_t code_size,
-    uint64_t address,
-    const cdisasm_arm_decode_flags *flags,
-    cdisasm_arm_instruction *instruction);
+CDISASM_ARM_API uint32_t CDISASM_CALL cdisasm_arm_decode(cdisasm_arm_cpu_id cpu_id, cdisasm_arm_mode mode, const uint8_t *code, size_t code_size, uint64_t address,
+                                                         const cdisasm_arm_decode_flags *flags, cdisasm_arm_instruction *instruction);
 
 /** Decodes using a reusable ARM CPU/mode context. */
-CDISASM_ARM_API uint32_t CDISASM_CALL cdisasm_arm_decode_with_context(
-    const cdisasm_arm_decode_context *context,
-    const uint8_t *code,
-    size_t code_size,
-    uint64_t address,
-    cdisasm_arm_instruction *instruction);
+CDISASM_ARM_API uint32_t CDISASM_CALL cdisasm_arm_decode_with_context(const cdisasm_arm_decode_context *context, const uint8_t *code, size_t code_size, uint64_t address,
+                                                                      cdisasm_arm_instruction *instruction);
 
 #define CDISASM_ARM_HAS_FORM_VALIDATION 1
 /**
@@ -884,12 +718,8 @@ CDISASM_ARM_API uint32_t CDISASM_CALL cdisasm_arm_decode_with_context(
  * INVALID_INSTRUCTION for a nonmatching or unavailable form, or
  * UNSUPPORTED_INSTRUCTION when the generated catalog is disabled.
  */
-CDISASM_ARM_API cdisasm_status CDISASM_CALL cdisasm_arm_validate_form(
-    cdisasm_arm_cpu_id cpu_id,
-    cdisasm_arm_mode mode,
-    uint32_t raw_instruction,
-    uint32_t opcode_size,
-    cdisasm_arm_form_id form_id);
+CDISASM_ARM_API cdisasm_status CDISASM_CALL cdisasm_arm_validate_form(cdisasm_arm_cpu_id cpu_id, cdisasm_arm_mode mode, uint32_t raw_instruction, uint32_t opcode_size,
+                                                                      cdisasm_arm_form_id form_id);
 
 #define CDISASM_ARM_HAS_ALIAS_VALIDATION 1
 #define CDISASM_ARM_ALIAS_AARCHMRS_2026_03_LAST UINT16_C(611)
@@ -898,10 +728,8 @@ CDISASM_ARM_API cdisasm_status CDISASM_CALL cdisasm_arm_validate_form(
  * a T32 IT block. This does not evaluate the preferred-spelling predicate or
  * compare assembly operands; callers must also enforce operand bindings,
  * including equality constraints carried by preferred-spelling expressions. */
-CDISASM_ARM_API cdisasm_status CDISASM_CALL cdisasm_arm_validate_alias(
-    cdisasm_arm_cpu_id cpu_id, cdisasm_arm_mode mode,
-    uint32_t raw_instruction, uint32_t opcode_size,
-    cdisasm_arm_form_id form_id, uint16_t alias_id);
+CDISASM_ARM_API cdisasm_status CDISASM_CALL cdisasm_arm_validate_alias(cdisasm_arm_cpu_id cpu_id, cdisasm_arm_mode mode, uint32_t raw_instruction, uint32_t opcode_size,
+                                                                       cdisasm_arm_form_id form_id, uint16_t alias_id);
 
 #ifdef __cplusplus
 }

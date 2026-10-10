@@ -31,27 +31,17 @@ typedef uint32_t cdisasm_arm_alternative_requirements;
 #define CDISASM_ARM_ALTERNATIVE_FP8DOT4_OR_SSVE_FP8DOT4 (UINT32_C(1) << 10)
 #define CDISASM_ARM_ALTERNATIVE_FP8FMA_OR_SSVE_FP8FMA (UINT32_C(1) << 11)
 
-_Static_assert(
-    (CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME
-        & (CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME2
-            | CDISASM_ARM_ALTERNATIVE_SVE2P2_OR_SME2P2
-            | CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2P1
-            | CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME
-            | CDISASM_ARM_ALTERNATIVE_SVE_OR_SME
-            | CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2
-            | CDISASM_ARM_ALTERNATIVE_SVE2P3_OR_SME2P3)) == 0u,
-    "PSEL ARM alternative-requirement bit overlaps an existing bit");
+_Static_assert((CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME &
+                (CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME2 | CDISASM_ARM_ALTERNATIVE_SVE2P2_OR_SME2P2 | CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2P1 |
+                 CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME | CDISASM_ARM_ALTERNATIVE_SVE_OR_SME | CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2 |
+                 CDISASM_ARM_ALTERNATIVE_SVE2P3_OR_SME2P3)) == 0u,
+               "PSEL ARM alternative-requirement bit overlaps an existing bit");
 
-_Static_assert(
-    (CDISASM_ARM_ALTERNATIVE_SVE2P3_OR_SME2P3
-        & (CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME2
-            | CDISASM_ARM_ALTERNATIVE_SVE2P2_OR_SME2P2
-            | CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2P1
-            | CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME
-            | CDISASM_ARM_ALTERNATIVE_SVE_OR_SME
-            | CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2
-            | CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME)) == 0u,
-    "SVE2p3-or-SME2p3 alternative bit overlaps an existing bit");
+_Static_assert((CDISASM_ARM_ALTERNATIVE_SVE2P3_OR_SME2P3 &
+                (CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME2 | CDISASM_ARM_ALTERNATIVE_SVE2P2_OR_SME2P2 | CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2P1 |
+                 CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME | CDISASM_ARM_ALTERNATIVE_SVE_OR_SME | CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2 |
+                 CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME)) == 0u,
+               "SVE2p3-or-SME2p3 alternative bit overlaps an existing bit");
 
 /* Generated feature ordinals 81 (SME2p3) and 102 (SVE2p3) are stored after
  * the 36 legacy capability bits.  Keep their internal IDs centralized so
@@ -117,61 +107,49 @@ _Static_assert(
 /* Generated feature ordinal 10 is FEAT_FAMINMAX. */
 #define CDISASM_ARM_FEATURE_FAMINMAX UINT16_C(46)
 
-_Static_assert(
-    CDISASM_ARM_FEATURE_SME2P3 < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_SVE2P3 < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_SHA1 < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_SHA256 < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_SHA3 < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_SHA512 < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_SM3 < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_SM4 < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_CRC32 < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_FCMA < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_PAN < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_CLRBHB < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_RAS < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_TRF < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_CHK < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_DGH < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_GCS < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_PAUTH_LR < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_SPE < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_FAMINMAX < CDISASM_ARM_FEATURE_BIT_COUNT
-        && CDISASM_ARM_FEATURE_SME2P3 != CDISASM_ARM_FEATURE_SVE2P3,
-    "handwritten ARM internal feature IDs are invalid");
-_Static_assert(
-    CDISASM_ARM_FEATURE_PMULL > UINT16_C(168)
-        && CDISASM_ARM_FEATURE_PMULL < CDISASM_ARM_FEATURE_BIT_COUNT,
-    "PMULL internal feature ID overlaps generated features");
+_Static_assert(CDISASM_ARM_FEATURE_SME2P3 < CDISASM_ARM_FEATURE_BIT_COUNT && CDISASM_ARM_FEATURE_SVE2P3 < CDISASM_ARM_FEATURE_BIT_COUNT &&
+                   CDISASM_ARM_FEATURE_SHA1 < CDISASM_ARM_FEATURE_BIT_COUNT && CDISASM_ARM_FEATURE_SHA256 < CDISASM_ARM_FEATURE_BIT_COUNT &&
+                   CDISASM_ARM_FEATURE_SHA3 < CDISASM_ARM_FEATURE_BIT_COUNT && CDISASM_ARM_FEATURE_SHA512 < CDISASM_ARM_FEATURE_BIT_COUNT &&
+                   CDISASM_ARM_FEATURE_SM3 < CDISASM_ARM_FEATURE_BIT_COUNT && CDISASM_ARM_FEATURE_SM4 < CDISASM_ARM_FEATURE_BIT_COUNT &&
+                   CDISASM_ARM_FEATURE_CRC32 < CDISASM_ARM_FEATURE_BIT_COUNT && CDISASM_ARM_FEATURE_FCMA < CDISASM_ARM_FEATURE_BIT_COUNT &&
+                   CDISASM_ARM_FEATURE_PAN < CDISASM_ARM_FEATURE_BIT_COUNT && CDISASM_ARM_FEATURE_CLRBHB < CDISASM_ARM_FEATURE_BIT_COUNT &&
+                   CDISASM_ARM_FEATURE_RAS < CDISASM_ARM_FEATURE_BIT_COUNT && CDISASM_ARM_FEATURE_TRF < CDISASM_ARM_FEATURE_BIT_COUNT &&
+                   CDISASM_ARM_FEATURE_CHK < CDISASM_ARM_FEATURE_BIT_COUNT && CDISASM_ARM_FEATURE_DGH < CDISASM_ARM_FEATURE_BIT_COUNT &&
+                   CDISASM_ARM_FEATURE_GCS < CDISASM_ARM_FEATURE_BIT_COUNT && CDISASM_ARM_FEATURE_PAUTH_LR < CDISASM_ARM_FEATURE_BIT_COUNT &&
+                   CDISASM_ARM_FEATURE_SPE < CDISASM_ARM_FEATURE_BIT_COUNT && CDISASM_ARM_FEATURE_FAMINMAX < CDISASM_ARM_FEATURE_BIT_COUNT &&
+                   CDISASM_ARM_FEATURE_SME2P3 != CDISASM_ARM_FEATURE_SVE2P3,
+               "handwritten ARM internal feature IDs are invalid");
+_Static_assert(CDISASM_ARM_FEATURE_PMULL > UINT16_C(168) && CDISASM_ARM_FEATURE_PMULL < CDISASM_ARM_FEATURE_BIT_COUNT,
+               "PMULL internal feature ID overlaps generated features");
 
 typedef struct cdisasm_arm_requirements {
     cdisasm_arm_capabilities features;
     cdisasm_arm_alternative_requirements alternatives;
 } cdisasm_arm_requirements;
 
-#define CDISASM_ARM_CAPABILITIES_NONE_INITIALIZER \
-    {{ \
-        UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0), \
-        UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0) \
-    }}
-#define CDISASM_ARM_CAPABILITIES_LEGACY_INITIALIZER(mask_) \
-    {{ \
-        (uint64_t)(mask_), UINT64_C(0), UINT64_C(0), UINT64_C(0), \
-        UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0) \
-    }}
+#define CDISASM_ARM_CAPABILITIES_NONE_INITIALIZER                                                                  \
+    {                                                                                                              \
+        {                                                                                                          \
+            UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0) \
+        }                                                                                                          \
+    }
+#define CDISASM_ARM_CAPABILITIES_LEGACY_INITIALIZER(mask_)                                                               \
+    {                                                                                                                    \
+        {                                                                                                                \
+            (uint64_t)(mask_), UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0), UINT64_C(0) \
+        }                                                                                                                \
+    }
 #if USE_EXTRA_OPCODES
-#define CDISASM_ARM_CAPABILITIES_ALL_INITIALIZER \
-    {{ \
-        UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX, \
-        UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX \
-    }}
+#define CDISASM_ARM_CAPABILITIES_ALL_INITIALIZER                                                           \
+    {                                                                                                      \
+        {                                                                                                  \
+            UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX \
+        }                                                                                                  \
+    }
 #else
-#define CDISASM_ARM_CAPABILITIES_ALL_INITIALIZER \
-    CDISASM_ARM_CAPABILITIES_LEGACY_INITIALIZER(CDISASM_ARM_CAP_ALL)
+#define CDISASM_ARM_CAPABILITIES_ALL_INITIALIZER CDISASM_ARM_CAPABILITIES_LEGACY_INITIALIZER(CDISASM_ARM_CAP_ALL)
 #endif
-#define CDISASM_ARM_REQUIREMENTS_NONE_INITIALIZER \
-    { CDISASM_ARM_CAPABILITIES_NONE_INITIALIZER, UINT32_C(0) }
+#define CDISASM_ARM_REQUIREMENTS_NONE_INITIALIZER {CDISASM_ARM_CAPABILITIES_NONE_INITIALIZER, UINT32_C(0)}
 
 #define CDISASM_ARM_CAP_V4 (UINT32_C(1) << 0)
 #define CDISASM_ARM_CAP_V5 (UINT32_C(1) << 1)
@@ -223,65 +201,34 @@ typedef struct cdisasm_arm_requirements {
 #define CDISASM_ARM_REQUIRE_SVE2_OR_SME (UINT64_C(1) << 62)
 /* Internal all-of requirement marker with an SVE-or-SME alternative. */
 #define CDISASM_ARM_REQUIRE_SVE_OR_SME (UINT64_C(1) << 63)
-#define CDISASM_ARM_CAP_STANDARD_ALL \
-    (CDISASM_ARM_CAP_V4 | CDISASM_ARM_CAP_V5 | CDISASM_ARM_CAP_V6 \
-        | CDISASM_ARM_CAP_V7 | CDISASM_ARM_CAP_V8 \
-        | CDISASM_ARM_CAP_NEON)
-#define CDISASM_ARM_CAP_BASE_ALL \
-    (CDISASM_ARM_CAP_STANDARD_ALL | CDISASM_ARM_CAP_APPLE_MUL53 \
-        | CDISASM_ARM_CAP_APPLE_AMX | CDISASM_ARM_CAP_APPLE_SYS \
-        | CDISASM_ARM_CAP_APPLE_A7_SYSREG | CDISASM_ARM_CAP_LSE \
-        | CDISASM_ARM_CAP_LOR | CDISASM_ARM_CAP_RCPC)
+#define CDISASM_ARM_CAP_STANDARD_ALL (CDISASM_ARM_CAP_V4 | CDISASM_ARM_CAP_V5 | CDISASM_ARM_CAP_V6 | CDISASM_ARM_CAP_V7 | CDISASM_ARM_CAP_V8 | CDISASM_ARM_CAP_NEON)
+#define CDISASM_ARM_CAP_BASE_ALL                                                                                                                            \
+    (CDISASM_ARM_CAP_STANDARD_ALL | CDISASM_ARM_CAP_APPLE_MUL53 | CDISASM_ARM_CAP_APPLE_AMX | CDISASM_ARM_CAP_APPLE_SYS | CDISASM_ARM_CAP_APPLE_A7_SYSREG | \
+     CDISASM_ARM_CAP_LSE | CDISASM_ARM_CAP_LOR | CDISASM_ARM_CAP_RCPC)
 #if USE_EXTRA_OPCODES
-#define CDISASM_ARM_CAP_ALL \
-    (CDISASM_ARM_CAP_BASE_ALL | CDISASM_ARM_CAP_FP16 \
-        | CDISASM_ARM_CAP_SVE | CDISASM_ARM_CAP_SVE2 \
-        | CDISASM_ARM_CAP_SME | CDISASM_ARM_CAP_SME2 \
-        | CDISASM_ARM_CAP_LSE2 | CDISASM_ARM_CAP_LSE128 \
-        | CDISASM_ARM_CAP_RCPC3 | CDISASM_ARM_CAP_BTI \
-        | CDISASM_ARM_CAP_PAUTH | CDISASM_ARM_CAP_MTE \
-        | CDISASM_ARM_CAP_MOPS | CDISASM_ARM_CAP_LS64 \
-        | CDISASM_ARM_CAP_CSSC | CDISASM_ARM_CAP_VFP \
-        | CDISASM_ARM_CAP_CPA | CDISASM_ARM_CAP_SVE2P1 \
-        | CDISASM_ARM_CAP_SME2P1 | CDISASM_ARM_CAP_SVE2P2 \
-        | CDISASM_ARM_CAP_SME2P2 | CDISASM_ARM_CAP_F64MM \
-        | CDISASM_ARM_CAP_BF16 | CDISASM_ARM_CAP_FP8 \
-        | CDISASM_ARM_CAP_MP)
+#define CDISASM_ARM_CAP_ALL                                                                                                                                             \
+    (CDISASM_ARM_CAP_BASE_ALL | CDISASM_ARM_CAP_FP16 | CDISASM_ARM_CAP_SVE | CDISASM_ARM_CAP_SVE2 | CDISASM_ARM_CAP_SME | CDISASM_ARM_CAP_SME2 | CDISASM_ARM_CAP_LSE2 | \
+     CDISASM_ARM_CAP_LSE128 | CDISASM_ARM_CAP_RCPC3 | CDISASM_ARM_CAP_BTI | CDISASM_ARM_CAP_PAUTH | CDISASM_ARM_CAP_MTE | CDISASM_ARM_CAP_MOPS | CDISASM_ARM_CAP_LS64 | \
+     CDISASM_ARM_CAP_CSSC | CDISASM_ARM_CAP_VFP | CDISASM_ARM_CAP_CPA | CDISASM_ARM_CAP_SVE2P1 | CDISASM_ARM_CAP_SME2P1 | CDISASM_ARM_CAP_SVE2P2 |                      \
+     CDISASM_ARM_CAP_SME2P2 | CDISASM_ARM_CAP_F64MM | CDISASM_ARM_CAP_BF16 | CDISASM_ARM_CAP_FP8 | CDISASM_ARM_CAP_MP)
 #else
 #define CDISASM_ARM_CAP_ALL CDISASM_ARM_CAP_BASE_ALL
 #endif
 
-_Static_assert(
-    (CDISASM_ARM_CAP_ALL
-        & (CDISASM_ARM_REQUIRE_SVE_OR_SME
-            | CDISASM_ARM_REQUIRE_SVE2_OR_SME
-            | CDISASM_ARM_REQUIRE_SVE2P1_OR_SME
-            | CDISASM_ARM_REQUIRE_SVE2_OR_SME2
-            | CDISASM_ARM_REQUIRE_SVE2P1_OR_SME2
-            | CDISASM_ARM_REQUIRE_SVE2P1_OR_SME2P1
-            | CDISASM_ARM_REQUIRE_SVE2P2_OR_SME2P2
-            | CDISASM_ARM_REQUIRE_SVE2P3_OR_SME2P3)) == 0u,
-    "alternative ARM requirement markers overlap CPU capabilities");
-_Static_assert(
-    (CDISASM_ARM_REQUIRE_SVE2P1_OR_SME
-        & (CDISASM_ARM_REQUIRE_SVE2P1_OR_SME2
-            | CDISASM_ARM_REQUIRE_SVE2_OR_SME2
-            | CDISASM_ARM_REQUIRE_SVE2P2_OR_SME2P2
-            | CDISASM_ARM_REQUIRE_SVE2P1_OR_SME2P1
-            | CDISASM_ARM_REQUIRE_SVE2_OR_SME
-            | CDISASM_ARM_REQUIRE_SVE_OR_SME
-            | CDISASM_ARM_REQUIRE_SVE2P3_OR_SME2P3)) == 0u,
-    "PSEL ARM requirement marker overlaps an existing marker");
+_Static_assert((CDISASM_ARM_CAP_ALL & (CDISASM_ARM_REQUIRE_SVE_OR_SME | CDISASM_ARM_REQUIRE_SVE2_OR_SME | CDISASM_ARM_REQUIRE_SVE2P1_OR_SME |
+                                       CDISASM_ARM_REQUIRE_SVE2_OR_SME2 | CDISASM_ARM_REQUIRE_SVE2P1_OR_SME2 | CDISASM_ARM_REQUIRE_SVE2P1_OR_SME2P1 |
+                                       CDISASM_ARM_REQUIRE_SVE2P2_OR_SME2P2 | CDISASM_ARM_REQUIRE_SVE2P3_OR_SME2P3)) == 0u,
+               "alternative ARM requirement markers overlap CPU capabilities");
+_Static_assert((CDISASM_ARM_REQUIRE_SVE2P1_OR_SME &
+                (CDISASM_ARM_REQUIRE_SVE2P1_OR_SME2 | CDISASM_ARM_REQUIRE_SVE2_OR_SME2 | CDISASM_ARM_REQUIRE_SVE2P2_OR_SME2P2 | CDISASM_ARM_REQUIRE_SVE2P1_OR_SME2P1 |
+                 CDISASM_ARM_REQUIRE_SVE2_OR_SME | CDISASM_ARM_REQUIRE_SVE_OR_SME | CDISASM_ARM_REQUIRE_SVE2P3_OR_SME2P3)) == 0u,
+               "PSEL ARM requirement marker overlaps an existing marker");
 
-#define CDISASM_ARM_LEGACY_FEATURE_MASK \
-    ((UINT64_C(1) << 37) - UINT64_C(1))
+#define CDISASM_ARM_LEGACY_FEATURE_MASK ((UINT64_C(1) << 37) - UINT64_C(1))
 
-_Static_assert(
-    sizeof(cdisasm_arm_capabilities) == 64u,
-    "ARM internal feature bitmap must remain exactly 512 bits");
+_Static_assert(sizeof(cdisasm_arm_capabilities) == 64u, "ARM internal feature bitmap must remain exactly 512 bits");
 
-static inline void cdisasm_arm_capabilities_clear(
-    cdisasm_arm_capabilities *capabilities)
+static inline void cdisasm_arm_capabilities_clear(cdisasm_arm_capabilities *capabilities)
 {
     unsigned index;
 
@@ -290,131 +237,89 @@ static inline void cdisasm_arm_capabilities_clear(
     }
 }
 
-static inline int cdisasm_arm_capabilities_add_feature(
-    cdisasm_arm_capabilities *capabilities,
-    cdisasm_arm_feature_id feature_id)
+static inline int cdisasm_arm_capabilities_add_feature(cdisasm_arm_capabilities *capabilities, cdisasm_arm_feature_id feature_id)
 {
-    if (capabilities == NULL
-        || feature_id >= CDISASM_ARM_FEATURE_BIT_COUNT) {
+    if (capabilities == NULL || feature_id >= CDISASM_ARM_FEATURE_BIT_COUNT) {
         return 0;
     }
-    capabilities->bitmap[feature_id / 64u]
-        |= UINT64_C(1) << (feature_id % 64u);
+    capabilities->bitmap[feature_id / 64u] |= UINT64_C(1) << (feature_id % 64u);
     return 1;
 }
 
-static inline int cdisasm_arm_capabilities_has_feature(
-    const cdisasm_arm_capabilities *capabilities,
-    cdisasm_arm_feature_id feature_id)
+static inline int cdisasm_arm_capabilities_has_feature(const cdisasm_arm_capabilities *capabilities, cdisasm_arm_feature_id feature_id)
 {
-    return capabilities != NULL
-        && feature_id < CDISASM_ARM_FEATURE_BIT_COUNT
-        && (capabilities->bitmap[feature_id / 64u]
-            & (UINT64_C(1) << (feature_id % 64u))) != 0u;
+    return capabilities != NULL && feature_id < CDISASM_ARM_FEATURE_BIT_COUNT && (capabilities->bitmap[feature_id / 64u] & (UINT64_C(1) << (feature_id % 64u))) != 0u;
 }
 
-static inline int cdisasm_arm_capabilities_have_all(
-    const cdisasm_arm_capabilities *capabilities,
-    const cdisasm_arm_capabilities *required)
+static inline int cdisasm_arm_capabilities_have_all(const cdisasm_arm_capabilities *capabilities, const cdisasm_arm_capabilities *required)
 {
     unsigned index;
 
     for (index = 0; index < CDISASM_ARM_FEATURE_WORD_COUNT; ++index) {
-        if ((capabilities->bitmap[index] & required->bitmap[index])
-            != required->bitmap[index]) {
+        if ((capabilities->bitmap[index] & required->bitmap[index]) != required->bitmap[index]) {
             return 0;
         }
     }
     return 1;
 }
 
-static inline int cdisasm_arm_capabilities_have_any_legacy(
-    const cdisasm_arm_capabilities *capabilities,
-    uint64_t legacy_mask)
+static inline int cdisasm_arm_capabilities_have_any_legacy(const cdisasm_arm_capabilities *capabilities, uint64_t legacy_mask)
 {
-    return (capabilities->bitmap[0]
-        & (legacy_mask & CDISASM_ARM_LEGACY_FEATURE_MASK)) != 0u;
+    return (capabilities->bitmap[0] & (legacy_mask & CDISASM_ARM_LEGACY_FEATURE_MASK)) != 0u;
 }
 
-static inline void cdisasm_arm_requirements_clear(
-    cdisasm_arm_requirements *requirements)
+static inline void cdisasm_arm_requirements_clear(cdisasm_arm_requirements *requirements)
 {
     cdisasm_arm_capabilities_clear(&requirements->features);
     requirements->alternatives = UINT32_C(0);
 }
 
-static inline int cdisasm_arm_requirements_add_feature(
-    cdisasm_arm_requirements *requirements,
-    cdisasm_arm_feature_id feature_id)
+static inline int cdisasm_arm_requirements_add_feature(cdisasm_arm_requirements *requirements, cdisasm_arm_feature_id feature_id)
 {
-    return requirements != NULL
-        && cdisasm_arm_capabilities_add_feature(
-            &requirements->features, feature_id);
+    return requirements != NULL && cdisasm_arm_capabilities_add_feature(&requirements->features, feature_id);
 }
 
-static inline void cdisasm_arm_requirements_add_legacy(
-    cdisasm_arm_requirements *requirements,
-    uint64_t legacy_mask)
+static inline void cdisasm_arm_requirements_add_legacy(cdisasm_arm_requirements *requirements, uint64_t legacy_mask)
 {
-    requirements->features.bitmap[0] |=
-        legacy_mask & CDISASM_ARM_LEGACY_FEATURE_MASK;
+    requirements->features.bitmap[0] |= legacy_mask & CDISASM_ARM_LEGACY_FEATURE_MASK;
     if ((legacy_mask & CDISASM_ARM_REQUIRE_SVE2_OR_SME2) != 0u) {
-        requirements->alternatives |=
-            CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME2;
+        requirements->alternatives |= CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME2;
     }
     if ((legacy_mask & CDISASM_ARM_REQUIRE_SVE2P2_OR_SME2P2) != 0u) {
-        requirements->alternatives |=
-            CDISASM_ARM_ALTERNATIVE_SVE2P2_OR_SME2P2;
+        requirements->alternatives |= CDISASM_ARM_ALTERNATIVE_SVE2P2_OR_SME2P2;
     }
     if ((legacy_mask & CDISASM_ARM_REQUIRE_SVE2P1_OR_SME2P1) != 0u) {
-        requirements->alternatives |=
-            CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2P1;
+        requirements->alternatives |= CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2P1;
     }
     if ((legacy_mask & CDISASM_ARM_REQUIRE_SVE2P1_OR_SME2) != 0u) {
-        requirements->alternatives |=
-            CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2;
+        requirements->alternatives |= CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME2;
     }
     if ((legacy_mask & CDISASM_ARM_REQUIRE_SVE2P1_OR_SME) != 0u) {
-        requirements->alternatives |=
-            CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME;
+        requirements->alternatives |= CDISASM_ARM_ALTERNATIVE_SVE2P1_OR_SME;
     }
     if ((legacy_mask & CDISASM_ARM_REQUIRE_SVE2_OR_SME) != 0u) {
-        requirements->alternatives |=
-            CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME;
+        requirements->alternatives |= CDISASM_ARM_ALTERNATIVE_SVE2_OR_SME;
     }
     if ((legacy_mask & CDISASM_ARM_REQUIRE_SVE_OR_SME) != 0u) {
-        requirements->alternatives |=
-            CDISASM_ARM_ALTERNATIVE_SVE_OR_SME;
+        requirements->alternatives |= CDISASM_ARM_ALTERNATIVE_SVE_OR_SME;
     }
     if ((legacy_mask & CDISASM_ARM_REQUIRE_SVE2P3_OR_SME2P3) != 0u) {
-        requirements->alternatives |=
-            CDISASM_ARM_ALTERNATIVE_SVE2P3_OR_SME2P3;
+        requirements->alternatives |= CDISASM_ARM_ALTERNATIVE_SVE2P3_OR_SME2P3;
     }
 }
 
-static inline void cdisasm_arm_requirements_set_legacy(
-    cdisasm_arm_requirements *requirements,
-    uint64_t legacy_mask)
+static inline void cdisasm_arm_requirements_set_legacy(cdisasm_arm_requirements *requirements, uint64_t legacy_mask)
 {
     cdisasm_arm_requirements_clear(requirements);
     cdisasm_arm_requirements_add_legacy(requirements, legacy_mask);
 }
 
-cdisasm_status cdisasm_arm_decode_a32_neon(
-    uint32_t canonical_word,
-    cdisasm_arm_instruction *instruction,
-    cdisasm_arm_requirements *required_capabilities);
+cdisasm_status cdisasm_arm_decode_a32_neon(uint32_t canonical_word, cdisasm_arm_instruction *instruction, cdisasm_arm_requirements *required_capabilities);
 
-cdisasm_status cdisasm_arm_decode_a32_coprocessor_transfer(
-    uint32_t canonical_word,
-    cdisasm_arm_instruction *instruction,
-    cdisasm_arm_requirements *required_capabilities);
+cdisasm_status cdisasm_arm_decode_a32_coprocessor_transfer(uint32_t canonical_word, cdisasm_arm_instruction *instruction,
+                                                           cdisasm_arm_requirements *required_capabilities);
 
-cdisasm_status cdisasm_arm_decode_core(
-    uint32_t raw_instruction,
-    uint64_t address,
-    cdisasm_arm_mode mode,
-    cdisasm_arm_instruction *instruction,
-    cdisasm_arm_requirements *required_capabilities);
+cdisasm_status cdisasm_arm_decode_core(uint32_t raw_instruction, uint64_t address, cdisasm_arm_mode mode, cdisasm_arm_instruction *instruction,
+                                       cdisasm_arm_requirements *required_capabilities);
 
 #endif

@@ -6,11 +6,11 @@
 #include "cdisasm_common.h"
 
 #if USE_ARCH_X86
-#  include "cdisasm_x86.h"
+#include "cdisasm_x86.h"
 #endif
 
 #if USE_ARCH_ARM
-#  include "cdisasm_arm.h"
+#include "cdisasm_arm.h"
 #endif
 
 #endif

@@ -6,8 +6,7 @@
 /* Pinned AARCHMRS Registers.json, A64.MSRimmediate encodings.  The generic
  * MSR (immediate) leaf supplies op1, CRm and op2; some fields constrain CRm
  * and use only its low bit as the displayed immediate. */
-static inline int arm_pstate_msr_decode_word(
-    uint32_t word, uint8_t *field, uint8_t *immediate)
+static inline int arm_pstate_msr_decode_word(uint32_t word, uint8_t *field, uint8_t *immediate)
 {
     uint32_t op1;
     uint32_t op2;
@@ -15,8 +14,7 @@ static inline int arm_pstate_msr_decode_word(
     uint8_t selected = CDISASM_ARM_PSTATE_FIELD_NONE;
     uint8_t value;
 
-    if (field == NULL || immediate == NULL
-        || (word & UINT32_C(0xfff8f01f)) != UINT32_C(0xd500401f)) {
+    if (field == NULL || immediate == NULL || (word & UINT32_C(0xfff8f01f)) != UINT32_C(0xd500401f)) {
         return 0;
     }
     op1 = (word >> 16) & 7u;
@@ -44,9 +42,7 @@ static inline int arm_pstate_msr_decode_word(
             case 2u: selected = CDISASM_ARM_PSTATE_FIELD_DIT; break;
             case 3u:
                 if (crm >= 2u && crm <= 7u) {
-                    selected = (cdisasm_arm_pstate_field_id)(
-                        CDISASM_ARM_PSTATE_FIELD_SVCRSM
-                        + ((crm >> 1) - 1u));
+                    selected = (cdisasm_arm_pstate_field_id)(CDISASM_ARM_PSTATE_FIELD_SVCRSM + ((crm >> 1) - 1u));
                     value = (uint8_t)(crm & 1u);
                 }
                 break;
