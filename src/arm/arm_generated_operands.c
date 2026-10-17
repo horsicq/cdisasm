@@ -47,6 +47,34 @@
 #define ARM_OPEN_FORM_RCWCAS_FIRST UINT16_C(4725)
 #define ARM_OPEN_FORM_RCWCAS_LAST UINT16_C(4732)
 
+/* CMPP is the preferred alias of SUBPS when Rd encodes XZR.  The generated
+ * form recipe describes the three canonical SUBPS operands, while the public
+ * alias exposes only its two pointer inputs. */
+static int arm_open_lower_a64_cmpp(cdisasm_arm_instruction *instruction, uint32_t word)
+{
+    uint32_t rn;
+    uint32_t rm;
+
+    if (instruction->isa_id != CDISASM_ARM_ISA_A64 || instruction->form_id != UINT16_C(5608) || instruction->name_id != CDISASM_ARM_NAME_CMPP ||
+        (word & UINT32_C(0xffe0fc1f)) != UINT32_C(0xbac0001f)) {
+        return 0;
+    }
+    rn = (word >> 5) & UINT32_C(31);
+    rm = (word >> 16) & UINT32_C(31);
+    memset(instruction->operand, 0, sizeof(instruction->operand));
+    instruction->operand[0].type = CDISASM_OPERAND_REGISTER;
+    instruction->operand[0].reg = rn == 31u ? CDISASM_ARM_REG_SP : (cdisasm_arm_reg_id)(CDISASM_ARM_REG_X0 + rn);
+    instruction->operand[0].size = 8u;
+    instruction->operand[0].access = CDISASM_OPERAND_ACCESS_READ;
+    instruction->operand[1].type = CDISASM_OPERAND_REGISTER;
+    instruction->operand[1].reg = rm == 31u ? CDISASM_ARM_REG_SP : (cdisasm_arm_reg_id)(CDISASM_ARM_REG_X0 + rm);
+    instruction->operand[1].size = 8u;
+    instruction->operand[1].access = CDISASM_OPERAND_ACCESS_READ;
+    instruction->operand_count = 2u;
+    instruction->instruction_flags &= ~CDISASM_ARM_INSTRUCTION_FLAG_OPERANDS_OPAQUE;
+    return 1;
+}
+
 /* FEAT_THE compare-and-swap has two explicit X registers and one 64-bit
  * memory operand.  The source-tree leaf supplies the exact encoding and
  * feature check; this function only lowers its otherwise opaque operands. */
@@ -600,6 +628,9 @@ int cdisasm_arm_lower_generated_operands(cdisasm_arm_instruction *instruction)
     word = instruction->raw_instruction;
     if (instruction->isa_id == CDISASM_ARM_ISA_T32 && instruction->opcode_size == 4u) {
         word = (word << 16) | (word >> 16);
+    }
+    if (arm_open_lower_a64_cmpp(instruction, word)) {
+        return 1;
     }
     if (arm_open_lower_a64_dcps(instruction, word)) {
         return 1;

@@ -190,6 +190,13 @@ cdisasm_status cdisasm_arm_decode_a32_coprocessor_transfer(uint32_t word, cdisas
         return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
     }
 
+    /* p10/p11 are the scalar VFP coprocessors.  Their overlapping encodings
+     * belong to the VFP/AdvSIMD decoder, including register transfers and
+     * multiple-register loads and stores. */
+    if (((word >> 8) & 14u) == 10u) {
+        return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+    }
+
     /* LDC/STC share the coprocessor space with MCR/MRC, but have a
      * completely different operand layout.  Keep them here rather than
      * letting the generated fallback leave p#/c# and the address opaque.
@@ -217,7 +224,10 @@ cdisasm_status cdisasm_arm_decode_a32_coprocessor_transfer(uint32_t word, cdisas
         for (index = 0u; index < sizeof(ldst) / sizeof(ldst[0]); ++index) {
             const uint32_t mask = ldst[index].mask;
 
-            if ((word & mask) != ldst[index].value) {
+            /* The address form fixes neither CRd nor the coprocessor
+             * number.  The generated sample for each form happens to use
+             * c5/p14, so leave those selector fields out of recognition. */
+            if ((word & (mask & ~UINT32_C(0x0040ff00))) != (ldst[index].value & ~UINT32_C(0x0040ff00))) {
                 continue;
             }
 #if !USE_EXTRA_OPCODES
@@ -291,10 +301,40 @@ cdisasm_status cdisasm_arm_decode_a32_coprocessor_transfer(uint32_t word, cdisas
         }
     }
 
-    if ((word & UINT32_C(0x0ff00e00)) == UINT32_C(0x0c400e00) || (word & UINT32_C(0x0ff00e00)) == UINT32_C(0x0c500e00)) {
+    /* CDP/CDP2 transfer an opcode and three coprocessor register selectors.
+     * Keep each CR field inspectable even though the public ABI has only
+     * four operand slots: operand 0 packs p/opc1/opc2; operands 1-3 are
+     * CRd/CRn/CRm respectively. */
+    if ((word & UINT32_C(0x0f000010)) == UINT32_C(0x0e000000) && ((word >> 8) & 15u) != 10u && ((word >> 8) & 15u) != 11u) {
+#if !USE_EXTRA_OPCODES
+        (void)instruction;
+        (void)required_capabilities;
+        return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+#else
+        unsigned coprocessor = (word >> 8) & 15u;
+        unsigned opc1 = (word >> 20) & 15u;
+        unsigned opc2 = (word >> 5) & 7u;
+        unsigned crd = (word >> 12) & 15u;
+        unsigned crn = (word >> 16) & 15u;
+        unsigned crm = word & 15u;
+        int unconditional = (word >> 28) == 15u;
+
+        instruction->name_id = unconditional ? CDISASM_ARM_NAME_CDP2 : CDISASM_ARM_NAME_CDP;
+        instruction->condition = is_t32 || unconditional ? CDISASM_ARM_CONDITION_AL : (cdisasm_arm_condition)(word >> 28);
+        append_immediate(instruction, coprocessor | (opc1 << 4) | (opc2 << 8), 2u);
+        append_immediate(instruction, crd, 1u);
+        append_immediate(instruction, crn, 1u);
+        append_immediate(instruction, crm, 1u);
+        apply_condition_group(instruction);
+        cdisasm_arm_requirements_set_legacy(required_capabilities, CDISASM_ARM_CAP_V4);
+        return CDISASM_STATUS_OK;
+#endif
+    }
+
+    if ((word & UINT32_C(0x0ff00000)) == UINT32_C(0x0c400000) || (word & UINT32_C(0x0ff00000)) == UINT32_C(0x0c500000)) {
         is_long = 1;
         is_read = (word & UINT32_C(0x00100000)) != 0u;
-    } else if ((word & UINT32_C(0x0f100e10)) == UINT32_C(0x0e000e10) || (word & UINT32_C(0x0f100e10)) == UINT32_C(0x0e100e10)) {
+    } else if ((word & UINT32_C(0x0f100010)) == UINT32_C(0x0e000010) || (word & UINT32_C(0x0f100010)) == UINT32_C(0x0e100010)) {
         is_long = 0;
         is_read = (word & UINT32_C(0x00100000)) != 0u;
     } else {
@@ -306,7 +346,7 @@ cdisasm_status cdisasm_arm_decode_a32_coprocessor_transfer(uint32_t word, cdisas
     return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
 #else
     instruction->name_id = is_long ? (is_read ? CDISASM_ARM_NAME_MRRC : CDISASM_ARM_NAME_MCRR) : (is_read ? CDISASM_ARM_NAME_MRC : CDISASM_ARM_NAME_MCR);
-    instruction->condition = is_t32 ? CDISASM_ARM_CONDITION_AL : (cdisasm_arm_condition)(word >> 28);
+    instruction->condition = is_t32 || (word >> 28) == 15u ? CDISASM_ARM_CONDITION_AL : (cdisasm_arm_condition)(word >> 28);
     instruction->opcode_groups |= CDISASM_GROUP_PRIVILEGED;
     apply_condition_group(instruction);
 
@@ -4426,6 +4466,41 @@ static cdisasm_status decode_a32_extra(uint32_t word, cdisasm_arm_instruction *i
     (void)required_capabilities;
 #endif
     *recognized = 0;
+    /* SWP/SWPB are A32's original atomic exchange encodings.  Their
+     * operand layout is distinct from the multiply instructions occupying
+     * the same low opcode space. */
+    if (condition != CDISASM_ARM_CONDITION_NV && (word & UINT32_C(0x0fb00ff0)) == UINT32_C(0x01000090)) {
+        unsigned rn = (word >> 16) & 15u;
+        unsigned rd = (word >> 12) & 15u;
+        unsigned rm = word & 15u;
+        int byte = (word & UINT32_C(0x00400000)) != 0u;
+        cdisasm_arm_operand *memory;
+
+        *recognized = 1;
+        if (rn == 15u || rd == 15u || rm == 15u) {
+            return CDISASM_STATUS_INVALID_INSTRUCTION;
+        }
+#if !USE_EXTRA_OPCODES
+        (void)memory;
+        (void)byte;
+        return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+#else
+        instruction->name_id = byte ? CDISASM_ARM_NAME_SWPB : CDISASM_ARM_NAME_SWP;
+        instruction->instruction_flags |= CDISASM_ARM_INSTRUCTION_FLAG_ATOMIC;
+        append_register(instruction, a32_reg(rd), byte ? 1u : 4u, CDISASM_OPERAND_ACCESS_WRITE);
+        append_register(instruction, a32_reg(rm), byte ? 1u : 4u, CDISASM_OPERAND_ACCESS_READ);
+        memory = append_operand(instruction);
+        if (memory != NULL) {
+            memory->type = CDISASM_OPERAND_MEMORY;
+            memory->base_reg = a32_reg(rn);
+            memory->size = byte ? 1u : 4u;
+            memory->access = CDISASM_OPERAND_ACCESS_READ_WRITE;
+        }
+        apply_condition_group(instruction);
+        cdisasm_arm_requirements_set_legacy(required_capabilities, CDISASM_ARM_CAP_V4);
+        return CDISASM_STATUS_OK;
+#endif
+    }
     if ((word & UINT32_C(0xff70f010)) == UINT32_C(0xf710f000)) {
         unsigned rn = (word >> 16) & 15u;
         unsigned rm = word & 15u;

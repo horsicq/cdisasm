@@ -2620,6 +2620,7 @@ static cdisasm_operand_access decoded_operand_access(const x86_decoder *decoder,
             case CDISASM_X86_NAME_MOVDQU:
             case CDISASM_X86_NAME_CVTPS2PD:
             case CDISASM_X86_NAME_CVTPD2PS:
+            case CDISASM_X86_NAME_CVTDQ2PD:
             case CDISASM_X86_NAME_CVTDQ2PS:
             case CDISASM_X86_NAME_CVTPS2DQ:
             case CDISASM_X86_NAME_CVTTPS2DQ:
@@ -13651,7 +13652,12 @@ static int decode_primary(x86_decoder *decoder, uint8_t opcode)
             if (decoder->mode == CDISASM_MODE_64) {
                 return decoder_fail(decoder, CDISASM_STATUS_INVALID_INSTRUCTION);
             }
-            return decoder_fail(decoder, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
+            decoder->name_id = descriptor->form == X86_DECODE_FORM_FAR_CALL ? CDISASM_X86_NAME_CALL_FAR : CDISASM_X86_NAME_JMP_FAR;
+            /* Keep base-only builds aligned with the generated identity
+             * catalog.  The formatter uses these stable form IDs to validate
+             * the two-immediate far-pointer schema. */
+            decoder->form_id = descriptor->form == X86_DECODE_FORM_FAR_CALL ? UINT16_C(427) : UINT16_C(1441);
+            return add_immediate_operand(decoder, decoder->operand_bits, 0) && add_immediate_operand(decoder, 16u, 0);
         case X86_DECODE_FORM_FLAGS_STACK:
             bits = decoder->mode == CDISASM_MODE_64 ? (decoder->operand_override ? 16u : 64u) : decoder->operand_bits;
             decoder->name_id = descriptor->argument == 0 ? (bits == 16   ? CDISASM_X86_NAME_PUSHF

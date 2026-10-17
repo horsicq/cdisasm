@@ -1121,6 +1121,14 @@ static cdisasm_status t32_decode_prefetch(uint32_t word, uint64_t address, cdisa
     } else if ((word & UINT32_C(0xfff0ff00)) == UINT32_C(0xf910fc00)) {
         name = CDISASM_ARM_NAME_PLI;
         negative = 1u;
+    } else if ((word & UINT32_C(0xfffff000)) == UINT32_C(0xf81ff000)) {
+        /* PLD (literal) T1 carries a full imm12 after the F81F prefix. */
+        name = CDISASM_ARM_NAME_PLD;
+        negative = 2u;
+    } else if ((word & UINT32_C(0xfffff000)) == UINT32_C(0xf91ff000)) {
+        /* PLI (literal) T1 has the same negative PC-relative layout. */
+        name = CDISASM_ARM_NAME_PLI;
+        negative = 2u;
     } else if ((word & UINT32_C(0xfff0f000)) == UINT32_C(0xf890f000)) {
         name = CDISASM_ARM_NAME_PLD;
     } else if ((word & UINT32_C(0xfff0f000)) == UINT32_C(0xf8b0f000)) {
@@ -1132,7 +1140,7 @@ static cdisasm_status t32_decode_prefetch(uint32_t word, uint64_t address, cdisa
     }
 
     *recognized = 1;
-    offset = negative != 0u ? word & 255u : word & UINT32_C(0x0fff);
+    offset = negative == 1u ? word & 255u : word & UINT32_C(0x0fff);
     if (register_form != 0u) {
         rm = word & 15u;
         shift = (word >> 4) & 3u;
@@ -1649,7 +1657,9 @@ t32_after_shifted_logical:
         unsigned shift_amount = ((canonical >> 10) & 28u) | ((canonical >> 6) & 3u);
 
         *recognized = 1;
-        if (rn == 15u || rd == 13u || rm == 15u || (rd == 15u && set_flags == 0u)) {
+        /* ADD (SP plus register) T3 permits SP in both destination and
+         * first source when the register operand is unshifted. */
+        if (rn == 15u || (rd == 13u && (rn != 13u || shift_kind != 0u || shift_amount != 0u)) || rm == 15u || (rd == 15u && set_flags == 0u)) {
             return CDISASM_STATUS_INVALID_INSTRUCTION;
         }
 #if !USE_EXTRA_OPCODES
@@ -1743,7 +1753,10 @@ t32_after_shifted_logical:
         unsigned shift_amount = ((canonical >> 10) & 28u) | ((canonical >> 6) & 3u);
 
         *recognized = 1;
-        if (rn == 15u || rd == 13u || rm == 15u || (rd == 15u && (set_flags == 0u || reverse != 0u)) || (reverse != 0u && rn == 13u)) {
+        /* SUB (SP minus register) T1 likewise admits an unshifted SP
+         * destination; RSB and shifted forms retain their restrictions. */
+        if (rn == 15u || (rd == 13u && (rn != 13u || reverse != 0u || shift_kind != 0u || shift_amount != 0u)) || rm == 15u ||
+            (rd == 15u && (set_flags == 0u || reverse != 0u)) || (reverse != 0u && rn == 13u)) {
             return CDISASM_STATUS_INVALID_INSTRUCTION;
         }
 #if !USE_EXTRA_OPCODES
@@ -2663,6 +2676,21 @@ t32_after_shifted_logical:
         return CDISASM_STATUS_OK;
 #endif
     }
+    if ((canonical_word & UINT32_C(0xffffffe0)) == UINT32_C(0xf3af8100)) {
+        unsigned mode = canonical_word & 31u;
+
+        *recognized = 1;
+#if !USE_EXTRA_OPCODES
+        (void)mode;
+        return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+#else
+        instruction->name_id = CDISASM_ARM_NAME_CPS;
+        instruction->opcode_groups |= CDISASM_GROUP_PRIVILEGED;
+        t32_append_immediate(instruction, mode, 1u);
+        cdisasm_arm_requirements_set_legacy(required_capabilities, CDISASM_ARM_CAP_V7);
+        return CDISASM_STATUS_OK;
+#endif
+    }
     if (first == UINT16_C(0xf3bf) &&
         ((second & UINT16_C(0xfff0)) == UINT16_C(0x8f40) || (second & UINT16_C(0xfff0)) == UINT16_C(0x8f50) || (second & UINT16_C(0xfff0)) == UINT16_C(0x8f60))) {
         unsigned option = second & 15u;
@@ -2778,7 +2806,7 @@ t32_after_shifted_logical:
         int compare_alias = set_flags != 0u && rd == 15u;
 
         *recognized = 1;
-        if (!t32_expand_modified_immediate(encoded, &immediate) || rn == 15u || (!compare_alias && (rd == 13u || rd == 15u))) {
+        if (!t32_expand_modified_immediate(encoded, &immediate) || rn == 15u || (!compare_alias && (rd == 15u || (rd == 13u && rn != 13u)))) {
             return CDISASM_STATUS_INVALID_INSTRUCTION;
         }
 #if !USE_EXTRA_OPCODES
@@ -2841,7 +2869,8 @@ t32_after_shifted_logical:
         int compare_alias = operation == 11u && rd == 15u;
 
         *recognized = 1;
-        if (!t32_expand_modified_immediate(encoded, &immediate) || rn == 15u || (operation >= 12u && rn == 13u) || (!compare_alias && (rd == 13u || rd == 15u))) {
+        if (!t32_expand_modified_immediate(encoded, &immediate) || rn == 15u || (operation >= 12u && rn == 13u) ||
+            (!compare_alias && (rd == 15u || (rd == 13u && rn != 13u)))) {
             return CDISASM_STATUS_INVALID_INSTRUCTION;
         }
 #if !USE_EXTRA_OPCODES
@@ -2873,7 +2902,7 @@ t32_after_shifted_logical:
         int address_alias = rn == 15u;
 
         *recognized = 1;
-        if (rd == 13u || rd == 15u) {
+        if (rd == 15u || (rd == 13u && rn != 13u)) {
             return CDISASM_STATUS_INVALID_INSTRUCTION;
         }
 #if !USE_EXTRA_OPCODES
@@ -3073,6 +3102,8 @@ static cdisasm_status t32_decode_psr_transfer(uint16_t first, uint16_t second, c
                                               int *recognized)
 {
     int read_psr = (first & UINT16_C(0xffef)) == UINT16_C(0xf3ef) && (second & UINT16_C(0xf0ff)) == UINT16_C(0x8000);
+    int read_m_profile = first == UINT16_C(0xf3ef) && (second & UINT16_C(0xf000)) == UINT16_C(0x8000) &&
+                         (second & UINT16_C(0x00ff)) >= UINT16_C(0x10) && (second & UINT16_C(0x00ff)) <= UINT16_C(0x14);
     int write_psr = (first & UINT16_C(0xffe0)) == UINT16_C(0xf380) && (second & UINT16_C(0xf0ff)) == UINT16_C(0x8000);
     unsigned saved;
     unsigned mask;
@@ -3081,13 +3112,13 @@ static cdisasm_status t32_decode_psr_transfer(uint16_t first, uint16_t second, c
     cdisasm_arm_operand *psr;
 #endif
 
-    if (!read_psr && !write_psr) {
+    if (!read_psr && !read_m_profile && !write_psr) {
         return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
     }
     *recognized = 1;
     saved = (first >> 4) & 1u;
     mask = (second >> 8) & 15u;
-    reg = read_psr ? mask : first & 15u;
+    reg = read_psr || read_m_profile ? mask : first & 15u;
     if (reg == 15u || (write_psr && mask == 0u)) {
         return CDISASM_STATUS_INVALID_INSTRUCTION;
     }
@@ -3097,17 +3128,17 @@ static cdisasm_status t32_decode_psr_transfer(uint16_t first, uint16_t second, c
     (void)required_capabilities;
     return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
 #else
-    instruction->name_id = read_psr ? CDISASM_ARM_NAME_MRS : CDISASM_ARM_NAME_MSR;
-    instruction->form_id = read_psr ? UINT16_C(1851) : UINT16_C(1823);
+    instruction->name_id = read_psr || read_m_profile ? CDISASM_ARM_NAME_MRS : CDISASM_ARM_NAME_MSR;
+    instruction->form_id = read_psr || read_m_profile ? UINT16_C(1851) : UINT16_C(1823);
     if (saved || (write_psr && (mask & 7u) != 0u)) {
         instruction->opcode_groups |= CDISASM_GROUP_PRIVILEGED;
     }
-    if (read_psr) {
+    if (read_psr || read_m_profile) {
         t32_append_register(instruction, reg, CDISASM_OPERAND_ACCESS_WRITE);
         psr = t32_append_operand(instruction);
         if (psr != NULL) {
             psr->type = CDISASM_ARM_OPERAND_SYSTEM_REGISTER;
-            psr->imm = saved << 4;
+            psr->imm = read_m_profile ? second & 255u : saved << 4;
             psr->access = CDISASM_OPERAND_ACCESS_READ;
         }
     } else {
@@ -3148,6 +3179,29 @@ cdisasm_status cdisasm_arm_decode_t32_core(uint32_t raw_instruction, uint32_t op
     status = t32_decode_psr_transfer(first, second, instruction, required_capabilities, &extra_recognized);
     if (extra_recognized) {
         return status;
+    }
+
+    /* Thumb-2 EE/FE encodings carry VFP and AdvSIMD operations whose bit
+     * fields resemble generic CDP/MCR.  Preserve a successful vector decode
+     * before trying the coprocessor layout.  Probe into a copy so an
+     * unrecognized vector leaf cannot leave partial operands behind. */
+    if ((first & UINT16_C(0xef00)) == UINT16_C(0xee00) || (first & UINT16_C(0xfe00)) == UINT16_C(0xfc00)) {
+        cdisasm_arm_instruction vector_instruction = *instruction;
+        cdisasm_arm_requirements vector_requirements;
+        cdisasm_arm_requirements *vector_requirements_ptr = NULL;
+
+        if (required_capabilities != NULL) {
+            vector_requirements = *required_capabilities;
+            vector_requirements_ptr = &vector_requirements;
+        }
+        status = cdisasm_arm_decode_a32_neon(((uint32_t)first << 16) | second, &vector_instruction, vector_requirements_ptr);
+        if (status == CDISASM_STATUS_OK) {
+            *instruction = vector_instruction;
+            if (required_capabilities != NULL) {
+                *required_capabilities = vector_requirements;
+            }
+            return status;
+        }
     }
 
     /* Coprocessor register transfers use the EE/EC Thumb-2 envelope, which

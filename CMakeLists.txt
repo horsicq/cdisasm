@@ -2535,6 +2535,22 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
             PROPERTIES LABELS
                 "amd;apx;extra-opcodes;invlpgb;legacy;privileged;rex2;snp;system;x86")
 
+        if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
+            add_executable(
+                cdisasm_x86_far_immediate_tests
+                tests/test_x86_far_immediate.c)
+            target_compile_features(
+                cdisasm_x86_far_immediate_tests PRIVATE c_std_11)
+            target_link_libraries(
+                cdisasm_x86_far_immediate_tests PRIVATE cdisasm)
+            add_test(
+                NAME cdisasm_x86_far_immediate_tests
+                COMMAND cdisasm_x86_far_immediate_tests)
+            set_tests_properties(
+                cdisasm_x86_far_immediate_tests
+                PROPERTIES LABELS "base;far-control;format;legacy;x86")
+        endif()
+
         if(CDISASM_EFFECTIVE_USE_EXTRA_OPCODES
            AND CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
             add_executable(cdisasm_format_tests tests/test_format.c)
@@ -6175,3 +6191,14 @@ install(
         "${CMAKE_CURRENT_BINARY_DIR}/cdisasmConfig.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/cdisasmConfigVersion.cmake"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cdisasm")
+
+# Local-only radare2 asm corpus. Published source trees omit private_tests,
+# and embedding cdisasm (for example from xcasm or xxfclib) must not pull it in.
+if(_cdisasm_is_top_level AND BUILD_TESTING AND
+   IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/private_tests")
+    if(USE_ARCH_ARM AND USE_ARCH_X86 AND USE_DISASM_FORMAT)
+        add_subdirectory(private_tests)
+    else()
+        message(STATUS "Private radare2 asm test needs ARM, x86 and formatting enabled")
+    endif()
+endif()

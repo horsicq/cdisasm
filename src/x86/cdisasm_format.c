@@ -1443,6 +1443,8 @@ static const char *mnemonic_name(cdisasm_x86_name_id name_id)
      * the compact build.  Keep their spellings available there as well. */
     switch (name_id) {
         case CDISASM_X86_NAME_BOUND: return "bound";
+        case CDISASM_X86_NAME_CALL_FAR: return "call far";
+        case CDISASM_X86_NAME_JMP_FAR: return "jmp far";
         case CDISASM_X86_NAME_LDS: return "lds";
         case CDISASM_X86_NAME_LES: return "les";
         case CDISASM_X86_NAME_CMPXCHG8B: return "cmpxchg8b";
@@ -6979,6 +6981,16 @@ static size_t cdisasm_x86_format_internal(const cdisasm_x86_instruction *instruc
     const int rounding_on_destination = rounding_sae_on_first_operand(instruction->name_id);
     if (instruction->operand_count != 0) {
         writer_putc(&writer, ' ');
+    }
+    if ((instruction->name_id == CDISASM_X86_NAME_CALL_FAR || instruction->name_id == CDISASM_X86_NAME_JMP_FAR) && instruction->operand_count == 2u &&
+        instruction->opcode[0].type == CDISASM_OPERAND_IMMEDIATE && instruction->opcode[1].type == CDISASM_OPERAND_IMMEDIATE) {
+        /* The encoding stores offset first and selector second. Intel far
+         * pointer syntax presents the logical selector:offset pair. */
+        format_immediate(&writer, &instruction->opcode[1]);
+        writer_putc(&writer, ':');
+        format_immediate(&writer, &instruction->opcode[0]);
+        writer_finish(&writer);
+        return writer.length;
     }
     for (index = 0; index < instruction->operand_count; ++index) {
         if (is_multidest2_instruction(instruction->name_id) && index == 1u) {

@@ -1672,8 +1672,15 @@ static int arm_valid_system_operand(const cdisasm_arm_instruction *instruction, 
             valid_name = instruction->isa_id == CDISASM_ARM_ISA_A32 || instruction->isa_id == CDISASM_ARM_ISA_T32;
         } else if ((instruction->isa_id == CDISASM_ARM_ISA_A32 || instruction->isa_id == CDISASM_ARM_ISA_T32) &&
                    (instruction->name_id == CDISASM_ARM_NAME_MRS || instruction->name_id == CDISASM_ARM_NAME_MSR)) {
-            maximum = UINT64_C(0x1f);
-            valid_name = instruction->name_id == CDISASM_ARM_NAME_MRS ? (operand->imm & UINT64_C(0x0f)) == 0u : (operand->imm & UINT64_C(0x0f)) != 0u;
+            int m_profile_mrs = instruction->isa_id == CDISASM_ARM_ISA_T32 && instruction->name_id == CDISASM_ARM_NAME_MRS &&
+                                (instruction->raw_instruction & UINT32_C(0x0000ffff)) == UINT32_C(0xf3ef) &&
+                                ((instruction->raw_instruction >> 16) & UINT32_C(0xf000)) == UINT32_C(0x8000) &&
+                                (instruction->raw_instruction >> 16 & UINT32_C(0xff)) >= UINT32_C(0x10) &&
+                                (instruction->raw_instruction >> 16 & UINT32_C(0xff)) <= UINT32_C(0x14);
+            maximum = m_profile_mrs ? UINT64_C(0x14) : UINT64_C(0x1f);
+            valid_name = m_profile_mrs ? operand->imm == ((instruction->raw_instruction >> 16) & UINT32_C(0xff))
+                                       : instruction->name_id == CDISASM_ARM_NAME_MRS ? (operand->imm & UINT64_C(0x0f)) == 0u
+                                                                                       : (operand->imm & UINT64_C(0x0f)) != 0u;
         } else {
             maximum = UINT64_C(0xffff);
             valid_name = instruction->isa_id == CDISASM_ARM_ISA_A64 && (instruction->name_id == CDISASM_ARM_NAME_MRS || instruction->name_id == CDISASM_ARM_NAME_MSR);
@@ -1901,7 +1908,7 @@ static int arm_rcw_scalar_identity(const cdisasm_arm_instruction *instruction, c
     unsigned signed_parent = (word >> 30) & 1u;
 
     if (instruction->isa_id != CDISASM_ARM_ISA_A64 || operation < 9u || operation > 11u ||
-        (word & UINT32_C(0xffe0fc00)) != (UINT32_C(0x38209000) + ((uint32_t)(operation - 9u) << 12) | ((uint32_t)signed_parent << 30) | ((uint32_t)ordering << 22))) {
+        (word & UINT32_C(0xffe0fc00)) != ((UINT32_C(0x38209000) + ((uint32_t)(operation - 9u) << 12)) | ((uint32_t)signed_parent << 30) | ((uint32_t)ordering << 22))) {
         return 0;
     }
     *form_id = forms[signed_parent][ordering][operation - 9u];
@@ -1946,6 +1953,10 @@ static uint32_t arm_expected_atomic_flags(const cdisasm_arm_instruction *instruc
     cdisasm_arm_form_id rcw_form;
     unsigned ordering;
     int lsui_pair;
+
+    if (instruction->isa_id == CDISASM_ARM_ISA_A32 && (name_id == CDISASM_ARM_NAME_SWP || name_id == CDISASM_ARM_NAME_SWPB)) {
+        return atomic;
+    }
 
     if (arm_rcw_scalar_identity(instruction, &rcw_form, &rcw_name)) {
         uint32_t word = instruction->raw_instruction;
@@ -2208,6 +2219,18 @@ static int arm_valid_extra_atomic_schema(const cdisasm_arm_instruction *instruct
         name_id == CDISASM_ARM_NAME_STTXR || name_id == CDISASM_ARM_NAME_STLTXR || name_id == CDISASM_ARM_NAME_LDTXR || name_id == CDISASM_ARM_NAME_LDATXR ||
         is_lsui_cas || is_lsui_rmw || is_generated_ldapur || is_generated_stlur || is_lrcpc3_simd ||
         (instruction->form_id >= UINT16_C(4725) && instruction->form_id <= UINT16_C(4732)) || is_t32_atomic;
+
+    if (instruction->isa_id == CDISASM_ARM_ISA_A32 && (name_id == CDISASM_ARM_NAME_SWP || name_id == CDISASM_ARM_NAME_SWPB)) {
+        uint8_t expected_size = name_id == CDISASM_ARM_NAME_SWPB ? 1u : 4u;
+
+        return (instruction->raw_instruction & UINT32_C(0x0fb00ff0)) == UINT32_C(0x01000090) && instruction->operand_count == 3u &&
+               first->type == CDISASM_OPERAND_REGISTER && first->reg == (cdisasm_arm_reg_id)(CDISASM_ARM_REG_R0 + ((instruction->raw_instruction >> 12) & 15u)) &&
+               first->size == expected_size && first->access == CDISASM_OPERAND_ACCESS_WRITE && second->type == CDISASM_OPERAND_REGISTER &&
+               second->reg == (cdisasm_arm_reg_id)(CDISASM_ARM_REG_R0 + (instruction->raw_instruction & 15u)) && second->size == expected_size &&
+               second->access == CDISASM_OPERAND_ACCESS_READ && memory->type == CDISASM_OPERAND_MEMORY &&
+               memory->base_reg == (cdisasm_arm_reg_id)(CDISASM_ARM_REG_R0 + ((instruction->raw_instruction >> 16) & 15u)) && memory->size == expected_size &&
+               memory->access == CDISASM_OPERAND_ACCESS_READ_WRITE;
+    }
 
     if (!is_extra_atomic) {
         return 1;
@@ -12878,6 +12901,77 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
         (instruction->instruction_flags & ~known_flags) != 0u) {
         return 0;
     }
+    if (instruction->name_id == CDISASM_ARM_NAME_CDP || instruction->name_id == CDISASM_ARM_NAME_CDP2) {
+        uint32_t word = instruction->isa_id == CDISASM_ARM_ISA_T32
+                            ? ((instruction->raw_instruction & UINT32_C(0xffff)) << 16) | (instruction->raw_instruction >> 16)
+                            : instruction->raw_instruction;
+        unsigned selectors = ((word >> 8) & 15u) | (((word >> 20) & 15u) << 4) | (((word >> 5) & 7u) << 8);
+        unsigned fields[3] = {(word >> 12) & 15u, (word >> 16) & 15u, word & 15u};
+        unsigned i;
+
+        if ((instruction->isa_id != CDISASM_ARM_ISA_A32 && instruction->isa_id != CDISASM_ARM_ISA_T32) || instruction->opcode_size != 4u ||
+            (word & UINT32_C(0x0f000010)) != UINT32_C(0x0e000000) || ((word >> 8) & 15u) == 10u || ((word >> 8) & 15u) == 11u ||
+            instruction->name_id != ((word >> 28) == 15u ? CDISASM_ARM_NAME_CDP2 : CDISASM_ARM_NAME_CDP) ||
+            instruction->condition != (instruction->isa_id == CDISASM_ARM_ISA_T32 || (word >> 28) == 15u ? CDISASM_ARM_CONDITION_AL
+                                                                                                         : (cdisasm_arm_condition)(word >> 28)) ||
+            instruction->opcode_groups != (instruction->condition == CDISASM_ARM_CONDITION_AL ? CDISASM_GROUP_NONE : CDISASM_GROUP_CONDITIONAL) ||
+            instruction->instruction_flags != 0u || instruction->branch_target != 0u || instruction->operand_count != 4u ||
+            instruction->operand[0].type != CDISASM_OPERAND_IMMEDIATE || instruction->operand[0].imm != selectors || instruction->operand[0].size != 2u ||
+            instruction->operand[0].access != CDISASM_OPERAND_ACCESS_READ) {
+            return 0;
+        }
+        for (i = 0u; i < 3u; ++i) {
+            const cdisasm_arm_operand *operand = &instruction->operand[i + 1u];
+
+            if (operand->type != CDISASM_OPERAND_IMMEDIATE || operand->imm != fields[i] || operand->size != 1u ||
+                operand->access != CDISASM_OPERAND_ACCESS_READ || !arm_valid_operand(instruction, operand)) {
+                return 0;
+            }
+        }
+        return arm_valid_operand(instruction, &instruction->operand[0]);
+    }
+    if (instruction->name_id == CDISASM_ARM_NAME_MCR || instruction->name_id == CDISASM_ARM_NAME_MRC ||
+        instruction->name_id == CDISASM_ARM_NAME_MCRR || instruction->name_id == CDISASM_ARM_NAME_MRRC) {
+        uint32_t word = instruction->isa_id == CDISASM_ARM_ISA_T32
+                            ? ((instruction->raw_instruction & UINT32_C(0xffff)) << 16) | (instruction->raw_instruction >> 16)
+                            : instruction->raw_instruction;
+        int long_form = instruction->name_id == CDISASM_ARM_NAME_MCRR || instruction->name_id == CDISASM_ARM_NAME_MRRC;
+        int read_form = instruction->name_id == CDISASM_ARM_NAME_MRC || instruction->name_id == CDISASM_ARM_NAME_MRRC;
+        uint64_t selectors = (word >> 8) & 15u;
+        unsigned i;
+
+        if (long_form) {
+            selectors |= ((uint64_t)((word >> 4) & 15u)) << 4;
+            selectors |= ((uint64_t)(word & 15u)) << 8;
+        } else {
+            selectors |= ((uint64_t)((word >> 21) & 7u)) << 4;
+            selectors |= ((uint64_t)((word >> 16) & 15u)) << 7;
+            selectors |= ((uint64_t)(word & 15u)) << 11;
+            selectors |= ((uint64_t)((word >> 5) & 7u)) << 15;
+        }
+        if ((instruction->isa_id != CDISASM_ARM_ISA_A32 && instruction->isa_id != CDISASM_ARM_ISA_T32) || instruction->opcode_size != 4u ||
+            ((word >> 8) & 14u) == 10u ||
+            (long_form ? (word & UINT32_C(0x0ff00000)) != (read_form ? UINT32_C(0x0c500000) : UINT32_C(0x0c400000))
+                       : (word & UINT32_C(0x0f100010)) != (read_form ? UINT32_C(0x0e100010) : UINT32_C(0x0e000010))) ||
+            instruction->instruction_flags != 0u || instruction->branch_target != 0u ||
+            instruction->operand_count != (long_form ? 3u : 2u) ||
+            instruction->operand[0].type != CDISASM_OPERAND_IMMEDIATE || instruction->operand[0].imm != selectors ||
+            instruction->operand[0].size != 3u || instruction->operand[0].access != CDISASM_OPERAND_ACCESS_READ ||
+            (instruction->opcode_groups & CDISASM_GROUP_PRIVILEGED) == 0u) {
+            return 0;
+        }
+        for (i = 1u; i < instruction->operand_count; ++i) {
+            const cdisasm_arm_operand *operand = &instruction->operand[i];
+            unsigned raw_reg = i == 1u ? (word >> 12) & 15u : (word >> 16) & 15u;
+
+            if (operand->type != CDISASM_OPERAND_REGISTER || operand->reg != CDISASM_ARM_REG_R0 + raw_reg || operand->size != 4u ||
+                operand->access != (read_form ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ) ||
+                !arm_valid_operand(instruction, operand)) {
+                return 0;
+            }
+        }
+        return arm_valid_operand(instruction, &instruction->operand[0]);
+    }
     if (instruction->form_id == UINT16_C(4498) && instruction->name_id == CDISASM_ARM_NAME_MSR &&
         (instruction->instruction_flags & CDISASM_ARM_INSTRUCTION_FLAG_OPERANDS_OPAQUE) == 0u) {
         uint8_t field;
@@ -12986,7 +13080,8 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if ((instruction->instruction_flags & atomic_flags_mask) != expected_atomic_flags ||
         (expected_atomic_flags != 0u &&
          ((instruction->isa_id != CDISASM_ARM_ISA_A64 &&
-           !((instruction->isa_id == CDISASM_ARM_ISA_T32 || instruction->isa_id == CDISASM_ARM_ISA_A32) && arm_is_t32_atomic_name(instruction->name_id))) ||
+           !((instruction->isa_id == CDISASM_ARM_ISA_T32 || instruction->isa_id == CDISASM_ARM_ISA_A32) && arm_is_t32_atomic_name(instruction->name_id)) &&
+           !(instruction->isa_id == CDISASM_ARM_ISA_A32 && (instruction->name_id == CDISASM_ARM_NAME_SWP || instruction->name_id == CDISASM_ARM_NAME_SWPB))) ||
           instruction->opcode_groups !=
               (instruction->isa_id == CDISASM_ARM_ISA_A32 && instruction->condition != CDISASM_ARM_CONDITION_AL ? CDISASM_GROUP_CONDITIONAL : CDISASM_GROUP_NONE)))) {
         return 0;
@@ -13739,12 +13834,119 @@ static int arm_is_fp16_scalar_memory(const cdisasm_arm_instruction *instruction)
            instruction->operand[1].type == CDISASM_OPERAND_MEMORY;
 }
 
+static int arm_t32_wide_add_sub_fields(const cdisasm_arm_instruction *instruction,
+                                      unsigned *rn, unsigned *rd, unsigned *immediate, int *subtract)
+{
+    uint16_t first;
+    uint16_t second;
+
+    if (instruction->isa_id != CDISASM_ARM_ISA_T32 || instruction->opcode_size != 4u ||
+        (instruction->name_id != CDISASM_ARM_NAME_ADD && instruction->name_id != CDISASM_ARM_NAME_SUB &&
+         instruction->name_id != CDISASM_ARM_NAME_ADR)) {
+        return 0;
+    }
+    first = (uint16_t)instruction->raw_instruction;
+    second = (uint16_t)(instruction->raw_instruction >> 16);
+    if (((first & UINT16_C(0xfbf0)) != UINT16_C(0xf200) && (first & UINT16_C(0xfbf0)) != UINT16_C(0xf2a0)) ||
+        (second & UINT16_C(0x8000)) != 0u) {
+        return 0;
+    }
+    *rn = first & 15u;
+    *rd = (second >> 8) & 15u;
+    *immediate = (((first >> 10) & 1u) << 11) | (((second >> 12) & 7u) << 8) | (second & 255u);
+    *subtract = (first & UINT16_C(0x0080)) != 0u;
+    return 1;
+}
+
+static const char *arm_a64_bitfield_extract_alias(const cdisasm_arm_instruction *instruction,
+                                                    unsigned *lsb, unsigned *width)
+{
+    uint32_t word = instruction->raw_instruction;
+    unsigned register_width;
+    unsigned immr;
+    unsigned imms;
+
+    if (instruction->isa_id != CDISASM_ARM_ISA_A64 || instruction->opcode_size != 4u || instruction->operand_count != 4u ||
+        (instruction->name_id != CDISASM_ARM_NAME_UBFM && instruction->name_id != CDISASM_ARM_NAME_SBFM) ||
+        (word & UINT32_C(0x7f800000)) != (instruction->name_id == CDISASM_ARM_NAME_UBFM ? UINT32_C(0x53000000) : UINT32_C(0x13000000))) {
+        return NULL;
+    }
+    register_width = (word >> 31) != 0u ? 64u : 32u;
+    immr = (word >> 16) & 63u;
+    imms = (word >> 10) & 63u;
+    if (immr >= register_width || imms >= register_width || instruction->operand[2].type != CDISASM_OPERAND_IMMEDIATE ||
+        instruction->operand[3].type != CDISASM_OPERAND_IMMEDIATE || instruction->operand[2].imm != immr || instruction->operand[3].imm != imms) {
+        return NULL;
+    }
+    if (instruction->name_id == CDISASM_ARM_NAME_UBFM && imms < immr && imms + 1u != immr) {
+        *lsb = register_width - immr;
+        *width = imms + 1u;
+        return "ubfiz";
+    }
+    if (imms >= immr && imms != register_width - 1u) {
+        *lsb = immr;
+        *width = imms - immr + 1u;
+        if (instruction->name_id == CDISASM_ARM_NAME_UBFM) {
+            return "ubfx";
+        }
+        if (immr != 0u || (imms != 7u && imms != 15u && imms != 31u)) {
+            return "sbfx";
+        }
+    }
+    return NULL;
+}
+
+static int arm_a32_pop_single_alias(const cdisasm_arm_instruction *instruction)
+{
+    uint32_t word = instruction->raw_instruction;
+
+    return instruction->isa_id == CDISASM_ARM_ISA_A32 && instruction->opcode_size == 4u &&
+           instruction->name_id == CDISASM_ARM_NAME_LDR && instruction->operand_count == 2u &&
+           (word & UINT32_C(0x0fff0fff)) == UINT32_C(0x049d0004) &&
+           instruction->operand[0].type == CDISASM_OPERAND_REGISTER &&
+           instruction->operand[0].reg == CDISASM_ARM_REG_R0 + ((word >> 12) & 15u) &&
+           instruction->operand[1].type == CDISASM_OPERAND_MEMORY &&
+           instruction->operand[1].base_reg == CDISASM_ARM_REG_R13;
+}
+
 static void arm_format_mnemonic(arm_text_writer *writer, const cdisasm_arm_instruction *instruction, uint32_t format_flags)
 {
     uint32_t instruction_flags = instruction->instruction_flags;
     int uppercase = (format_flags & CDISASM_FORMAT_UPPERCASE_OPCODE) != 0u;
+    unsigned wide_rn;
+    unsigned wide_rd;
+    unsigned wide_immediate;
+    int wide_subtract;
+    unsigned bitfield_lsb;
+    unsigned bitfield_width;
+    const char *bitfield_alias = arm_a64_bitfield_extract_alias(instruction, &bitfield_lsb, &bitfield_width);
 
-    arm_writer_puts_mnemonic(writer, arm_mnemonic_names[instruction->name_id], uppercase);
+    if (arm_a32_pop_single_alias(instruction)) {
+        arm_writer_puts_mnemonic(writer, "pop", uppercase);
+    } else if (bitfield_alias != NULL) {
+        arm_writer_puts_mnemonic(writer, bitfield_alias, uppercase);
+    } else if (arm_t32_wide_add_sub_fields(instruction, &wide_rn, &wide_rd, &wide_immediate, &wide_subtract)) {
+        arm_writer_puts_mnemonic(writer, wide_subtract ? "subw" : "addw", uppercase);
+    } else {
+        arm_writer_puts_mnemonic(writer, arm_mnemonic_names[instruction->name_id], uppercase);
+    }
+    if ((instruction->name_id == CDISASM_ARM_NAME_MCR || instruction->name_id == CDISASM_ARM_NAME_MRC ||
+         instruction->name_id == CDISASM_ARM_NAME_MCRR || instruction->name_id == CDISASM_ARM_NAME_MRRC) &&
+        (instruction->isa_id == CDISASM_ARM_ISA_A32 || instruction->isa_id == CDISASM_ARM_ISA_T32) &&
+        (instruction->isa_id == CDISASM_ARM_ISA_T32 ? (instruction->raw_instruction & UINT32_C(0xf000)) == UINT32_C(0xf000)
+                                                    : (instruction->raw_instruction >> 28) == 15u)) {
+        arm_writer_putc_mnemonic(writer, '2', uppercase);
+    }
+    if ((instruction->name_id == CDISASM_ARM_NAME_LDC || instruction->name_id == CDISASM_ARM_NAME_STC) &&
+        (instruction->isa_id == CDISASM_ARM_ISA_A32 || instruction->isa_id == CDISASM_ARM_ISA_T32)) {
+        uint32_t word = instruction->isa_id == CDISASM_ARM_ISA_T32
+                            ? ((instruction->raw_instruction & UINT32_C(0xffff)) << 16) | (instruction->raw_instruction >> 16)
+                            : instruction->raw_instruction;
+
+        if ((word & UINT32_C(0x00400000)) != 0u) {
+            arm_writer_putc_mnemonic(writer, 'l', uppercase);
+        }
+    }
     /* A32/T32 AdvSIMD structure transfers carry the element width on the
      * mnemonic (vld1.8/vst4.32), while their fixed operand records retain
      * only D-register lists and memory metadata. */
@@ -14823,6 +15025,15 @@ static void arm_format_system_register(arm_text_writer *writer, const cdisasm_ar
 {
     uint64_t encoding = operand->imm;
 
+    if (instruction->isa_id == CDISASM_ARM_ISA_T32 && instruction->name_id == CDISASM_ARM_NAME_MRS &&
+        (instruction->raw_instruction & UINT32_C(0x0000ffff)) == UINT32_C(0xf3ef) &&
+        ((instruction->raw_instruction >> 16) & UINT32_C(0xf000)) == UINT32_C(0x8000) && encoding >= UINT64_C(0x10) && encoding <= UINT64_C(0x14)) {
+        static const char *const m_profile_names[] = {"primask", "basepri", "basepri_max", "faultmask", "control"};
+
+        arm_writer_puts(writer, m_profile_names[encoding - UINT64_C(0x10)]);
+        return;
+    }
+
     if (encoding == 0u && (instruction->name_id == CDISASM_ARM_NAME_VMRS || instruction->name_id == CDISASM_ARM_NAME_VMSR)) {
         arm_writer_puts(writer, "fpscr");
         return;
@@ -14931,6 +15142,91 @@ size_t CDISASM_CALL cdisasm_arm_format(const cdisasm_arm_instruction *instructio
     }
 
     arm_format_mnemonic(&writer, instruction, flags);
+    if (instruction->name_id == CDISASM_ARM_NAME_CDP || instruction->name_id == CDISASM_ARM_NAME_CDP2) {
+        uint64_t selectors = instruction->operand[0].imm;
+
+        arm_writer_puts(&writer, " p");
+        arm_writer_decimal(&writer, selectors & UINT64_C(15));
+        arm_writer_puts(&writer, ", ");
+        arm_writer_decimal(&writer, (selectors >> 4) & UINT64_C(15));
+        arm_writer_puts(&writer, ", c");
+        arm_writer_decimal(&writer, instruction->operand[1].imm);
+        arm_writer_puts(&writer, ", c");
+        arm_writer_decimal(&writer, instruction->operand[2].imm);
+        arm_writer_puts(&writer, ", c");
+        arm_writer_decimal(&writer, instruction->operand[3].imm);
+        arm_writer_puts(&writer, ", ");
+        arm_writer_decimal(&writer, (selectors >> 8) & UINT64_C(7));
+        arm_writer_finish(&writer);
+        return writer.length;
+    }
+    if (instruction->name_id == CDISASM_ARM_NAME_MCR || instruction->name_id == CDISASM_ARM_NAME_MRC ||
+        instruction->name_id == CDISASM_ARM_NAME_MCRR || instruction->name_id == CDISASM_ARM_NAME_MRRC) {
+        uint64_t selectors = instruction->operand[0].imm;
+        int long_form = instruction->name_id == CDISASM_ARM_NAME_MCRR || instruction->name_id == CDISASM_ARM_NAME_MRRC;
+
+        arm_writer_puts(&writer, " p");
+        arm_writer_decimal(&writer, selectors & UINT64_C(15));
+        arm_writer_puts(&writer, ", ");
+        arm_writer_decimal(&writer, (selectors >> 4) & (long_form ? UINT64_C(15) : UINT64_C(7)));
+        arm_writer_puts(&writer, ", ");
+        arm_format_register(&writer, instruction, &instruction->operand[1], 1u);
+        if (long_form) {
+            arm_writer_puts(&writer, ", ");
+            arm_format_register(&writer, instruction, &instruction->operand[2], 2u);
+            arm_writer_puts(&writer, ", c");
+            arm_writer_decimal(&writer, (selectors >> 8) & UINT64_C(15));
+        } else {
+            arm_writer_puts(&writer, ", c");
+            arm_writer_decimal(&writer, (selectors >> 7) & UINT64_C(15));
+            arm_writer_puts(&writer, ", c");
+            arm_writer_decimal(&writer, (selectors >> 11) & UINT64_C(15));
+            arm_writer_puts(&writer, ", ");
+            arm_writer_decimal(&writer, (selectors >> 15) & UINT64_C(7));
+        }
+        arm_writer_finish(&writer);
+        return writer.length;
+    }
+    if (arm_a32_pop_single_alias(instruction)) {
+        arm_writer_puts(&writer, " {");
+        arm_writer_puts(&writer, arm_register_names[instruction->operand[0].reg]);
+        arm_writer_putc(&writer, '}');
+        arm_writer_finish(&writer);
+        return writer.length;
+    }
+    {
+        unsigned bitfield_lsb;
+        unsigned bitfield_width;
+
+        if (arm_a64_bitfield_extract_alias(instruction, &bitfield_lsb, &bitfield_width) != NULL) {
+            arm_writer_putc(&writer, ' ');
+            arm_format_register(&writer, instruction, &instruction->operand[0], 0u);
+            arm_writer_puts(&writer, ", ");
+            arm_format_register(&writer, instruction, &instruction->operand[1], 1u);
+            arm_writer_puts(&writer, ", #");
+            arm_writer_hex(&writer, bitfield_lsb);
+            arm_writer_puts(&writer, ", #");
+            arm_writer_hex(&writer, bitfield_width);
+            arm_writer_finish(&writer);
+            return writer.length;
+        }
+    }
+    {
+        unsigned wide_rn;
+        unsigned wide_rd;
+        unsigned wide_immediate;
+        int wide_subtract;
+
+        if (instruction->name_id == CDISASM_ARM_NAME_ADR &&
+            arm_t32_wide_add_sub_fields(instruction, &wide_rn, &wide_rd, &wide_immediate, &wide_subtract) && wide_rn == 15u) {
+            arm_writer_putc(&writer, ' ');
+            arm_writer_puts(&writer, arm_register_names[CDISASM_ARM_REG_R0 + wide_rd]);
+            arm_writer_puts(&writer, ", pc, #");
+            arm_writer_hex(&writer, wide_immediate);
+            arm_writer_finish(&writer);
+            return writer.length;
+        }
+    }
     if (arm_is_architectural_tsb_form(instruction)) {
         arm_writer_puts(&writer, " csync");
     } else {

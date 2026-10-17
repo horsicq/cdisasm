@@ -949,6 +949,7 @@ cdisasm_status cdisasm_arm_decode_generated(uint32_t raw_instruction, uint32_t o
                                             cdisasm_arm_instruction *instruction)
 {
     const cdisasm_arm_gen_leaf *leaf;
+    int alias_selected;
 
     if (instruction == NULL || capabilities == NULL) {
         return CDISASM_STATUS_INTERNAL_ERROR;
@@ -987,7 +988,14 @@ cdisasm_status cdisasm_arm_decode_generated(uint32_t raw_instruction, uint32_t o
         return CDISASM_STATUS_INTERNAL_ERROR;
     }
     arm_gen_apply_leaf_semantics(leaf, raw_instruction, address, mode, instruction);
-    if (!cdisasm_arm_select_generated_alias(capabilities, in_it_block, instruction)) {
+    /* The open semantics row for SUBPS currently omits its architectural
+     * NZCV write.  Preserve that side effect for both SUBPS and its CMPP
+     * preferred alias. */
+    if (leaf->form_id == UINT16_C(5608)) {
+        instruction->instruction_flags |= CDISASM_ARM_INSTRUCTION_FLAG_SETS_FLAGS;
+    }
+    alias_selected = cdisasm_arm_select_generated_alias(capabilities, in_it_block, instruction);
+    if (!alias_selected || instruction->name_id == CDISASM_ARM_NAME_CMPP) {
         (void)cdisasm_arm_lower_generated_operands(instruction);
     }
     if ((instruction->instruction_flags & CDISASM_ARM_INSTRUCTION_FLAG_OPERANDS_OPAQUE) != 0u) {
