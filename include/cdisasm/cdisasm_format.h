@@ -7,7 +7,7 @@
 
 #if !USE_DISASM_FORMAT
 #error "cdisasm formatting is disabled in this build"
-#elif !USE_ARCH_X86 && !USE_ARCH_ARM
+#elif !USE_ARCH_X86 && !USE_ARCH_ARM && !USE_ARCH_MIPS
 #error "cdisasm formatting requires an enabled architecture"
 #endif
 
@@ -17,6 +17,11 @@
 
 #if USE_DISASM_FORMAT && USE_ARCH_ARM
 #include "cdisasm_arm.h"
+#endif
+
+#if USE_DISASM_FORMAT && USE_ARCH_MIPS
+#include "cdisasm_mips.h"
+#include "cdisasm_mips_v2.h"
 #endif
 
 /* Formatter exports are owned by the same cdisasm library as decoder exports. */
@@ -30,7 +35,7 @@ extern "C" {
  * Formatter options. The low three bits select syntax 0 through syntax 7.
  * For x86, syntax 0 is Intel and syntax 1 is AT&T. Syntax 2 through 7 are
  * permanent compatibility aliases for Intel syntax; their observable meaning
- * will not be reassigned. For ARM, selectors 0 through 7 are permanent aliases
+ * will not be reassigned. For ARM and MIPS, selectors 0 through 7 are permanent aliases
  * for the canonical architecture syntax. New dialects require new option
  * space instead of changing an existing numeric selector. Syntax 0 preserves
  * the default syntax emitted by cdisasm 8.x and earlier.
@@ -56,6 +61,7 @@ extern "C" {
 #define CDISASM_FORMAT_SYNTAX_X86_INTEL CDISASM_FORMAT_SYNTAX_0
 #define CDISASM_FORMAT_SYNTAX_X86_ATT CDISASM_FORMAT_SYNTAX_1
 #define CDISASM_FORMAT_SYNTAX_ARM_CANONICAL CDISASM_FORMAT_SYNTAX_0
+#define CDISASM_FORMAT_SYNTAX_MIPS_CANONICAL CDISASM_FORMAT_SYNTAX_0
 #define CDISASM_FORMAT_UPPERCASE_OPCODE UINT32_C(0x08)
 #define CDISASM_FORMAT_KNOWN_FLAGS_MASK UINT32_C(0x0f)
 
@@ -93,6 +99,11 @@ CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_format(const cdisasm_instruction 
  * returns zero and leaves a nonempty buffer as an empty string.
  */
 CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_arm_format(const cdisasm_arm_instruction *instruction, uint32_t flags, char *buffer, size_t buffer_size);
+#endif
+
+#if USE_DISASM_FORMAT && USE_ARCH_MIPS
+/** Formats a successful structured MIPS result with the common buffer contract. */
+CDISASM_FORMAT_API size_t CDISASM_CALL cdisasm_mips_format(const cdisasm_mips_instruction *instruction, uint32_t flags, char *buffer, size_t buffer_size);
 #endif
 
 #ifdef __cplusplus

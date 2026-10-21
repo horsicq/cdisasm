@@ -633,6 +633,13 @@ static int arm_valid_shift(cdisasm_arm_shift_type shift_type, uint8_t shift_amou
     return shift_type >= CDISASM_ARM_SHIFT_LSL && shift_type <= CDISASM_ARM_SHIFT_MSL && shift_amount <= 63u;
 }
 
+static int arm_is_a32_shift_count_operand(const cdisasm_arm_instruction *instruction, const cdisasm_arm_operand *operand)
+{
+    return instruction->isa_id == CDISASM_ARM_ISA_A32 && instruction->form_id >= UINT16_C(188) &&
+           instruction->form_id <= UINT16_C(215) && instruction->form_id != UINT16_C(210) && instruction->form_id != UINT16_C(211) &&
+           instruction->operand_count != 0u && operand == &instruction->operand[instruction->operand_count - 1u];
+}
+
 static int arm_valid_scalar_register_size(cdisasm_arm_reg_id reg, uint8_t size)
 {
     if (arm_is_a32_register(reg)) {
@@ -951,6 +958,12 @@ static int arm_valid_register_operand(const cdisasm_arm_instruction *instruction
          !(operand->flags == CDISASM_ARM_OPERAND_FLAG_WRITEBACK && instruction->name_id >= CDISASM_ARM_NAME_CPYFP && instruction->name_id <= CDISASM_ARM_NAME_SETE)) ||
         !arm_valid_shift(operand->shift_type, operand->shift_amount) || operand->shift_type == CDISASM_ARM_SHIFT_MSL) {
         return 0;
+    }
+    if (arm_is_a32_shift_count_operand(instruction, operand)) {
+        return operand->reg >= CDISASM_ARM_REG_R0 && operand->reg <= CDISASM_ARM_REG_R14 && operand->size == 4u &&
+               operand->access == CDISASM_OPERAND_ACCESS_READ && operand->shift_type >= CDISASM_ARM_SHIFT_LSL &&
+               operand->shift_type <= CDISASM_ARM_SHIFT_ROR && operand->shift_amount == 0u &&
+               operand->extend_type == CDISASM_ARM_EXTEND_NONE && operand->scale == 0u;
     }
     if (instruction->isa_id == CDISASM_ARM_ISA_A64 && instruction->form_id == UINT16_C(4922) && instruction->name_id == CDISASM_ARM_NAME_LDR &&
         operand == &instruction->operand[0] &&
@@ -15284,11 +15297,13 @@ size_t CDISASM_CALL cdisasm_arm_format(const cdisasm_arm_instruction *instructio
             arm_writer_decimal(&writer, selector >> 4);
             continue;
         }
-        if (index + 1u == display_operand_count && instruction->isa_id == CDISASM_ARM_ISA_A32 && instruction->form_id >= UINT16_C(188) &&
-            instruction->form_id <= UINT16_C(215) && instruction->form_id != UINT16_C(210) && instruction->form_id != UINT16_C(211)) {
-            static const char *const shift_names[4] = {"lsl ", "lsr ", "asr ", "ror "};
+        if (arm_is_a32_shift_count_operand(instruction, &instruction->operand[index])) {
+            const cdisasm_arm_operand *operand = &instruction->operand[index];
 
-            arm_writer_puts(&writer, shift_names[(instruction->raw_instruction >> 5) & 3u]);
+            arm_writer_puts(&writer, arm_shift_names[operand->shift_type]);
+            arm_writer_putc(&writer, ' ');
+            arm_writer_puts(&writer, arm_register_names[operand->reg]);
+            continue;
         }
         if (index == 0u && instruction->name_id == CDISASM_ARM_NAME_SETEND) {
             arm_writer_puts(&writer, instruction->operand[0].imm != 0u ? "be" : "le");

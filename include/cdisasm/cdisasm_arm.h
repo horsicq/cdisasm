@@ -569,7 +569,13 @@ typedef uint8_t cdisasm_arm_apple_sdsb_option;
  * imm is the semantic immediate value. For a memory operand it is the signed
  * displacement bit pattern. For a relative target, imm is the resolved target
  * and address is the signed displacement bit pattern. Shift/extend fields
- * preserve encoding semantics without constructing text. For a register
+ * preserve encoding semantics without constructing text. For A32 arithmetic
+ * and logical data-processing forms with a register-controlled shift, the
+ * final Rs register operand has shift_type LSL, LSR, ASR, or ROR and a zero
+ * shift_amount. It supplies the shift count for the preceding Rm operand;
+ * the shift does not apply to Rs itself. Standalone shift mnemonics such as
+ * LSL Rd, Rm, Rs keep shift_type NONE on Rs because the name gives the kind.
+ * For a register
  * operand of an instruction carrying CDISASM_ARM_INSTRUCTION_FLAG_SIMD,
  * size is the total vector size in bytes, vector_element_size is the lane
  * size in bytes, and vector_element_count is the lane count. The vector

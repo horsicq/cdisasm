@@ -11,6 +11,9 @@ size_t CDISASM_CALL cdisasm_instruction_size(cdisasm_cpu_id cpu_id)
 #if USE_ARCH_ARM
         case CDISASM_CPU_GROUP_ARM: return sizeof(cdisasm_arm_instruction);
 #endif
+#if USE_ARCH_MIPS
+        case CDISASM_CPU_GROUP_MIPS: return sizeof(cdisasm_mips_instruction);
+#endif
         default: return 0;
     }
 }
@@ -30,6 +33,9 @@ cdisasm_status CDISASM_CALL cdisasm_cpu_decode_flag_mask(cdisasm_cpu_id cpu_id, 
 #endif
 #if USE_ARCH_ARM
         case CDISASM_CPU_GROUP_ARM: return cdisasm_arm_cpu_decode_flag_mask((cdisasm_arm_cpu_id)cpu_id, (cdisasm_arm_mode)mode, (cdisasm_arm_decode_flags *)flags);
+#endif
+#if USE_ARCH_MIPS
+        case CDISASM_CPU_GROUP_MIPS: return cdisasm_mips_cpu_decode_flag_mask((cdisasm_mips_cpu_id)cpu_id, (cdisasm_mips_mode)mode, (cdisasm_mips_decode_flags *)flags);
 #endif
         default: return CDISASM_STATUS_INVALID_ARGUMENT;
     }
@@ -53,6 +59,10 @@ uint32_t CDISASM_CALL cdisasm_decode(cdisasm_cpu_id cpu_id, uint32_t mode, const
 #if USE_ARCH_ARM
         case CDISASM_CPU_GROUP_ARM:
             return cdisasm_arm_decode((cdisasm_arm_cpu_id)cpu_id, (cdisasm_arm_mode)mode, code, code_size, address, flags, (cdisasm_arm_instruction *)instruction);
+#endif
+#if USE_ARCH_MIPS
+        case CDISASM_CPU_GROUP_MIPS:
+            return cdisasm_mips_decode((cdisasm_mips_cpu_id)cpu_id, (cdisasm_mips_mode)mode, code, code_size, address, flags, (cdisasm_mips_instruction *)instruction);
 #endif
         default: return 0;
     }

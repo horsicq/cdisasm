@@ -88,6 +88,7 @@ endif()
 
 option(USE_ARCH_X86 "Build the x86 decoder" ON)
 option(USE_ARCH_ARM "Build the ARM decoder" ON)
+option(USE_ARCH_MIPS "Build the MIPS decoder" ON)
 option(USE_DISASM_FORMAT "Build instruction formatting into cdisasm" ON)
 option(USE_EXTRA_OPCODES "Build extended opcode coverage into cdisasm" ON)
 if(_cdisasm_has_examples)
@@ -151,6 +152,7 @@ endif()
 foreach(_cdisasm_boolean IN ITEMS
         USE_ARCH_X86
         USE_ARCH_ARM
+        USE_ARCH_MIPS
         USE_DISASM_FORMAT
         USE_EXTRA_OPCODES
         CDISASM_BUILD_SHARED_LIBS)
@@ -165,14 +167,16 @@ unset(_cdisasm_boolean)
 set(CDISASM_EFFECTIVE_USE_DISASM_FORMAT OFF)
 if(CDISASM_NORMALIZED_USE_DISASM_FORMAT
         AND (CDISASM_NORMALIZED_USE_ARCH_X86
-            OR CDISASM_NORMALIZED_USE_ARCH_ARM))
+            OR CDISASM_NORMALIZED_USE_ARCH_ARM
+            OR CDISASM_NORMALIZED_USE_ARCH_MIPS))
     set(CDISASM_EFFECTIVE_USE_DISASM_FORMAT ON)
 endif()
 
 set(CDISASM_EFFECTIVE_USE_EXTRA_OPCODES OFF)
 if(CDISASM_NORMALIZED_USE_EXTRA_OPCODES
         AND (CDISASM_NORMALIZED_USE_ARCH_X86
-            OR CDISASM_NORMALIZED_USE_ARCH_ARM))
+            OR CDISASM_NORMALIZED_USE_ARCH_ARM
+            OR CDISASM_NORMALIZED_USE_ARCH_MIPS))
     set(CDISASM_EFFECTIVE_USE_EXTRA_OPCODES ON)
 endif()
 
@@ -196,6 +200,7 @@ set(_cdisasm_generated_include_dir
 file(MAKE_DIRECTORY "${_cdisasm_generated_include_dir}/cdisasm")
 set(CDISASM_CONFIG_USE_ARCH_X86 ${CDISASM_NORMALIZED_USE_ARCH_X86})
 set(CDISASM_CONFIG_USE_ARCH_ARM ${CDISASM_NORMALIZED_USE_ARCH_ARM})
+set(CDISASM_CONFIG_USE_ARCH_MIPS ${CDISASM_NORMALIZED_USE_ARCH_MIPS})
 set(CDISASM_CONFIG_USE_DISASM_FORMAT
     ${CDISASM_EFFECTIVE_USE_DISASM_FORMAT})
 set(CDISASM_CONFIG_USE_EXTRA_OPCODES
@@ -205,6 +210,7 @@ configure_file(
     "${_cdisasm_generated_include_dir}/cdisasm/cdisasm_config.h")
 unset(CDISASM_CONFIG_USE_ARCH_X86)
 unset(CDISASM_CONFIG_USE_ARCH_ARM)
+unset(CDISASM_CONFIG_USE_ARCH_MIPS)
 unset(CDISASM_CONFIG_USE_DISASM_FORMAT)
 unset(CDISASM_CONFIG_USE_EXTRA_OPCODES)
 
@@ -279,9 +285,29 @@ if(USE_ARCH_ARM)
         src/arm/arm_modern_decoder.c
         src/arm/arm_t32_decoder.c)
 endif()
+if(USE_ARCH_MIPS)
+    list(APPEND _cdisasm_sources
+        src/mips/cdisasm_mips.c
+        src/mips/mips_decoder.c
+        src/mips/mips_generated_decoder.c
+        src/mips/mips_effects.c
+        src/mips/mips_compact_decoder.c
+        src/mips/mips_mips16e2_decoder.c
+        src/mips/mips_nano_decoder.c
+        src/mips/mips_allegrex_decoder.c
+        src/mips/mips_r5900_decoder.c
+        src/mips/mips_mxu_decoder.c
+        src/mips/mips_mxu_vector_decoder.c
+        src/mips/mips_loongsimd_decoder.c
+        src/mips/mips_vu_decoder.c
+        src/mips/mips_extra_decoder.c)
+endif()
 if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
     if(USE_ARCH_X86)
         list(APPEND _cdisasm_sources src/x86/cdisasm_format.c)
+    endif()
+    if(USE_ARCH_MIPS)
+        list(APPEND _cdisasm_sources src/mips/cdisasm_mips_format.c src/mips/mips_allegrex_format.c src/mips/mips_vu_format.c)
     endif()
     if(USE_ARCH_ARM)
         list(APPEND
@@ -325,6 +351,43 @@ if(CDISASM_VERIFY_GENERATED)
         VERBATIM)
     add_dependencies(cdisasm cdisasm_check_generated)
 
+    if(USE_ARCH_MIPS)
+        add_custom_command(TARGET cdisasm_check_generated POST_BUILD
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_catalog.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_mips_dsp.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_inventory.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_compact.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_mips16e2.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_nano.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_allegrex.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_r5900.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_mxu_inventory.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_mxu_vector.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_loongsimd.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_vu.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/coverage/mips_coverage.py" --check
+            COMMENT "Checking the append-only generated MIPS spelling catalog"
+            VERBATIM)
+        add_custom_target(cdisasm_check_mips_coverage
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/coverage/mips_coverage.py" --check
+            COMMENT "Checking MIPS catalog coverage and numeric namespaces"
+            VERBATIM)
+    endif()
+
     if(NOT "${CDISASM_ARM_AARCHMRS_ROOT}" STREQUAL "")
         add_custom_target(
             cdisasm_check_arm_catalog
@@ -354,6 +417,12 @@ if(USE_ARCH_ARM)
     add_library(cdisasm_arm INTERFACE)
     add_library(cdisasm::cdisasm_arm ALIAS cdisasm_arm)
     target_link_libraries(cdisasm_arm INTERFACE cdisasm)
+endif()
+
+if(USE_ARCH_MIPS)
+    add_library(cdisasm_mips INTERFACE)
+    add_library(cdisasm::cdisasm_mips ALIAS cdisasm_mips)
+    target_link_libraries(cdisasm_mips INTERFACE cdisasm)
 endif()
 
 if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
@@ -422,6 +491,24 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
             cdisasm_x86_coverage_audit_tests
             cdisasm_x86_gap_probe_ledger_tests
             PROPERTIES LABELS "codegen;generated")
+
+        if(USE_ARCH_MIPS)
+            add_test(NAME cdisasm_mips_coverage_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/coverage/mips_coverage.py" --check)
+            add_test(NAME cdisasm_mips_coverage_checker_tests
+                COMMAND "${Python3_EXECUTABLE}" -B -m unittest discover
+                    -s "${CMAKE_CURRENT_SOURCE_DIR}/tools/coverage"
+                    -p test_mips_coverage.py)
+            add_test(NAME cdisasm_mips_allegrex_pattern_evidence_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_allegrex_patterns.py")
+            set_tests_properties(cdisasm_mips_coverage_freshness_tests
+                cdisasm_mips_coverage_checker_tests
+                cdisasm_mips_allegrex_pattern_evidence_tests PROPERTIES
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                LABELS "mips;coverage;codegen;generated")
+        endif()
 
         if(TARGET cdisasm_check_arm_catalog)
             add_test(
@@ -535,7 +622,7 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
             PROPERTIES LABELS "corpus;fuzz")
     endif()
 
-    if(USE_ARCH_X86 OR USE_ARCH_ARM)
+    if(USE_ARCH_X86 OR USE_ARCH_ARM OR USE_ARCH_MIPS)
         add_executable(
             cdisasm_extra_opcode_contract_tests
             tests/test_extra_opcode_contract.c)
@@ -6004,6 +6091,35 @@ if(CDISASM_BUILD_FUZZERS)
     unset(_cdisasm_fuzz_link_sanitizers)
 endif()
 
+if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_MIPS)
+    foreach(_cdisasm_mips_test IN ITEMS decode context families standard_complete extensions_complete compact mips16e2 nano v2 allegrex r5900 manual_extensions mxu mxu_vector loongsimd vu system_domains)
+        add_executable(cdisasm_mips_${_cdisasm_mips_test}_tests
+            tests/test_mips_${_cdisasm_mips_test}.c)
+        target_compile_features(cdisasm_mips_${_cdisasm_mips_test}_tests PRIVATE c_std_11)
+        target_link_libraries(cdisasm_mips_${_cdisasm_mips_test}_tests PRIVATE cdisasm)
+        add_test(NAME cdisasm_mips_${_cdisasm_mips_test}_tests
+            COMMAND cdisasm_mips_${_cdisasm_mips_test}_tests)
+    endforeach()
+    if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
+        add_executable(cdisasm_mips_format_tests tests/test_mips_format.c)
+        target_compile_features(cdisasm_mips_format_tests PRIVATE c_std_11)
+        target_link_libraries(cdisasm_mips_format_tests PRIVATE cdisasm)
+        add_test(NAME cdisasm_mips_format_tests COMMAND cdisasm_mips_format_tests)
+    endif()
+    if(CDISASM_BUILD_PACKAGE_TESTS AND NOT CMAKE_CROSSCOMPILING)
+        add_test(NAME cdisasm_mips_package_e2e
+            COMMAND "${CMAKE_COMMAND}"
+                "-DSOURCE_DIR:PATH=${CMAKE_CURRENT_SOURCE_DIR}"
+                "-DWORK_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/mips-package-tests"
+                "-DGENERATOR:STRING=${CMAKE_GENERATOR}"
+                "-DPLATFORM:STRING=${CMAKE_GENERATOR_PLATFORM}"
+                "-DCTEST_COMMAND:FILEPATH=${CMAKE_CTEST_COMMAND}"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/test_mips_package.cmake")
+        set_tests_properties(cdisasm_mips_package_e2e PROPERTIES
+            LABELS "package;install;mips" RUN_SERIAL TRUE TIMEOUT 1800)
+    endif()
+endif()
+
 set(_cdisasm_install_targets cdisasm)
 set(_cdisasm_public_headers
     include/cdisasm/cdisasm_version.h
@@ -6026,6 +6142,13 @@ if(USE_ARCH_ARM)
         include/cdisasm/cdisasm_arm.h
         include/cdisasm/cdisasm_arm_ids.h
         include/cdisasm/cdisasm_arm_mnemonic_ids_generated.h)
+endif()
+if(USE_ARCH_MIPS)
+    list(APPEND _cdisasm_install_targets cdisasm_mips)
+    list(APPEND _cdisasm_public_headers
+        include/cdisasm/cdisasm_mips.h
+        include/cdisasm/cdisasm_mips_v2.h
+        include/cdisasm/cdisasm_mips_ids.h)
 endif()
 if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
     list(APPEND _cdisasm_install_targets cdisasm_format)

@@ -4425,7 +4425,12 @@ static cdisasm_status decode_a32_data_processing(uint32_t word, cdisasm_arm_inst
                 return CDISASM_STATUS_INVALID_INSTRUCTION;
             }
             append_register(instruction, a32_reg(rm), 4, CDISASM_OPERAND_ACCESS_READ);
-            append_register(instruction, a32_reg(rs), 4, CDISASM_OPERAND_ACCESS_READ);
+            source = append_register(instruction, a32_reg(rs), 4, CDISASM_OPERAND_ACCESS_READ);
+            /* The final operand supplies the shift count for the preceding
+             * register. Keep the shift operation in the decoded schema too. */
+            if (source != NULL) {
+                source->shift_type = (cdisasm_arm_shift_type)(CDISASM_ARM_SHIFT_LSL + shift);
+            }
             apply_condition_group(instruction);
             cdisasm_arm_requirements_set_legacy(required_capabilities, CDISASM_ARM_CAP_V4);
             return CDISASM_STATUS_OK;
@@ -7270,7 +7275,7 @@ static cdisasm_status decode_a64_pair_memory(uint32_t word, cdisasm_arm_instruct
     int64_t displacement;
     cdisasm_arm_operand *memory;
 
-    if (opcode != 0u && opcode != 2u && opcode != 3u) {
+    if (opcode == 1u && (!load || address_mode == 0u)) {
         return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
     }
     if (opcode == 3u) {
@@ -7314,8 +7319,10 @@ static cdisasm_status decode_a64_pair_memory(uint32_t word, cdisasm_arm_instruct
         return CDISASM_STATUS_OK;
 #endif
     }
-    is_64 = opcode == 2u;
-    data_size = is_64 ? 8u : 4u;
+    /* LDPSW loads signed words into X registers; its displacement still
+       scales by the four-byte memory element, not the register width. */
+    is_64 = opcode != 0u;
+    data_size = opcode == 2u ? 8u : 4u;
     displacement = sign_extend((word >> 15) & UINT32_C(0x7f), 7) * (int64_t)data_size;
     if (address_mode == 0u) {
 #if USE_EXTRA_OPCODES
@@ -7346,12 +7353,15 @@ static cdisasm_status decode_a64_pair_memory(uint32_t word, cdisasm_arm_instruct
         return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
 #endif
     }
-    instruction->name_id = load ? CDISASM_ARM_NAME_LDP : CDISASM_ARM_NAME_STP;
+    instruction->name_id = opcode == 1u ? CDISASM_ARM_NAME_LDPSW : (load ? CDISASM_ARM_NAME_LDP : CDISASM_ARM_NAME_STP);
+    if (opcode == 1u) {
+        instruction->form_id = (uint16_t)(5095u + 16u * (address_mode - 1u));
+    }
     if ((load && rt == rt2) || (address_mode != 2u && rn != 31u && (rn == rt || rn == rt2))) {
         mark_unpredictable(instruction);
     }
-    append_register(instruction, a64_reg(rt, is_64, 0), data_size, load ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
-    append_register(instruction, a64_reg(rt2, is_64, 0), data_size, load ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
+    append_register(instruction, a64_reg(rt, is_64, 0), is_64 ? 8u : 4u, load ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
+    append_register(instruction, a64_reg(rt2, is_64, 0), is_64 ? 8u : 4u, load ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
     memory = append_operand(instruction);
     if (memory != NULL) {
         memory->type = CDISASM_OPERAND_MEMORY;
@@ -8086,7 +8096,8 @@ static cdisasm_status decode_a64_base_system_extra(uint32_t word, cdisasm_arm_in
             return CDISASM_STATUS_INTERNAL_ERROR;
         }
         instruction->name_id = names[opc];
-        append_register(instruction, a64_reg(rd, sf != 0u, 0), size, CDISASM_OPERAND_ACCESS_WRITE);
+        append_register(instruction, a64_reg(rd, sf != 0u, 0), size,
+                        opc == 1u ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE);
         append_register(instruction, a64_reg(rn, sf != 0u, 0), size, CDISASM_OPERAND_ACCESS_READ);
         append_immediate(instruction, immr, 1u);
         append_immediate(instruction, imms, 1u);
