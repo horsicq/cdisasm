@@ -1,0 +1,53 @@
+{
+  "forms": 132,
+  "independent_reference": {
+    "commit": "d44bfa1814b729d4a3ed3c6c3a945432d5ee5bbe",
+    "files_sha256": {
+      "License.txt": "e9089da5950600267bb657503aba6eb59cb679b455c2997d341d83144144daab",
+      "Source/COP_FPU.cpp": "c2ef4556ae7edec8419e3019a58c7b63371cda00048748396ab278a9cfa8df82",
+      "Source/COP_FPU_Reflection.cpp": "39369b62668ee2e249c4ba95d268698b436c8ecd91b86fc9e45d3b680327877d",
+      "Source/COP_SCU.cpp": "e97d2635df32c0ed62a0e339981e0ccf7b4c30d36c83f81a3f38b9be8be0119d",
+      "Source/MA_MIPSIV.cpp": "cab287c93c5d32a99bdb8092a40ae2419c36bb15cfe0113ddb6c34cad435326d",
+      "Source/MA_MIPSIV.h": "e1ab142bbb6829ccbca3bcc3fc24c9a9970f1ca80386d86027a5c998e9a0ac01",
+      "Source/MA_MIPSIV_Reflection.cpp": "eecbc9535708af9cf2580d951b9726aea17a353ff92ecc09347b8dea1299badf",
+      "Source/ee/MA_EE.cpp": "826fd116fb05a661147a95499b82dd355a115eae68f30cc948e81597aa37ffaa",
+      "Source/ee/MA_EE.h": "ee3c14de6a454d7b92951059d69fd2b468bf5b20acc67b49ea9a9cf255b98640",
+      "Source/ee/MA_EE_Reflection.cpp": "f3b7c4b0cf846ea963f7c9eb4c771406f1f9602acffc0e0cf7a0bf45349a2945"
+    },
+    "license": "BSD-2-Clause",
+    "license_copy": "LICENSES/BSD-2-Clause-Play.txt",
+    "repository": "https://github.com/jpd002/Play-"
+  },
+  "input_sha256": "326fa5096fdd3e9597417dbfbad2fd8e372af2f3a47d9f69dfa008ab13afc7c4",
+  "output_sha256": "c01a77179044716c86faa87b1a2f6eaeb7f8539aae958a70905df3515c376c23",
+  "primary_encoding_pages": [
+    395,
+    396,
+    397,
+    398,
+    399,
+    400,
+    401,
+    402,
+    403,
+    404,
+    405,
+    406,
+    407,
+    408
+  ],
+  "primary_sha256": "104205afc6f5a5071168d8bf693a6c8b4db9a02e1aa66eb51a828e8951f5c069",
+  "primary_source": "https://docs.alexrp.com/mips/ee_insns.pdf",
+  "primary_version": "Sony EE Core Instruction Set Manual6.0",
+  "retained_material": "Manufacturer numeric encodings and instruction names; locally authored typed lowering and resource metadata. Independent references were cross-checks; no emulator implementation was copied.",
+  "schema": 2,
+  "scope_boundary": {
+    "claim": "The 132 generated recipes are a bounded EE/MMI catalog, not an exhaustive claim for every R5900/Emotion Engine or Vector Unit instruction.",
+    "excluded": [
+      "The separate VU0 COP2 macro-mode vector instruction set.",
+      "VU0/VU1 microprogram instruction pairs.",
+      "VU-specific COP2 quadword data/control-transfer encodings, including QMFC2/QMTC2."
+    ],
+    "included": "Finite catalog of EE scalar overrides, MMI packed-integer operations, EE single-precision COP1/accumulator operations, and the listed CP0 control/performance-counter transfer forms. Ordinary legal scalar/COP1 transfers can be delegated to the common native backend."
+  }
+}

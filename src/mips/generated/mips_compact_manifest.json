@@ -1,0 +1,81 @@
+{
+  "input_sha256": "6dfc3ed6736d7b33fec54f66da6d0f093613ca1a83c7934bd9d53d25b95ce458",
+  "inputs": {
+    "src/mips/generated/mips_compact_facts.json": "6dfc3ed6736d7b33fec54f66da6d0f093613ca1a83c7934bd9d53d25b95ce458",
+    "tools/data/mips/llvm_instruction_inventory.json": "38079435500412a495b99f52c0efb58d1df9c60d32f8b8cfe3e9f9b9e0c9f623",
+    "tools/isa_codegen/generate_mips_compact.py": "cbddb231e0722afe87f752c451a691f26b775f9d12d5a6dfa28ac664aadebda6"
+  },
+  "micromips": 746,
+  "mips16": 69,
+  "output_sha256": "85e9ff03d5c811a0e5fe7ce32b597dd71c709871ace2d318b11147d21adf8f4a",
+  "primary_corrections": {
+    "boundary": "Original LLVM inventory is preserved; manufacturer numeric corrections apply to authored native recipes only.",
+    "micromips": {
+      "pages": [
+        272,
+        274
+      ],
+      "records": {
+        "JIALC_MMR6": {
+          "mask": "ffe00000",
+          "value": "a0000000"
+        },
+        "JIC_MMR6": {
+          "mask": "ffe00000",
+          "value": "80000000"
+        }
+      },
+      "sha256": "e38fbb4b985df49efdf990af391355b5678bec6813b2c7d4153225a86cea3d97",
+      "source": "https://docs.alexrp.com/mips/micromips64_insns_v6_05.pdf"
+    },
+    "mips16": {
+      "records": {
+        "AddiuSpImmX16": {
+          "mask": "0000ffe0",
+          "value": "00006300"
+        },
+        "BteqzX16": {
+          "mask": "0000ffe0",
+          "value": "00006000"
+        },
+        "BtnezX16": {
+          "mask": "0000ffe0",
+          "value": "00006100"
+        },
+        "JrcRa16": {
+          "mask": "0000ffff",
+          "value": "0000e8a0"
+        },
+        "JrcRx16": {
+          "mask": "0000ffff",
+          "value": "0000e880"
+        },
+        "JumpLinkReg16": {
+          "mask": "0000f8ff",
+          "value": "0000e8c0"
+        },
+        "LbRxRyOffMemX16": {
+          "mask": "0000f800",
+          "value": "00008000"
+        },
+        "LhRxRyOffMemX16": {
+          "mask": "0000f800",
+          "value": "00008800"
+        },
+        "LhuRxRyOffMemX16": {
+          "mask": "0000f800",
+          "value": "0000a800"
+        },
+        "NegRxRy16": {
+          "mask": "0000f81f",
+          "value": "0000e80b"
+        }
+      },
+      "sha256": "e5512cb85ca2413f1851d3c0200dcba5840d0edc5eeab7220e440086fb1f616b",
+      "source": "https://0x04.net/~mwk/doc/mips/MD00076-2B-MIPS1632-AFP-02.50.pdf"
+    }
+  },
+  "rows": 815,
+  "schema": 2,
+  "upstream_commit": "2078da43e25a4623cab2d0d60decddf709aaea28"
+}

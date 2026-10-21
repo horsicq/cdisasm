@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "primary": {
+    "title": "Sony VU User Manual 6.0 April 2002",
+    "url": "https://docs.alexrp.com/mips/ee_vu.pdf",
+    "sha256": "a858ef55cd2638accdfca612d5359eb6e48a48c7fd6792b18080d866e610fde5"
+  },
+  "inputs": {
+    "tools/data/mips/vu_numeric_facts.json": "2298246ea27f587c5a2ad6a60b50bafc53ba4d3710e5f6353b2981e21e668103",
+    "tools/data/mips/vu_test_witnesses.json": "05c9359c17fe6c3902e653931e5cf10315aaa4e8d6ad8ad7147569427d6fdc6b"
+  },
+  "generated_sha256": "69171235d24c650c911d6052b8155019261f8af1726a6840b21c79548cd2a57b",
+  "scope": {
+    "macro_numeric_forms": 134,
+    "upper_numeric_forms_per_unit": 95,
+    "lower_numeric_forms": 69,
+    "lower_vu1_only": 17,
+    "immediate_forms_per_unit": 1,
+    "unit_features": [
+      "R5900_VU0",
+      "R5900_VU1"
+    ],
+    "exclusions": [
+      "Pipeline simulation, packet scheduling and execution are outside a decoder."
+    ]
+  },
+  "validation": {
+    "concrete_forms": 298,
+    "literal_words": 882,
+    "independent_table_forms": 293,
+    "manual_only_forms": [
+      "upper:subaq",
+      "lower:eatan",
+      "lower:fseq",
+      "macro:bc2fl",
+      "macro:vsubaq"
+    ]
+  },
+  "independent_reference": {
+    "project": "Play!",
+    "license": "BSD-2-Clause",
+    "commit": "d44bfa1814b729d4a3ed3c6c3a945432d5ee5bbe",
+    "license_file": "LICENSES/BSD-2-Clause-Play.txt",
+    "role": "External numeric encoder/reflection witnesses; no implementation embedded."
+  }
+}

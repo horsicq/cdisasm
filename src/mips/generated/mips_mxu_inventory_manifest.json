@@ -1,0 +1,11 @@
+{
+  "allocations": 0,
+  "coverage": "Each listed form has complete numeric operand lowering; no opaque successes",
+  "forms": 114,
+  "generated_sha256": "52d38756d1abbda0e650d645cab175371ab55301ed7e5c1faeca63da31b5da4d",
+  "generator_sha256": "9485efb8d7c3a80f5c7d32f3ab4d927acaa1180e94e196598c1ffb268a2460d1",
+  "names": 114,
+  "native_c_runtime": true,
+  "schema": 1,
+  "source_sha256": "038b2abb2d64be17658418e77a993a4ac04c8e7d8a092f8104a09989323b8749"
+}
