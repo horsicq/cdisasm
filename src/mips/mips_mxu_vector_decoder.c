@@ -156,12 +156,46 @@ size_t cdisasm_mips_mxu_vector_effects(const cdisasm_mips_instruction *instructi
 {
 #if USE_EXTRA_OPCODES
     const mxuv_form *row=instruction!=NULL ? mxuv_find(instruction->form_id) : NULL;
-    if(row==NULL || !row->control_access)return 0;
-    if(effects!=NULL && capacity) {
-        memset(effects,0,sizeof(*effects));effects->size=4u;effects->access=row->control_access;
-        effects->reg=(cdisasm_mips_reg_id)((row->generation==2u ? CDISASM_MIPS_REG_MXU2_CTRL_FIRST : CDISASM_MIPS_REG_MXU3_CTRL_FIRST)+31u);
+    size_t count=0;unsigned n,alias_access=0;
+    if(row==NULL)return 0;
+    if(row->control_access) {
+        if(effects!=NULL && count<capacity) {
+            memset(&effects[count],0,sizeof(*effects));effects[count].size=4u;effects[count].access=row->control_access;
+            effects[count].reg=(cdisasm_mips_reg_id)((row->generation==2u ? CDISASM_MIPS_REG_MXU2_CTRL_FIRST : CDISASM_MIPS_REG_MXU3_CTRL_FIRST)+31u);
+        }
+        ++count;
     }
-    return 1;
+    for(n=0;n<instruction->operand_count;++n)if(row->operand[n].post_update) {
+        /* The pinned basic LU/SU compiler contracts load/store through the
+         * old address and then advance the 32-bit base by element size. The
+         * generic memory effect supplies its read; retain the write here. */
+        if(effects!=NULL && count<capacity) {
+            memset(&effects[count],0,sizeof(*effects));effects[count].size=4u;
+            effects[count].access=CDISASM_OPERAND_ACCESS_READ_WRITE;
+            effects[count].reg=instruction->operand[n].base_reg;
+        }
+        ++count;
+    }
+    if(row->generation==3u)for(n=0;n<instruction->operand_count;++n) {
+        const cdisasm_mips_operand *op=&instruction->operand[n];
+        /* The manufacturer compiler returns bound VW0..15 through
+         * VR31[word0..15]. Keep the encoded resource in the generic effects
+         * and add a conservative whole-parent footprint here. Partial writes
+         * preserve the other words. Encoded VW16..31 remain unresolved. */
+        if(op->type==CDISASM_OPERAND_REGISTER &&
+           op->reg>=CDISASM_MIPS_REG_MXU3_VWR_FIRST &&
+           op->reg<CDISASM_MIPS_REG_MXU3_VWR_FIRST+16u) {
+            alias_access|=(op->access&CDISASM_OPERAND_ACCESS_WRITE) ? CDISASM_OPERAND_ACCESS_READ_WRITE:op->access;
+        }
+    }
+    if(alias_access) {
+        if(effects!=NULL && count<capacity) {
+            memset(&effects[count],0,sizeof(*effects));effects[count].size=64u;effects[count].access=(cdisasm_operand_access)alias_access;
+            effects[count].reg=(cdisasm_mips_reg_id)(CDISASM_MIPS_REG_MXU3_VR_FIRST+31u);
+        }
+        ++count;
+    }
+    return count;
 #else
     (void)instruction;(void)effects;(void)capacity;return 0;
 #endif

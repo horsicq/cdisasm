@@ -4333,6 +4333,12 @@ static const char *const mips_mnemonics[CDISASM_MIPS_NAME_COUNT] = {
     "bshli", /* 3425: BSHLI */
     "bshri", /* 3426: BSHRI */
     "liwr", /* 3427: LIWR */
+    "xvld.b", /* 3428: XVLD_B */
+    "xvst.b", /* 3429: XVST_B */
+    "xvsd", /* 3430: XVSD */
+    "xinsert.d", /* 3431: XINSERT_D */
+    "xvcopy.s.d", /* 3432: XVCOPY_S_D */
+    "xvseli.d", /* 3433: XVSELI_D */
 #else
     NULL, /* 1285: ADDIU_B32 */
     NULL, /* 1286: ADDIU_32 */
@@ -6477,5 +6483,11 @@ static const char *const mips_mnemonics[CDISASM_MIPS_NAME_COUNT] = {
     NULL, /* 3425: BSHLI */
     NULL, /* 3426: BSHRI */
     NULL, /* 3427: LIWR */
+    NULL, /* 3428: XVLD_B */
+    NULL, /* 3429: XVST_B */
+    NULL, /* 3430: XVSD */
+    NULL, /* 3431: XINSERT_D */
+    NULL, /* 3432: XVCOPY_S_D */
+    NULL, /* 3433: XVSELI_D */
 #endif
 };

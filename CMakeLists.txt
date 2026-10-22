@@ -295,6 +295,7 @@ if(USE_ARCH_MIPS)
         src/mips/mips_mips16e2_decoder.c
         src/mips/mips_nano_decoder.c
         src/mips/mips_allegrex_decoder.c
+        src/mips/mips_allegrex_patterns.c
         src/mips/mips_r5900_decoder.c
         src/mips/mips_mxu_decoder.c
         src/mips/mips_mxu_vector_decoder.c
@@ -368,13 +369,21 @@ if(CDISASM_VERIFY_GENERATED)
             COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_allegrex.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_allegrex_hardware_probe.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_r5900.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_mxu_inventory.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_mxu_vector.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_mxu_context.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/probe_mips_mxu_fp.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_loongsimd.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/probes/mips_loong_vectors/generate_manifest.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_vu.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
@@ -503,9 +512,47 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
             add_test(NAME cdisasm_mips_allegrex_pattern_evidence_tests
                 COMMAND "${Python3_EXECUTABLE}" -B
                     "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_allegrex_patterns.py")
+            add_test(NAME cdisasm_mips_allegrex_probe_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_allegrex_hardware_probe.py")
+            add_test(NAME cdisasm_mips_mxu_context_fixture_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_mxu_context.py" --check)
+            add_test(NAME cdisasm_mips_mxu_alias_capture_tests
+                COMMAND "${Python3_EXECUTABLE}" -B -m unittest discover
+                    -s "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen"
+                    -p test_mips_mxu_alias_capture.py)
+            add_test(NAME cdisasm_mips_mxu_fp_probe_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_mxu_fp_probe.py")
+            add_test(NAME cdisasm_mips_mxu_backend_effects_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_mxu_backend_effects.py")
+            add_test(NAME cdisasm_mips_mxu_fp_probe_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/probe_mips_mxu_fp.py" --check)
+            add_test(NAME cdisasm_mips_loong_capture_tests
+                COMMAND "${Python3_EXECUTABLE}" -B -m unittest discover
+                    -s "${CMAKE_CURRENT_SOURCE_DIR}/tools/probes/mips_loong_vectors"
+                    -p test_collect.py)
+            add_test(NAME cdisasm_mips_loongasx_source_audit_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_loongasx_source_audit.py")
+            add_test(NAME cdisasm_mips_loong_capture_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/probes/mips_loong_vectors/generate_manifest.py" --check)
             set_tests_properties(cdisasm_mips_coverage_freshness_tests
                 cdisasm_mips_coverage_checker_tests
-                cdisasm_mips_allegrex_pattern_evidence_tests PROPERTIES
+                cdisasm_mips_allegrex_pattern_evidence_tests
+                cdisasm_mips_allegrex_probe_tests
+                cdisasm_mips_mxu_context_fixture_tests
+                cdisasm_mips_mxu_alias_capture_tests
+                cdisasm_mips_mxu_fp_probe_tests
+                cdisasm_mips_mxu_backend_effects_tests
+                cdisasm_mips_mxu_fp_probe_freshness_tests
+                cdisasm_mips_loong_capture_tests
+                cdisasm_mips_loongasx_source_audit_tests
+                cdisasm_mips_loong_capture_freshness_tests PROPERTIES
                 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
                 LABELS "mips;coverage;codegen;generated")
         endif()
@@ -6092,7 +6139,7 @@ if(CDISASM_BUILD_FUZZERS)
 endif()
 
 if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_MIPS)
-    foreach(_cdisasm_mips_test IN ITEMS decode context families standard_complete extensions_complete compact mips16e2 nano v2 allegrex r5900 manual_extensions mxu mxu_vector loongsimd vu system_domains)
+    foreach(_cdisasm_mips_test IN ITEMS decode context families standard_complete extensions_complete compact mips16e2 nano v2 allegrex patterns r5900 manual_extensions mxu mxu_vector mxu_context loongsimd vu system_domains llvm_bindings)
         add_executable(cdisasm_mips_${_cdisasm_mips_test}_tests
             tests/test_mips_${_cdisasm_mips_test}.c)
         target_compile_features(cdisasm_mips_${_cdisasm_mips_test}_tests PRIVATE c_std_11)

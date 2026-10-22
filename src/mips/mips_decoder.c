@@ -1187,6 +1187,12 @@ cdisasm_status cdisasm_mips_decode_core(uint32_t raw, uint64_t address, cdisasm_
         if (status != CDISASM_STATUS_UNSUPPORTED_INSTRUCTION || cdisasm_mips_mxu_vector_owns(raw, features))
             goto decoded_vendor;
     }
+    if (features != NULL && ((features->bitmap[0] | features->bitmap[CDISASM_MIPS_INTERNAL_POLICY_WORD]) &
+        CDISASM_MIPS_DECODE_FLAG_LOONGASX) != 0) {
+        status = cdisasm_mips_decode_loongasx(raw, address, mode, revision, features, instruction);
+        if (status != CDISASM_STATUS_UNSUPPORTED_INSTRUCTION || cdisasm_mips_loongasx_owns(raw))
+            goto decoded_vendor;
+    }
     if (mips_feature(features, CDISASM_MIPS_DECODE_BIT_LOONGSIMD)) {
         status = cdisasm_mips_decode_loongsimd(raw, address, mode, revision, features, instruction);
         if (status != CDISASM_STATUS_UNSUPPORTED_INSTRUCTION || cdisasm_mips_loongsimd_owns(raw))

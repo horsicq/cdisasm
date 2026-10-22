@@ -116,6 +116,9 @@ size_t cdisasm_mips_mxu_effects(const cdisasm_mips_instruction *instruction,cdis
     unsigned access;
     if(form==NULL)return 0;
     access=form->control_access;
+    /* D32ADD only replaces the carry field of a nonzero destination. Its
+     * whole-register read-write recipe preserves the other carry and the
+     * rounding/enable fields; neither carry changes for two XR0 results. */
     if(form->name==CDISASM_MIPS_NAME_D32ADD &&
        ((instruction->raw_instruction>>6)&15u)==0u && ((instruction->raw_instruction>>18)&15u)==0u)access=0u;
     if(!access)return 0;

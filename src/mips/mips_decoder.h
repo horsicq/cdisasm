@@ -65,6 +65,10 @@ cdisasm_status cdisasm_mips_decode_loongsimd(uint32_t raw, uint64_t address, cdi
     cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 int cdisasm_mips_loongsimd_owns(uint32_t raw);
 uint64_t cdisasm_mips_loongsimd_required_flags(cdisasm_mips_form_id form);
+cdisasm_status cdisasm_mips_decode_loongasx(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
+    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+int cdisasm_mips_loongasx_owns(uint32_t raw);
+uint64_t cdisasm_mips_loongasx_required_flags(cdisasm_mips_form_id form);
 cdisasm_status cdisasm_mips_decode_vu_macro(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
     cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 cdisasm_status cdisasm_mips_decode_vu_word(uint32_t raw, uint64_t address, cdisasm_mips_encoding encoding,

@@ -107,6 +107,8 @@ static void append_register(mips_text_writer *writer, cdisasm_mips_reg_id reg)
         append_number(writer, "$vw%u", (unsigned)(reg - CDISASM_MIPS_REG_MXU3_VWR_FIRST));
     else if (reg >= CDISASM_MIPS_REG_MXU3_MCS_FIRST && reg <= CDISASM_MIPS_REG_MXU3_MCS_LAST)
         append_number(writer, "$mcs%u", (unsigned)(reg - CDISASM_MIPS_REG_MXU3_MCS_FIRST));
+    else if (reg >= CDISASM_MIPS_REG_LOONGASX_FIRST && reg <= CDISASM_MIPS_REG_LOONGASX_LAST)
+        append_number(writer, "$lasx%u", (unsigned)(reg - CDISASM_MIPS_REG_LOONGASX_FIRST));
     else writer->failed = 1;
 }
 
@@ -251,6 +253,57 @@ size_t CDISASM_CALL cdisasm_mips_format(const cdisasm_mips_instruction *instruct
         return 0;
     }
     return render_instruction(instruction, flags, buffer, buffer_size);
+}
+
+size_t CDISASM_CALL cdisasm_mips_allegrex_pattern_format(uint32_t word,
+    uint32_t flags, char *buffer, size_t buffer_size)
+{
+    if (buffer_size != 0 && buffer == NULL) return 0;
+    if (buffer_size != 0) buffer[0] = '\0';
+#if USE_EXTRA_OPCODES
+    {
+        static const char *const field_names[] = {
+            "", "vd", "vs", "vt", "base", "disp", "imm", "cache", "vt_hi", "raw"
+        };
+        const cdisasm_mips_encoding_pattern *pattern = cdisasm_mips_allegrex_pattern_find(word);
+        const char *name;
+        mips_text_writer writer = {buffer, buffer_size, 0, 0};
+        size_t n;
+        if ((flags & ~CDISASM_FORMAT_KNOWN_FLAGS_MASK) != 0 || pattern == NULL) return 0;
+        name = mips_mnemonics[pattern->candidate_name_id];
+        if (name == NULL || name[0] == '\0') return 0;
+        append_text(&writer, (flags & CDISASM_FORMAT_UPPERCASE_OPCODE) ? ".WORD" : ".word", 5u);
+        append_number(&writer, " 0x%08" PRIx32 " ; candidate ", word);
+        while (*name) {
+            char letter = *name++;
+            if ((flags & CDISASM_FORMAT_UPPERCASE_OPCODE) && letter >= 'a' && letter <= 'z')
+                letter = (char)(letter - 'a' + 'A');
+            append_text(&writer, &letter, 1u);
+        }
+        for (n = 0; n < pattern->field_count; ++n) {
+            int64_t value;
+            const cdisasm_mips_encoding_field *field = &pattern->field[n];
+            if (field->kind >= sizeof(field_names) / sizeof(field_names[0]) ||
+                cdisasm_mips_allegrex_pattern_field_value(pattern, word, n, &value) != CDISASM_STATUS_OK) {
+                writer.failed = 1;
+                break;
+            }
+            append_number(&writer, "%s%s", n ? ", " : "; fields ", field_names[field->kind]);
+            if (field->kind == CDISASM_MIPS_PATTERN_FIELD_RAW) append_number(&writer, "@%u", field->lsb);
+            append_number(&writer, "=%" PRId64, value);
+        }
+        {
+            const char *status = pattern->status == CDISASM_MIPS_PATTERN_OBSERVED_SYNTAX ? " [observed syntax]" :
+                pattern->status == CDISASM_MIPS_PATTERN_SOURCE_SYNTAX ? " [source syntax]" : " [unverified encoding]";
+            append_text(&writer, status, strlen(status));
+        }
+        finish_text(&writer);
+        return writer.failed ? 0 : writer.length;
+    }
+#else
+    (void)word; (void)flags;
+    return 0;
+#endif
 }
 
 size_t CDISASM_CALL cdisasm_mips_format_v2(const cdisasm_mips_instruction_v2 *instruction, uint32_t flags, char *buffer, size_t buffer_size)
