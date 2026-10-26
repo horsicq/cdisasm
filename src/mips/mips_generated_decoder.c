@@ -308,20 +308,28 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
                 else inventory_immediate(instruction, (raw >> 21) & 7u, 1u);
             }
             break;
-        case 29: /* Loongson MMI arithmetic uses the physical FPR bank. */
-            inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + ((raw >> 6) & 31u)), form->size, CDISASM_OPERAND_ACCESS_WRITE);
-            inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + rd), form->size, CDISASM_OPERAND_ACCESS_READ);
+        case 29: { /* Loongson MMI arithmetic uses the physical FPR bank. */
+            /* UM0447 AppendixC assigns complete64-bit FPRs and checks word
+             * extension. Keep the independently reviewed2F correction apart
+             * from the predecessor2E catalog. form->size is arithmetic size. */
+            uint8_t resource_size = (form->required_flags & CDISASM_MIPS_DECODE_FLAG_LOONGSON2F) ? 8u : form->size;
+            inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + ((raw >> 6) & 31u)), resource_size, CDISASM_OPERAND_ACCESS_WRITE);
+            inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + rd), resource_size, CDISASM_OPERAND_ACCESS_READ);
             if (form->aux == 3u) inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + rt),
-                form->size == 4u && (form->name == CDISASM_MIPS_NAME_SLL || form->name == CDISASM_MIPS_NAME_SRA || form->name == CDISASM_MIPS_NAME_SRL) ? 8u : form->size,
+                resource_size == 4u && (form->name == CDISASM_MIPS_NAME_SLL || form->name == CDISASM_MIPS_NAME_SRA || form->name == CDISASM_MIPS_NAME_SRL) ? 8u : resource_size,
                 CDISASM_OPERAND_ACCESS_READ);
             break;
+        }
         case 30:
         case 35:
             inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + rd), form->size, CDISASM_OPERAND_ACCESS_READ);
             inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + rt), form->size, CDISASM_OPERAND_ACCESS_READ);
             break;
         case 31:
-            inventory_gpr(instruction, rd, form->size, CDISASM_OPERAND_ACCESS_WRITE);
+            /* The2F word-GPR operations sign-extend their results into64-bit
+             * destinations; their arithmetic inputs remain low32-bit words
+             * (UM0447 AppendixA). Doubleword operations already use size8. */
+            inventory_gpr(instruction, rd, (form->required_flags & CDISASM_MIPS_DECODE_FLAG_LOONGSON2F) ? 8u : form->size, CDISASM_OPERAND_ACCESS_WRITE);
             inventory_gpr(instruction, (raw >> 21) & 31u, form->size, CDISASM_OPERAND_ACCESS_READ);
             inventory_gpr(instruction, rt, form->size, CDISASM_OPERAND_ACCESS_READ);
             break;
@@ -395,6 +403,22 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
             memory->flags = CDISASM_MIPS_OPERAND_FLAG_SIGNED | CDISASM_MIPS_OPERAND_FLAG_HAS_DISPLACEMENT;
             break;
         }
+        case 44: { /* Release6 paired word/doubleword atomics. */
+            const uint8_t gpr_size = mode == CDISASM_MIPS_MODE_64 ? 8u : 4u;
+            const int store = (form->aux & 1u) != 0;
+            cdisasm_mips_operand *memory;
+            inventory_gpr(instruction, rt, gpr_size,
+                store ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE);
+            inventory_gpr(instruction, rd, store ? form->size : gpr_size,
+                store ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
+            memory = &instruction->operand[instruction->operand_count++];
+            memory->type = CDISASM_OPERAND_MEMORY;
+            memory->base_reg = (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_GPR0 + ((raw >> 21) & 31u));
+            memory->size = (uint8_t)(2u * form->size);
+            memory->access = store ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ;
+            instruction->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_ATOMIC;
+            break;
+        }
         default: return 0; /* The generator rejects unregistered recipes. */
     }
     if (form->required_flags & CDISASM_MIPS_DECODE_FLAG_EVA) instruction->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_EVA;
@@ -458,6 +482,18 @@ size_t cdisasm_mips_generated_effects(cdisasm_mips_form_id form_id, cdisasm_mips
                 }
                 ++count;
             }
+        }
+        if (form->recipe == 44u) {
+            /* Optional LLAddr implementation: retain a possible dependency
+             * without asserting a physical width or a cache/coherence model. */
+            if (effects != NULL && count < capacity) {
+                memset(&effects[count], 0, sizeof(effects[count]));
+                effects[count].reg = CDISASM_MIPS_REG_CP0(17,0);
+                /* LLbit aliases LLAddr bit0. A conditional store reads the
+                 * address and clears that bit, preserving its other bits. */
+                effects[count].access = form->aux & 1u ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE;
+            }
+            ++count;
         }
         return count;
     }

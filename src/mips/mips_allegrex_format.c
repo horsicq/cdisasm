@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && USE_MIPS_ALLEGREX
 
 /* Render the encoded VFPU view, retaining legal overlapping-view aliases.
  * The physical scalar register effects are expanded separately. */
@@ -62,7 +62,7 @@ size_t cdisasm_mips_allegrex_format_operand(const cdisasm_mips_instruction *inst
     const cdisasm_mips_operand *o;
     if (index >= instruction->operand_count || instruction->form_id < 40000u || instruction->form_id >= 41000u) return 0;
     o = &instruction->operand[index];
-    if (instruction->name_id == CDISASM_MIPS_NAME_SV_Q && index == 2u) {
+    if ((instruction->name_id == CDISASM_MIPS_NAME_SV_Q || instruction->name_id == CDISASM_MIPS_NAME_LV_Q) && index == 2u) {
         length = snprintf(name, sizeof(name), "wb");
     } else if ((instruction->name_id == CDISASM_MIPS_NAME_MFVC || instruction->name_id == CDISASM_MIPS_NAME_MTVC ||
          instruction->name_id == CDISASM_MIPS_NAME_VMFVC || instruction->name_id == CDISASM_MIPS_NAME_VMTVC) &&

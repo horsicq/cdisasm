@@ -22,7 +22,7 @@ int cdisasm_mips_mxu_vector_owns(uint32_t raw,const cdisasm_mips_decode_flags *f
     return 0;
 }
 
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && (USE_MIPS_MXU2 || USE_MIPS_MXU3)
 typedef struct mxuv_operand {
     uint8_t shift,width,destination_shift,shift2,width2,destination_shift2,shift3,width3,destination_shift3;
     uint8_t kind,access,size,element,scale,lane_kind,lane_shift,lane_width,lane_modulo,lane_constant;
@@ -41,6 +41,7 @@ typedef struct mxuv_form {
     mxuv_operand operand[6];
 } mxuv_form;
 #include "generated/mips_mxu_vector_forms.inc"
+#include "generated/mips_mxu_vector_limitations.inc"
 
 static unsigned mxuv_bits(uint32_t raw,unsigned shift,unsigned width)
 {
@@ -145,16 +146,38 @@ static int mxuv_lower(const mxuv_form *form,uint32_t raw,uint64_t active,cdisasm
 
 uint64_t cdisasm_mips_mxu_vector_required_flags(cdisasm_mips_form_id form)
 {
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && (USE_MIPS_MXU2 || USE_MIPS_MXU3)
     const mxuv_form *row=mxuv_find(form);return row!=NULL ? row->required : UINT64_C(0);
 #else
     (void)form;return 0;
 #endif
 }
 
+uint32_t cdisasm_mips_mxu_vector_effect_limitations(const cdisasm_mips_instruction *instruction)
+{
+#if USE_EXTRA_OPCODES && (USE_MIPS_MXU2 || USE_MIPS_MXU3)
+    const mxuv_form *row=instruction ? mxuv_find(instruction->form_id) : NULL;
+    uint32_t result;
+    unsigned n;
+    if(!row || row->generation!=3u || row->form<57000u || row->form>=57496u)return 0;
+    result=mxuv_recorded_limitations[row->form-57000u];
+    /* This is an evidence-gap query, not a guessed physical dependency.
+     * Public callers validate the complete canonical instruction first. */
+    for(n=0;n<instruction->operand_count && n<CDISASM_MIPS_MAX_OPERANDS;++n) {
+        const cdisasm_mips_operand *op=&instruction->operand[n];
+        if(op->type!=CDISASM_OPERAND_REGISTER)continue;
+        if((op->reg>=CDISASM_MIPS_REG_MXU3_VSR_FIRST && op->reg<=CDISASM_MIPS_REG_MXU3_VSR_FIRST+3u) ||
+           (op->reg>=CDISASM_MIPS_REG_MXU3_VWR_FIRST+16u && op->reg<=CDISASM_MIPS_REG_MXU3_VWR_LAST))result|=CDISASM_MIPS_EFFECT_LIMITATION_REGISTER_ALIASES;
+    }
+    return result;
+#else
+    (void)instruction;return 0;
+#endif
+}
+
 size_t cdisasm_mips_mxu_vector_effects(const cdisasm_mips_instruction *instruction,cdisasm_mips_register_effect *effects,size_t capacity)
 {
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && (USE_MIPS_MXU2 || USE_MIPS_MXU3)
     const mxuv_form *row=instruction!=NULL ? mxuv_find(instruction->form_id) : NULL;
     size_t count=0;unsigned n,alias_access=0;
     if(row==NULL)return 0;
@@ -204,7 +227,7 @@ size_t cdisasm_mips_mxu_vector_effects(const cdisasm_mips_instruction *instructi
 cdisasm_status cdisasm_mips_decode_mxu_vector(uint32_t raw,uint64_t address,cdisasm_mips_mode mode,
     cdisasm_mips_revision revision,const cdisasm_mips_decode_flags *features,cdisasm_mips_instruction *instruction)
 {
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && (USE_MIPS_MXU2 || USE_MIPS_MXU3)
     uint64_t active=features!=NULL ? features->bitmap[0] : 0;
     unsigned generation=(active&CDISASM_MIPS_DECODE_FLAG_MXU3)!=0u ? 3u : (active&CDISASM_MIPS_DECODE_FLAG_MXU2)!=0u ? 2u : 0u;
     int disabled=0;size_t n;

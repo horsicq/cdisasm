@@ -173,7 +173,7 @@ static size_t render_instruction(const cdisasm_mips_instruction *instruction, ui
     if (buffer_size != 0 && buffer == NULL) return 0;
     if (buffer_size != 0) buffer[0] = '\0';
     if ((flags & ~CDISASM_FORMAT_KNOWN_FLAGS_MASK) != 0 || instruction == NULL) return 0;
-    if (instruction->form_id >= 62000u)
+    if (instruction->form_id >= 62000u && instruction->form_id < 65000u)
         return cdisasm_mips_vu_format_instruction(instruction, flags, buffer, buffer_size);
     name = mips_mnemonics[instruction->name_id];
     if (name == NULL || name[0] == '\0') return 0;
@@ -209,7 +209,11 @@ static size_t render_instruction(const cdisasm_mips_instruction *instruction, ui
                     append_number(&writer, ", %u", (unsigned)(operand->reg - CDISASM_MIPS_REG_COP2_FIRST) % 8u);
                 break;
             case CDISASM_OPERAND_IMMEDIATE:
-                if ((operand->flags & (CDISASM_MIPS_OPERAND_FLAG_RELATIVE | CDISASM_MIPS_OPERAND_FLAG_ABSOLUTE)) != 0) append_number(&writer, "0x%" PRIx64, operand->imm);
+                /* Netlogic's t,d syntax prints an opaque encoded UR field as
+                 * $N. Its physical resource/effects are not yet established. */
+                if ((instruction->form_id == 65031u || instruction->form_id == 65032u) && index == 1u)
+                    append_number(&writer, "$%" PRIu64, operand->imm);
+                else if ((operand->flags & (CDISASM_MIPS_OPERAND_FLAG_RELATIVE | CDISASM_MIPS_OPERAND_FLAG_ABSOLUTE)) != 0) append_number(&writer, "0x%" PRIx64, operand->imm);
                 else if ((operand->flags & CDISASM_MIPS_OPERAND_FLAG_SIGNED) != 0) append_signed(&writer, operand->imm);
                 else if (decimal_control(instruction->name_id)) append_number(&writer, "%" PRIu64, operand->imm);
                 else append_number(&writer, "0x%" PRIx64, operand->imm);
@@ -244,6 +248,34 @@ static size_t render_instruction(const cdisasm_mips_instruction *instruction, ui
     }
     finish_text(&writer);
     return writer.failed ? 0 : writer.length;
+}
+
+size_t cdisasm_mips_allegrex_unverified_format(const cdisasm_mips_instruction *instruction,
+    uint32_t flags, char *buffer, size_t buffer_size)
+{
+    if (buffer_size != 0 && buffer == NULL) return 0;
+    if (buffer_size != 0) buffer[0] = '\0';
+#if USE_MIPS_ALLEGREX_UNVERIFIED && USE_EXTRA_OPCODES && USE_MIPS_ALLEGREX
+    {
+        static const char marker[] = " [unverified source syntax]";
+        size_t length;
+        mips_text_writer writer;
+        if (instruction == NULL || instruction->name_id >= CDISASM_MIPS_NAME_COUNT) return 0;
+        /* V3 performed strict source-result replay before this private call. */
+        length = render_instruction(instruction, flags, buffer, buffer_size);
+        if (length == 0) return 0;
+        writer.buffer = buffer;
+        writer.capacity = buffer_size;
+        writer.length = length;
+        writer.failed = 0;
+        append_text(&writer, marker, sizeof(marker) - 1u);
+        finish_text(&writer);
+        return writer.failed ? 0 : writer.length;
+    }
+#else
+    (void)instruction; (void)flags;
+    return 0;
+#endif
 }
 
 size_t CDISASM_CALL cdisasm_mips_format(const cdisasm_mips_instruction *instruction, uint32_t flags, char *buffer, size_t buffer_size)

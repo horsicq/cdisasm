@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && (USE_MIPS_R5900_VU0 || USE_MIPS_R5900_VU1)
 #include "generated/mips_vu_mnemonics.inc"
 
 typedef struct vu_text {

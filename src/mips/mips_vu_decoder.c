@@ -12,7 +12,7 @@ int cdisasm_mips_vu_macro_owns(uint32_t raw)
     return op == 18u || op == 54u || op == 62u;
 }
 
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && (USE_MIPS_R5900_VU0 || USE_MIPS_R5900_VU1)
 #include "generated/mips_vu_forms.inc"
 
 const vu_form *cdisasm_mips_vu_form(cdisasm_mips_form_id form)
@@ -239,7 +239,10 @@ static cdisasm_status vu_lower(const vu_form *f, uint32_t raw, uint64_t address,
                 if (!reg) return CDISASM_STATUS_INVALID_INSTRUCTION;
                 size = quad ? 16u : selector < 16u ? 2u : 4u;
                 vu_reg(&i, CDISASM_MIPS_REG_GPR0 + ft, quad ? 16u : to_vu ? 4u : 8u, to_vu ? READ : WRITE);
-                vu_reg(&i, reg, size, to_vu ? WRITE : READ);
+                /* STATUS preserves its low six current flags (Sony p201).
+                 * CMSAR1 writes may be ignored while VU1 is running. */
+                vu_reg(&i, reg, size, to_vu && (reg == CDISASM_MIPS_REG_VU_STATUS ||
+                    reg == CDISASM_MIPS_REG_VU_CMSAR1) ? CDISASM_OPERAND_ACCESS_READ_WRITE : to_vu ? WRITE : READ);
             }
             break;
         case VU_MAIN_MEM:
@@ -347,6 +350,25 @@ size_t cdisasm_mips_vu_effects(const cdisasm_mips_instruction *instruction,
         }
         ++count;
     }
+    if (f->recipe == VU_COP_TRANSFER) {
+        unsigned rs = (instruction->raw_instruction >> 21) & 31u;
+        unsigned selector = (instruction->raw_instruction >> 11) & 31u;
+        /* Interlocked transfers observe microprogram completion. FBRST can
+         * reset/break either VU, and CMSAR1 can launch VU1 (Sony pp201-204,
+         * 234-235). Keep unknown data/run-state transitions conservative. */
+        unsigned access = rs == 6u && (selector == 28u || selector == 31u) ?
+            CDISASM_OPERAND_ACCESS_READ_WRITE : (instruction->raw_instruction & 1u) ?
+            CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_NONE;
+        if (access) {
+            if (count < capacity) {
+                memset(&effects[count], 0, sizeof(effects[count]));
+                effects[count].reg = CDISASM_MIPS_REG_VU_VPU_STAT;
+                effects[count].access = (uint8_t)access;
+                effects[count].size = 4u;
+            }
+            ++count;
+        }
+    }
     if (f->kind == 1u && (instruction->raw_instruction & UINT32_C(0x18000000))) {
         if (count < capacity) {
             memset(&effects[count], 0, sizeof(effects[count]));
@@ -363,6 +385,17 @@ size_t cdisasm_mips_vu_effects(const cdisasm_mips_instruction *instruction,
             memset(&effects[count], 0, sizeof(effects[count]));
             effects[count].reg = CDISASM_MIPS_REG_VU_VPU_STAT;
             effects[count].access = CDISASM_OPERAND_ACCESS_READ_WRITE;
+            effects[count].size = 4u;
+        }
+        ++count;
+        /* E stores the position after its delay slot; enabled D/T store the
+         * stop/restart position. With D/T alone the old TPC may survive when
+         * the corresponding FBRST enable is clear (Sony pp54/63-64/362). */
+        if (count < capacity) {
+            memset(&effects[count], 0, sizeof(effects[count]));
+            effects[count].reg = CDISASM_MIPS_REG_VU_TPC;
+            effects[count].access = (instruction->raw_instruction & UINT32_C(0x40000000)) ?
+                CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ_WRITE;
             effects[count].size = 4u;
         }
         ++count;

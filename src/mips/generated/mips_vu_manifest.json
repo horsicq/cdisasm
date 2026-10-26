@@ -5,11 +5,59 @@
     "url": "https://docs.alexrp.com/mips/ee_vu.pdf",
     "sha256": "a858ef55cd2638accdfca612d5359eb6e48a48c7fd6792b18080d866e610fde5"
   },
+  "resource_review": {
+    "primary_pages": [
+      21,
+      54,
+      63,
+      64,
+      201,
+      202,
+      203,
+      204,
+      234,
+      235,
+      362
+    ],
+    "confidence": "manufacturer-defined",
+    "tpc": {
+      "role": "termination-position program counter; not the live execution PC",
+      "ordinary_branch_and_call_access": 0,
+      "upper_E_access": 2,
+      "upper_D_or_T_without_E_access": 3,
+      "D_T_condition": "corresponding FBRST enable; preserve old TPC when disabled"
+    },
+    "status_control_write": {
+      "selector": 16,
+      "access": 3,
+      "preserved_mask": "0x0000003f"
+    },
+    "vpu_stat": {
+      "size": 4,
+      "q_producer_access": 3,
+      "efu_producer_access": 3,
+      "xgkick_access": 3,
+      "waitq_waitp_access": 1,
+      "interlocked_transfer_access": 1,
+      "ctc2_fbrst_access": 3,
+      "ctc2_cmsar1_access": 3
+    },
+    "cmsar1_control_write": {
+      "selector": 31,
+      "access": 3,
+      "condition": "write ignored while VU1 is running; otherwise starts VU1 microprogram"
+    },
+    "boundary": [
+      "Run-state legality and execution timing are not simulated.",
+      "Read-only/write-only control-register restrictions are not promoted to unproven reserved opcode encodings.",
+      "Busy-state effects are conservative across the operation latency; no packet length or synchronization timing is invented."
+    ]
+  },
   "inputs": {
-    "tools/data/mips/vu_numeric_facts.json": "2298246ea27f587c5a2ad6a60b50bafc53ba4d3710e5f6353b2981e21e668103",
+    "tools/data/mips/vu_numeric_facts.json": "4b136143d22a5d82c3dd415cc567d23b2ac9c0d84cff567d470d1ca70374bac0",
     "tools/data/mips/vu_test_witnesses.json": "05c9359c17fe6c3902e653931e5cf10315aaa4e8d6ad8ad7147569427d6fdc6b"
   },
-  "generated_sha256": "69171235d24c650c911d6052b8155019261f8af1726a6840b21c79548cd2a57b",
+  "generated_sha256": "2b50cc5aebf7fd6b38258e555afb824ef4757835bb99ab2c3a764913c569ae60",
   "scope": {
     "macro_numeric_forms": 134,
     "upper_numeric_forms_per_unit": 95,

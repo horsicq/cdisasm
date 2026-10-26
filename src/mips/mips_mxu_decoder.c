@@ -8,9 +8,9 @@
 #include "mips_decoder.h"
 #include <string.h>
 
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && USE_MIPS_MXU
 typedef struct mips_mxu_operand_spec {
-    uint8_t kind, shift, width, access, scale;
+    uint8_t kind, shift, width, access, scale, element_size;
     uint16_t minimum, maximum;
 } mips_mxu_operand_spec;
 typedef struct mips_mxu_memory_spec {
@@ -52,6 +52,7 @@ static int mxu_lower(const mips_mxu_form *form,uint32_t raw,cdisasm_mips_instruc
             operand->type=CDISASM_OPERAND_REGISTER;
             operand->reg=(cdisasm_mips_reg_id)((spec->kind==1u ? CDISASM_MIPS_REG_MXU_XR0 : CDISASM_MIPS_REG_GPR0)+value);
             operand->size=4u;
+            operand->detail.element_size=spec->element_size;
         } else {
             operand->type=CDISASM_OPERAND_IMMEDIATE;
             operand->size=(uint8_t)((spec->width+spec->scale+7u)/8u);
@@ -101,7 +102,7 @@ static int mxu_lower(const mips_mxu_form *form,uint32_t raw,cdisasm_mips_instruc
 
 uint64_t cdisasm_mips_mxu_required_flags(cdisasm_mips_form_id form)
 {
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && USE_MIPS_MXU
     return mxu_form(form)!=NULL ? CDISASM_MIPS_DECODE_FLAG_MXU : UINT64_C(0);
 #else
     (void)form;
@@ -111,7 +112,7 @@ uint64_t cdisasm_mips_mxu_required_flags(cdisasm_mips_form_id form)
 
 size_t cdisasm_mips_mxu_effects(const cdisasm_mips_instruction *instruction,cdisasm_mips_register_effect *effects,size_t capacity)
 {
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && USE_MIPS_MXU
     const mips_mxu_form *form=instruction!=NULL ? mxu_form(instruction->form_id) : NULL;
     unsigned access;
     if(form==NULL)return 0;
@@ -138,7 +139,7 @@ size_t cdisasm_mips_mxu_effects(const cdisasm_mips_instruction *instruction,cdis
 cdisasm_status cdisasm_mips_decode_mxu(uint32_t raw,uint64_t address,cdisasm_mips_mode mode,
     cdisasm_mips_revision revision,const cdisasm_mips_decode_flags *features,cdisasm_mips_instruction *instruction)
 {
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && USE_MIPS_MXU
     size_t index;
     int invalid=0;
     if(instruction==NULL)return CDISASM_STATUS_INTERNAL_ERROR;

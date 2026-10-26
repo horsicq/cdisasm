@@ -324,7 +324,10 @@ static cdisasm_status mips_cop0(uint32_t w, cdisasm_mips_mode mode, cdisasm_mips
         int to_cop = (rs & 4u) != 0u, wide = (rs & 1u) != 0u;
         if ((w & 2040u) != 0u || (!mips_modern(rev) && sel != 0u) || (wide && (!mips_64(mode) || !mips_iii(rev))))
             return CDISASM_STATUS_INVALID_INSTRUCTION;
-        mips_gpr(i, rt, wide ? 8u : 4u, to_cop ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
+        /* MFC0 sign-extends its word into the whole destination GPR;
+         * MTC0 consumes only a word. MD00087 rev6.06, printedp356. */
+        mips_gpr(i, rt, to_cop ? (wide ? 8u : 4u) : mips_gpr_size(mode),
+                 to_cop ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
         mips_reg(i, (uint16_t)CDISASM_MIPS_REG_CP0(rd, sel), wide ? 8u : 4u,
                  to_cop ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
         name = rs == 0u ? CDISASM_MIPS_NAME_MFC0 : rs == 1u ? CDISASM_MIPS_NAME_DMFC0 : rs == 4u ? CDISASM_MIPS_NAME_MTC0 : CDISASM_MIPS_NAME_DMTC0;
@@ -518,7 +521,20 @@ static cdisasm_status mips_cop1_extended(uint32_t w, cdisasm_mips_mode mode, cdi
     CDISASM_MIPS_NAME_CMP_SLT##suffix_, CDISASM_MIPS_NAME_CMP_SULT##suffix_, CDISASM_MIPS_NAME_CMP_SLE##suffix_, CDISASM_MIPS_NAME_CMP_SULE##suffix_
         static const cdisasm_mips_name_id cmp[2][16] = {{MIPS_R6CMP_NAMES(_S)}, {MIPS_R6CMP_NAMES(_D)}};
 #undef MIPS_R6CMP_NAMES
-        if (fn >= 16u) return CDISASM_STATUS_INVALID_INSTRUCTION;
+        if (fn >= 16u) {
+            /* MD00087 rev6.06 table3.9: bit4 negates a predicate, but
+             * only OR/UNE/NE and their signalling forms are allocated.
+             * Always-true and reversed-order conditions remain reserved. */
+            static const cdisasm_mips_name_id negated[2][6] = {
+                {CDISASM_MIPS_NAME_CMP_OR_S, CDISASM_MIPS_NAME_CMP_UNE_S, CDISASM_MIPS_NAME_CMP_NE_S,
+                 CDISASM_MIPS_NAME_CMP_SOR_S, CDISASM_MIPS_NAME_CMP_SUNE_S, CDISASM_MIPS_NAME_CMP_SNE_S},
+                {CDISASM_MIPS_NAME_CMP_OR_D, CDISASM_MIPS_NAME_CMP_UNE_D, CDISASM_MIPS_NAME_CMP_NE_D,
+                 CDISASM_MIPS_NAME_CMP_SOR_D, CDISASM_MIPS_NAME_CMP_SUNE_D, CDISASM_MIPS_NAME_CMP_SNE_D}};
+            const unsigned predicate = fn & 7u;
+            if (predicate < 1u || predicate > 3u) return CDISASM_STATUS_INVALID_INSTRUCTION;
+            return mips_fp_three(i, negated[fmt == 21u][predicate - 1u + ((fn & 8u) ? 3u : 0u)],
+                                 fd, fs, ft, fmt == 20u ? 4u : 8u, CDISASM_OPERAND_ACCESS_WRITE);
+        }
         return mips_fp_three(i, cmp[fmt == 21u][fn], fd, fs, ft, fmt == 20u ? 4u : 8u, CDISASM_OPERAND_ACCESS_WRITE);
     }
     if (fmt != 16u && fmt != 17u && fmt != 22u && !(fmt == 20u && fn == 38u)) return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
@@ -740,7 +756,8 @@ static cdisasm_status mips_cop1(uint32_t w, cdisasm_mips_mode mode, cdisasm_mips
     }
     if (fmt == 3u || fmt == 7u) {
         if (!mips_r2(rev) || (paired && (fs & 1u)) || (w & 2047u) != 0u) return CDISASM_STATUS_INVALID_INSTRUCTION;
-        mips_gpr(i, ft, 4u, fmt == 3u ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
+        mips_gpr(i, ft, fmt == 3u ? mips_gpr_size(mode) : 4u,
+                 fmt == 3u ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
         mips_reg(i, (uint16_t)(CDISASM_MIPS_REG_FPR0 + fs), 8u,
                  fmt == 3u ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_READ_WRITE);
         i->operand[1].detail.flags |= CDISASM_MIPS_OPERAND_DETAIL_HIGH_HALF;
@@ -749,7 +766,10 @@ static cdisasm_status mips_cop1(uint32_t w, cdisasm_mips_mode mode, cdisasm_mips
     if (fmt == 0u || fmt == 1u || fmt == 2u || fmt == 4u || fmt == 5u || fmt == 6u) {
         int to_cop = (fmt & 4u) != 0u, control = (fmt & 2u) != 0u, wide = (fmt & 1u) != 0u;
         if ((w & 2047u) != 0u || (wide && (!mips_iii(rev) || !mips_64(mode) || (paired && (fs & 1u))))) return CDISASM_STATUS_INVALID_INSTRUCTION;
-        mips_gpr(i, ft, wide ? 8u : 4u, to_cop ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
+        /* Word reads sign-extend into the complete destination GPR. Word
+         * writes still consume only the low32 input bits. */
+        mips_gpr(i, ft, wide ? 8u : to_cop ? 4u : mips_gpr_size(mode),
+                 to_cop ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
         mips_reg(i, (uint16_t)((control ? CDISASM_MIPS_REG_FCR0 : CDISASM_MIPS_REG_FPR0) + fs), wide ? 8u : 4u,
                  to_cop ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
         name = fmt == 0u ? CDISASM_MIPS_NAME_MFC1 : fmt == 1u ? CDISASM_MIPS_NAME_DMFC1 : fmt == 2u ? CDISASM_MIPS_NAME_CFC1
@@ -916,7 +936,10 @@ static cdisasm_status mips_cop_other(uint32_t w, cdisasm_mips_mode mode, cdisasm
         uint8_t size = wide || high ? 8u : 4u;
         if ((!modern && (w & 2047u) != 0u) || (high && (cop != 2u || !mips_r2(rev))) ||
             (wide && (cop != 2u || !mips_iii(rev) || !mips_64(mode)))) return CDISASM_STATUS_INVALID_INSTRUCTION;
-        mips_gpr(i, rt, wide ? 8u : 4u, to_cop ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
+        /* Word transfers from COP2 sign-extend across the whole GPR;
+         * opposite-direction inputs consume only their transferred word. */
+        mips_gpr(i, rt, !to_cop ? mips_gpr_size(mode) : wide ? 8u : 4u,
+                 to_cop ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
         mips_cop_register(i, cop, rd, (uint16_t)w, control, modern, size,
                           to_cop ? high ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
         if (high) i->operand[1].detail.flags |= CDISASM_MIPS_OPERAND_DETAIL_HIGH_HALF;
@@ -1139,6 +1162,10 @@ static void mips_fp_semantics(cdisasm_mips_instruction *i, int r6)
     if (op == 17u && (fmt == 2u || fmt == 6u)) {
         if (fs == 25u || fs == 26u || fs == 28u || fs == 31u)
             i->instruction_flags |= fmt == 2u ? CDISASM_MIPS_INSTRUCTION_FLAG_READS_FCSR : CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_FCSR;
+        /* FCCR/FEXR/FENR replace only selected FCSR fields. Their writes
+         * retain the other fields of this aggregate physical resource. */
+        if (fmt == 6u && (fs == 25u || fs == 26u || fs == 28u))
+            i->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_READS_FCSR;
         return;
     }
     if (op == 17u && fmt >= 16u) {
@@ -1182,6 +1209,16 @@ cdisasm_status cdisasm_mips_decode_core(uint32_t raw, uint64_t address, cdisasm_
      * coprocessor protocol; the generated matcher still requires exact forms. */
     status = CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
     if (features != NULL && ((features->bitmap[0] | features->bitmap[CDISASM_MIPS_INTERNAL_POLICY_WORD]) &
+        CDISASM_MIPS_DECODE_FLAG_XLP) != 0 && cdisasm_mips_xlp_owns(raw)) {
+        status = cdisasm_mips_decode_xlp(raw, address, mode, revision, features, instruction);
+        goto decoded_vendor;
+    }
+    if (features != NULL && ((features->bitmap[0] | features->bitmap[CDISASM_MIPS_INTERNAL_POLICY_WORD]) &
+        CDISASM_MIPS_DECODE_FLAG_XLR) != 0 && cdisasm_mips_xlr_owns(raw)) {
+        status = cdisasm_mips_decode_xlr(raw, address, mode, revision, features, instruction);
+        goto decoded_vendor;
+    }
+    if (features != NULL && ((features->bitmap[0] | features->bitmap[CDISASM_MIPS_INTERNAL_POLICY_WORD]) &
         (CDISASM_MIPS_DECODE_FLAG_MXU2 | CDISASM_MIPS_DECODE_FLAG_MXU3)) != 0) {
         status = cdisasm_mips_decode_mxu_vector(raw, address, mode, revision, features, instruction);
         if (status != CDISASM_STATUS_UNSUPPORTED_INSTRUCTION || cdisasm_mips_mxu_vector_owns(raw, features))
@@ -1190,7 +1227,7 @@ cdisasm_status cdisasm_mips_decode_core(uint32_t raw, uint64_t address, cdisasm_
     if (features != NULL && ((features->bitmap[0] | features->bitmap[CDISASM_MIPS_INTERNAL_POLICY_WORD]) &
         CDISASM_MIPS_DECODE_FLAG_LOONGASX) != 0) {
         status = cdisasm_mips_decode_loongasx(raw, address, mode, revision, features, instruction);
-        if (status != CDISASM_STATUS_UNSUPPORTED_INSTRUCTION || cdisasm_mips_loongasx_owns(raw))
+        if (status != CDISASM_STATUS_UNSUPPORTED_INSTRUCTION || cdisasm_mips_loongasx_owns(raw, features))
             goto decoded_vendor;
     }
     if (mips_feature(features, CDISASM_MIPS_DECODE_BIT_LOONGSIMD)) {
@@ -1255,8 +1292,9 @@ decoded_vendor:
          * leading-count and LL/SC encodings from their pre-R6 spellings.
          * Generated DSP rows have independently assigned append-only IDs. */
         if (instruction->form_id == 0u) instruction->form_id = instruction->name_id;
-        if (instruction->name_id == CDISASM_MIPS_NAME_NOP || instruction->name_id == CDISASM_MIPS_NAME_SSNOP ||
-            instruction->name_id == CDISASM_MIPS_NAME_EHB || instruction->name_id == CDISASM_MIPS_NAME_PAUSE)
+        if (instruction->form_id < 40000u &&
+            (instruction->name_id == CDISASM_MIPS_NAME_NOP || instruction->name_id == CDISASM_MIPS_NAME_SSNOP ||
+             instruction->name_id == CDISASM_MIPS_NAME_EHB || instruction->name_id == CDISASM_MIPS_NAME_PAUSE))
             instruction->form_id = CDISASM_MIPS_NAME_SLL;
         if (mips_r6(revision) && (instruction->name_id == CDISASM_MIPS_NAME_MUL || instruction->name_id == CDISASM_MIPS_NAME_DIV ||
                                 instruction->name_id == CDISASM_MIPS_NAME_DIVU || instruction->name_id == CDISASM_MIPS_NAME_CLZ ||

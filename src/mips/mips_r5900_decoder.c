@@ -67,7 +67,7 @@ static cdisasm_status r5900_base(uint32_t raw,uint64_t address,cdisasm_mips_mode
     *instruction=i;return CDISASM_STATUS_OK;
 }
 
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && USE_MIPS_R5900
 typedef struct r5900_resource {uint16_t reg;uint8_t access,size;} r5900_resource;
 typedef struct r5900_form {
     uint32_t mask,value;
@@ -148,7 +148,9 @@ static cdisasm_status r5900_decode_extra(uint32_t raw,uint64_t address,cdisasm_m
 #define FPR(reg_,access_) r5900_register(&candidate,CDISASM_MIPS_REG_FPR0,(reg_),4u,(access_))
         switch(f->recipe) {
             case R5900_RD_RS_RT:
-                REG(rd,f->size,CDISASM_OPERAND_ACCESS_WRITE);REG(rs,f->size,CDISASM_OPERAND_ACCESS_READ);REG(rt,f->size,CDISASM_OPERAND_ACCESS_READ);break;
+                REG(rd,f->size,CDISASM_OPERAND_ACCESS_WRITE);
+                REG(rs,f->name==CDISASM_MIPS_NAME_PCPYLD ? 8u : f->size,CDISASM_OPERAND_ACCESS_READ);
+                REG(rt,f->name==CDISASM_MIPS_NAME_PCPYLD ? 8u : f->size,CDISASM_OPERAND_ACCESS_READ);break;
             case R5900_RD_RT_RS:
                 REG(rd,f->size,CDISASM_OPERAND_ACCESS_WRITE);REG(rt,f->size,CDISASM_OPERAND_ACCESS_READ);REG(rs,f->size,CDISASM_OPERAND_ACCESS_READ);break;
             case R5900_RD_RT:
@@ -158,14 +160,16 @@ static cdisasm_status r5900_decode_extra(uint32_t raw,uint64_t address,cdisasm_m
             case R5900_RD:REG(rd,f->size,CDISASM_OPERAND_ACCESS_WRITE);break;
             case R5900_RS:REG(rs,f->size,CDISASM_OPERAND_ACCESS_READ);break;
             case R5900_RS_RT:
-                REG(rs,f->size,CDISASM_OPERAND_ACCESS_READ);REG(rt,f->name==CDISASM_MIPS_NAME_PDIVBW ? 4u : f->size,CDISASM_OPERAND_ACCESS_READ);break;
+                REG(rs,f->size,CDISASM_OPERAND_ACCESS_READ);REG(rt,f->name==CDISASM_MIPS_NAME_PDIVBW ? 2u : f->size,CDISASM_OPERAND_ACCESS_READ);break;
             case R5900_RD_RT_SA:
                 REG(rd,16u,CDISASM_OPERAND_ACCESS_WRITE);REG(rt,16u,CDISASM_OPERAND_ACCESS_READ);r5900_immediate(&candidate,sa,1u);break;
             case R5900_SCALAR_MUL:
                 if(rd)REG(rd,8u,CDISASM_OPERAND_ACCESS_WRITE);
-                REG(rs,4u,CDISASM_OPERAND_ACCESS_READ);REG(rt,4u,CDISASM_OPERAND_ACCESS_READ);break;
+                /* Sony's NotWordValue check observes bits63:32 as well as
+                 * the low arithmetic word (EE pp138-145/154-157). */
+                REG(rs,8u,CDISASM_OPERAND_ACCESS_READ);REG(rt,8u,CDISASM_OPERAND_ACCESS_READ);break;
             case R5900_SCALAR_DIV:
-                REG(rs,4u,CDISASM_OPERAND_ACCESS_READ);REG(rt,4u,CDISASM_OPERAND_ACCESS_READ);break;
+                REG(rs,8u,CDISASM_OPERAND_ACCESS_READ);REG(rt,8u,CDISASM_OPERAND_ACCESS_READ);break;
             case R5900_RS_IMM:
                 REG(rs,8u,CDISASM_OPERAND_ACCESS_READ);r5900_immediate(&candidate,raw&65535u,2u);break;
             case R5900_QUAD_MEM:

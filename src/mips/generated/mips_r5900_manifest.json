@@ -18,7 +18,7 @@
     "license_copy": "LICENSES/BSD-2-Clause-Play.txt",
     "repository": "https://github.com/jpd002/Play-"
   },
-  "input_sha256": "326fa5096fdd3e9597417dbfbad2fd8e372af2f3a47d9f69dfa008ab13afc7c4",
+  "input_sha256": "6f24ef48ac59ae6892190129a36ee9c9b095a8be4982365a6e70769ec1422309",
   "output_sha256": "c01a77179044716c86faa87b1a2f6eaeb7f8539aae958a70905df3515c376c23",
   "primary_encoding_pages": [
     395,
@@ -39,6 +39,63 @@
   "primary_sha256": "104205afc6f5a5071168d8bf693a6c8b4db9a02e1aa66eb51a828e8951f5c069",
   "primary_source": "https://docs.alexrp.com/mips/ee_insns.pdf",
   "primary_version": "Sony EE Core Instruction Set Manual6.0",
+  "resource_review": {
+    "confidence": "manufacturer-defined",
+    "pcpyld": {
+      "destination_size": 16,
+      "operation": "GPR[rd][127:0] = GPR[rs][63:0] || GPR[rt][63:0]",
+      "source_size": 8
+    },
+    "pdivbw": {
+      "dividend_size": 16,
+      "divisor_size": 2,
+      "result_bank_size": 8,
+      "result_banks": [
+        "HI",
+        "LO",
+        "HI1",
+        "LO1"
+      ]
+    },
+    "primary_pages": [
+      138,
+      140,
+      142,
+      143,
+      144,
+      145,
+      154,
+      155,
+      156,
+      157,
+      190,
+      192,
+      193
+    ],
+    "scalar_word_sources": {
+      "arithmetic_size": 4,
+      "checked_bits": [
+        63,
+        31
+      ],
+      "condition": "Both input GPRs must contain sign-extended32-bit words; Sony explicitly applies NotWordValue even to unsigned arithmetic.",
+      "forms": {
+        "div1": 138,
+        "divu1": 140,
+        "madd": 142,
+        "madd1": 143,
+        "maddu": 144,
+        "maddu1": 145,
+        "mult": 154,
+        "mult1": 155,
+        "multu": 156,
+        "multu1": 157
+      },
+      "source_resource_size": 8,
+      "upper_GPR_half": "Bits127:64 are outside these scalar operands."
+    },
+    "shift_boundary": "PSLLH/PSRAH/PSRLH retain their five-bit assembly field; execution uses its low four bits (pp261/264/267)."
+  },
   "retained_material": "Manufacturer numeric encodings and instruction names; locally authored typed lowering and resource metadata. Independent references were cross-checks; no emulator implementation was copied.",
   "schema": 2,
   "scope_boundary": {

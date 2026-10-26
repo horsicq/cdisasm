@@ -1,11 +1,17 @@
 {
   "allocations": 0,
   "coverage": "Each listed form has complete numeric operand lowering; no opaque successes",
+  "element_typed_forms": 23,
   "forms": 114,
-  "generated_sha256": "51b449cc73b0b1776b778aa93a76b2fd1ebecaefcc109e1e1e154cfbe45f1154",
-  "generator_sha256": "d29585261b123b887fd8a44b8394adf5e17701d5a3b18c22e6551c38b58f97c1",
+  "generated_sha256": "2880714e45b4b48f85645a9dca8b1dcbfa89b32e6547400baf95c15b21b04a25",
+  "generator_sha256": "40d72c821212c4fb77e456fd6f415f2cc7d875b89d8eba75057df78eadb3fd56",
   "names": 114,
   "native_c_runtime": true,
+  "operand_element_contract": {
+    "file": "mxu_original_element_facts.json",
+    "scope": "Bounded per-operand element widths for23 original MXU forms from the2017 manufacturer manual. XR storage/effect extents remain4bytes. Immediate and GPR operands have no element type. Other original MXU forms remain outside this lane-metadata audit; no MXU3 aliases, controls or execution semantics are inferred.",
+    "sha256": "fa846cf994f105f7e01d65845a12ff3d5ab7f25dcedff2e323abf63d774f9522"
+  },
   "schema": 1,
-  "source_sha256": "d8147cbac0ff9a165be971677436db814717f00e65d44cb4ba6ec00390d48776"
+  "source_sha256": "edae118f583a17c6762c98f9ff4eacef3ae64fee1529656b71a39b7ef511eb81"
 }

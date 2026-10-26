@@ -91,6 +91,7 @@ option(USE_ARCH_ARM "Build the ARM decoder" ON)
 option(USE_ARCH_MIPS "Build the MIPS decoder" ON)
 option(USE_DISASM_FORMAT "Build instruction formatting into cdisasm" ON)
 option(USE_EXTRA_OPCODES "Build extended opcode coverage into cdisasm" ON)
+option(USE_MIPS_ALLEGREX_UNVERIFIED "Build opt-in Allegrex source syntax with unknown physical effects" OFF)
 if(_cdisasm_has_examples)
     option(CDISASM_BUILD_EXAMPLES "Build the cdisasm command-line example" ON)
 else()
@@ -155,6 +156,7 @@ foreach(_cdisasm_boolean IN ITEMS
         USE_ARCH_MIPS
         USE_DISASM_FORMAT
         USE_EXTRA_OPCODES
+        USE_MIPS_ALLEGREX_UNVERIFIED
         CDISASM_BUILD_SHARED_LIBS)
     if(${_cdisasm_boolean})
         set(CDISASM_NORMALIZED_${_cdisasm_boolean} ON)
@@ -163,6 +165,8 @@ foreach(_cdisasm_boolean IN ITEMS
     endif()
 endforeach()
 unset(_cdisasm_boolean)
+
+include(cmake/cdisasm_mips_families.cmake)
 
 set(CDISASM_EFFECTIVE_USE_DISASM_FORMAT OFF)
 if(CDISASM_NORMALIZED_USE_DISASM_FORMAT
@@ -178,6 +182,14 @@ if(CDISASM_NORMALIZED_USE_EXTRA_OPCODES
             OR CDISASM_NORMALIZED_USE_ARCH_ARM
             OR CDISASM_NORMALIZED_USE_ARCH_MIPS))
     set(CDISASM_EFFECTIVE_USE_EXTRA_OPCODES ON)
+endif()
+
+set(CDISASM_EFFECTIVE_USE_MIPS_ALLEGREX_UNVERIFIED OFF)
+if(CDISASM_NORMALIZED_USE_MIPS_ALLEGREX_UNVERIFIED
+        AND CDISASM_NORMALIZED_USE_ARCH_MIPS
+        AND CDISASM_EFFECTIVE_USE_EXTRA_OPCODES
+        AND CDISASM_EFFECTIVE_USE_MIPS_ALLEGREX)
+    set(CDISASM_EFFECTIVE_USE_MIPS_ALLEGREX_UNVERIFIED ON)
 endif()
 
 set(_cdisasm_package_tests_default OFF)
@@ -205,6 +217,8 @@ set(CDISASM_CONFIG_USE_DISASM_FORMAT
     ${CDISASM_EFFECTIVE_USE_DISASM_FORMAT})
 set(CDISASM_CONFIG_USE_EXTRA_OPCODES
     ${CDISASM_EFFECTIVE_USE_EXTRA_OPCODES})
+set(CDISASM_CONFIG_USE_MIPS_ALLEGREX_UNVERIFIED
+    ${CDISASM_EFFECTIVE_USE_MIPS_ALLEGREX_UNVERIFIED})
 configure_file(
     cmake/cdisasm_config.h.in
     "${_cdisasm_generated_include_dir}/cdisasm/cdisasm_config.h")
@@ -213,6 +227,7 @@ unset(CDISASM_CONFIG_USE_ARCH_ARM)
 unset(CDISASM_CONFIG_USE_ARCH_MIPS)
 unset(CDISASM_CONFIG_USE_DISASM_FORMAT)
 unset(CDISASM_CONFIG_USE_EXTRA_OPCODES)
+unset(CDISASM_CONFIG_USE_MIPS_ALLEGREX_UNVERIFIED)
 
 set(
     CDISASM_FUZZ_SANITIZERS
@@ -288,18 +303,28 @@ endif()
 if(USE_ARCH_MIPS)
     list(APPEND _cdisasm_sources
         src/mips/cdisasm_mips.c
+        src/mips/cdisasm_mips_v3.c
         src/mips/mips_decoder.c
         src/mips/mips_generated_decoder.c
         src/mips/mips_effects.c
         src/mips/mips_compact_decoder.c
+        src/mips/mips_micro64_arithmetic_decoder.c
+        src/mips/mips_micro64_r6_decoder.c
+        src/mips/mips_micro64_cop_decoder.c
+        src/mips/mips_micro64_fp_decoder.c
+        src/mips/mips_micro64_memory_decoder.c
         src/mips/mips_mips16e2_decoder.c
         src/mips/mips_nano_decoder.c
+        src/mips/mips_nano_fpu_decoder.c
         src/mips/mips_allegrex_decoder.c
+        src/mips/mips_allegrex_unverified.c
         src/mips/mips_allegrex_patterns.c
         src/mips/mips_r5900_decoder.c
         src/mips/mips_mxu_decoder.c
         src/mips/mips_mxu_vector_decoder.c
         src/mips/mips_loongsimd_decoder.c
+        src/mips/mips_xlr_decoder.c
+        src/mips/mips_xlp_decoder.c
         src/mips/mips_vu_decoder.c
         src/mips/mips_extra_decoder.c)
 endif()
@@ -363,11 +388,29 @@ if(CDISASM_VERIFY_GENERATED)
             COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_compact.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro_paired.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro_supplement.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro64_arithmetic.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro64_cop.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro64_memory.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro64_r6.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro64_fp.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_mips16e2.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_nano.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_nano_fpu.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_allegrex.py" --check
+            COMMAND
+                "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_allegrex_unverified.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_allegrex_hardware_probe.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
@@ -386,6 +429,10 @@ if(CDISASM_VERIFY_GENERATED)
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/probes/mips_loong_vectors/generate_manifest.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_vu.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_xlr.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_xlp.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/coverage/mips_coverage.py" --check
             COMMENT "Checking the append-only generated MIPS spelling catalog"
@@ -502,6 +549,58 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
             PROPERTIES LABELS "codegen;generated")
 
         if(USE_ARCH_MIPS)
+            add_test(NAME cdisasm_mips_allegrex_unverified_codegen_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_allegrex_unverified.py" --check)
+            add_test(NAME cdisasm_mips_allegrex_unverified_codegen_tests
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_allegrex_unverified_codegen.py")
+            set_tests_properties(cdisasm_mips_allegrex_unverified_codegen_freshness_tests cdisasm_mips_allegrex_unverified_codegen_tests
+                PROPERTIES LABELS "codegen;coverage;generated;mips")
+            add_test(NAME cdisasm_mips_nano_fpu_codegen_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_nano_fpu.py" --check)
+            set_tests_properties(cdisasm_mips_nano_fpu_codegen_freshness_tests
+                PROPERTIES LABELS "codegen;coverage;generated;mips")
+            add_test(NAME cdisasm_mips_nano_fpu_facts_tests
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_nano_fpu_facts.py")
+            set_tests_properties(cdisasm_mips_nano_fpu_facts_tests
+                PROPERTIES LABELS "codegen;coverage;generated;mips")
+            add_test(NAME cdisasm_mips_catalog_validation_tests
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_catalog_validation.py")
+            add_test(NAME cdisasm_mips_fp_compare_validation_tests
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_fp_compare_validation.py")
+            add_test(NAME cdisasm_mips_append_ids_tests
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_append_ids.py")
+            set_tests_properties(cdisasm_mips_catalog_validation_tests cdisasm_mips_fp_compare_validation_tests cdisasm_mips_append_ids_tests
+                PROPERTIES LABELS "codegen;coverage;generated;mips")
+            add_test(NAME cdisasm_mips_fpu_control_facts_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_fpu_control_facts.py")
+            add_test(NAME cdisasm_mips_micro64_arithmetic_codegen_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro64_arithmetic.py" --check)
+            add_test(NAME cdisasm_mips_micro64_cop_codegen_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro64_cop.py" --check)
+            add_test(NAME cdisasm_mips_micro64_fp_codegen_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro64_fp.py" --check)
+            add_test(NAME cdisasm_mips_micro64_r6_codegen_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro64_r6.py" --check)
+            add_test(NAME cdisasm_mips_micro64_memory_codegen_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro64_memory.py" --check)
+            add_test(NAME cdisasm_mips_micro_supplement_codegen_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro_supplement.py" --check)
+            add_test(NAME cdisasm_mips_micro_paired_codegen_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_micro_paired.py" --check)
+            add_test(NAME cdisasm_mips_xlp_codegen_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_xlp.py" --check)
+            add_test(NAME cdisasm_mips_xlr_codegen_freshness_tests
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_xlr.py" --check)
             add_test(NAME cdisasm_mips_coverage_freshness_tests
                 COMMAND "${Python3_EXECUTABLE}" -B
                     "${CMAKE_CURRENT_SOURCE_DIR}/tools/coverage/mips_coverage.py" --check)
@@ -541,7 +640,17 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
             add_test(NAME cdisasm_mips_loong_capture_freshness_tests
                 COMMAND "${Python3_EXECUTABLE}" -B
                     "${CMAKE_CURRENT_SOURCE_DIR}/tools/probes/mips_loong_vectors/generate_manifest.py" --check)
-            set_tests_properties(cdisasm_mips_coverage_freshness_tests
+            set_tests_properties(cdisasm_mips_fpu_control_facts_tests
+                cdisasm_mips_micro_paired_codegen_freshness_tests
+                cdisasm_mips_micro_supplement_codegen_freshness_tests
+                cdisasm_mips_micro64_arithmetic_codegen_freshness_tests
+                cdisasm_mips_micro64_cop_codegen_freshness_tests
+                cdisasm_mips_micro64_memory_codegen_freshness_tests
+                cdisasm_mips_micro64_r6_codegen_freshness_tests
+                cdisasm_mips_micro64_fp_codegen_freshness_tests
+                cdisasm_mips_xlp_codegen_freshness_tests
+                cdisasm_mips_xlr_codegen_freshness_tests
+                cdisasm_mips_coverage_freshness_tests
                 cdisasm_mips_coverage_checker_tests
                 cdisasm_mips_allegrex_pattern_evidence_tests
                 cdisasm_mips_allegrex_probe_tests
@@ -6139,7 +6248,11 @@ if(CDISASM_BUILD_FUZZERS)
 endif()
 
 if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_MIPS)
-    foreach(_cdisasm_mips_test IN ITEMS decode context families standard_complete extensions_complete compact mips16e2 nano v2 allegrex patterns r5900 manual_extensions mxu mxu_vector mxu_context loongsimd vu system_domains llvm_bindings)
+    add_executable(cdisasm_mips_v3_tests tests/test_mips_v3.c)
+    target_compile_features(cdisasm_mips_v3_tests PRIVATE c_std_11)
+    target_link_libraries(cdisasm_mips_v3_tests PRIVATE cdisasm)
+    add_test(NAME cdisasm_mips_v3_tests COMMAND cdisasm_mips_v3_tests)
+    foreach(_cdisasm_mips_test IN ITEMS decode context families standard_complete extensions_complete compact mips16e2 nano v2 allegrex allegrex_unverified allegrex_lvq_option allegrex_pattern_decode patterns r5900 manual_extensions mxu mxu_vector mxu_context loongsimd vu system_domains llvm_bindings xlr xlp paired_atomic micro_paired micro_supplement micro64_arithmetic micro64_cop micro64_memory micro64_r6 micro64_fp fpu_control fp_compare_domains build_families nano_fpu)
         add_executable(cdisasm_mips_${_cdisasm_mips_test}_tests
             tests/test_mips_${_cdisasm_mips_test}.c)
         target_compile_features(cdisasm_mips_${_cdisasm_mips_test}_tests PRIVATE c_std_11)
@@ -6154,6 +6267,15 @@ if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_MIPS)
         add_test(NAME cdisasm_mips_format_tests COMMAND cdisasm_mips_format_tests)
     endif()
     if(CDISASM_BUILD_PACKAGE_TESTS AND NOT CMAKE_CROSSCOMPILING)
+        add_test(NAME cdisasm_mips_family_package_matrix
+            COMMAND "${CMAKE_COMMAND}"
+                "-DSOURCE_DIR:PATH=${CMAKE_CURRENT_SOURCE_DIR}"
+                "-DWORK_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/mips-family-tests"
+                "-DGENERATOR:STRING=${CMAKE_GENERATOR}"
+                "-DPLATFORM:STRING=${CMAKE_GENERATOR_PLATFORM}"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/test_mips_family_builds.cmake")
+        set_tests_properties(cdisasm_mips_family_package_matrix PROPERTIES
+            LABELS "package;install;mips" RUN_SERIAL TRUE TIMEOUT 900)
         add_test(NAME cdisasm_mips_package_e2e
             COMMAND "${CMAKE_COMMAND}"
                 "-DSOURCE_DIR:PATH=${CMAKE_CURRENT_SOURCE_DIR}"
@@ -6195,6 +6317,8 @@ if(USE_ARCH_MIPS)
     list(APPEND _cdisasm_public_headers
         include/cdisasm/cdisasm_mips.h
         include/cdisasm/cdisasm_mips_v2.h
+        include/cdisasm/cdisasm_mips_v3.h
+        include/cdisasm/cdisasm_mips_build.h
         include/cdisasm/cdisasm_mips_ids.h)
 endif()
 if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)

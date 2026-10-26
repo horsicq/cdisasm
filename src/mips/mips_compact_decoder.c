@@ -32,6 +32,56 @@ typedef struct compact_form {
 typedef struct compact_effect { uint16_t form,reg;uint8_t access,size; } compact_effect;
 #include "generated/mips_compact_forms.inc"
 
+/* MD00594r6.05 supplement absent from the pinned LLVM/GNU inventories. */
+typedef struct micro_paired_form {
+    uint32_t mask, value;
+    uint16_t name, form;
+    uint8_t data_size, store, eva;
+} micro_paired_form;
+static const micro_paired_form micro_paired_forms[] = {
+#include "generated/mips_micro_paired_forms.inc"
+};
+
+typedef struct micro_supplement_form {
+    uint32_t mask, value;
+    uint16_t name, form;
+    uint8_t kind, store;
+} micro_supplement_form;
+static const micro_supplement_form micro_supplement_forms[] = {
+#include "generated/mips_micro_supplement_forms.inc"
+};
+
+static cdisasm_status micro_paired_decode(uint32_t raw, const micro_paired_form *f,
+    uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+    uint64_t active, cdisasm_mips_instruction *i)
+{
+    const unsigned rt = (raw >> 21) & 31u, base = (raw >> 16) & 31u, rd = (raw >> 4) & 31u;
+    const uint8_t gpr_size = mode == CDISASM_MIPS_MODE_64 ? 8u : 4u;
+    if ((f->data_size == 8u && mode != CDISASM_MIPS_MODE_64) ||
+        (f->eva && mode != CDISASM_MIPS_MODE_32)) return CDISASM_STATUS_INVALID_INSTRUCTION;
+    if (f->eva && (active & CDISASM_MIPS_DECODE_FLAG_EVA) == 0)
+        return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+    memset(i, 0, sizeof(*i));
+    i->address = address; i->raw_instruction = raw; i->opcode_size = 4;
+    i->mode = (uint8_t)mode; i->revision = (uint8_t)revision;
+    i->name_id = f->name; i->form_id = f->form; i->operand_count = 3;
+    i->instruction_flags = CDISASM_MIPS_INSTRUCTION_FLAG_ATOMIC |
+        (f->eva ? CDISASM_MIPS_INSTRUCTION_FLAG_EVA : 0);
+    i->operand[0].type = CDISASM_OPERAND_REGISTER;
+    i->operand[0].reg = (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_GPR0 + rt);
+    i->operand[0].size = gpr_size;
+    i->operand[0].access = f->store ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE;
+    i->operand[1].type = CDISASM_OPERAND_REGISTER;
+    i->operand[1].reg = (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_GPR0 + rd);
+    i->operand[1].size = f->store ? f->data_size : gpr_size;
+    i->operand[1].access = f->store ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE;
+    i->operand[2].type = CDISASM_OPERAND_MEMORY;
+    i->operand[2].base_reg = (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_GPR0 + base);
+    i->operand[2].size = (uint8_t)(2u * f->data_size);
+    i->operand[2].access = f->store ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ;
+    return CDISASM_STATUS_OK;
+}
+
 static uint32_t compact_value(uint32_t raw, uint16_t field)
 {
     const compact_field *f = &compact_fields[field];
@@ -75,6 +125,14 @@ static unsigned compact_gpr(unsigned value, unsigned map)
 uint64_t cdisasm_mips_compact_required_flags(cdisasm_mips_form_id form)
 {
     size_t n;
+    if(form>=33820u && form<=33831u)return CDISASM_MIPS_DECODE_FLAG_FPU;
+    uint64_t cop_required=cdisasm_mips_micro64_cop_required_flags(form);
+    if(cop_required)return cop_required;
+    cop_required=cdisasm_mips_micro64_fp_required_flags(form);
+    if(cop_required)return cop_required;
+    for(n=0;n<sizeof(micro_paired_forms)/sizeof(micro_paired_forms[0]);++n)
+        if(micro_paired_forms[n].form==form)
+            return micro_paired_forms[n].eva ? CDISASM_MIPS_DECODE_FLAG_EVA : 0;
     for(n=0;n<sizeof(compact_forms)/sizeof(compact_forms[0]);++n)
         if(compact_forms[n].form==form) return compact_forms[n].required;
     return 0u;
@@ -105,6 +163,15 @@ static cdisasm_status compact_lower(uint32_t raw,const compact_form *f,cdisasm_m
 {
     unsigned n;
     cdisasm_mips_mode mode=(cdisasm_mips_mode)i->mode;
+    /* MD00594 rev6.05 pp179-183: every scalar R6 comparison may update
+     * FCSR Cause/Flags and preserves its other fields. Imported compiler
+     * records describe only the explicit FPR operands. */
+    if(f->encoding==2u && (i->revision==37u || i->revision==69u) &&
+       ((raw&UINT32_C(0xfc00003f))==UINT32_C(0x54000005) ||
+        (raw&UINT32_C(0xfc00003f))==UINT32_C(0x54000015)))
+        i->instruction_flags|=CDISASM_MIPS_INSTRUCTION_FLAG_READS_FCSR|CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_FCSR;
+    if(f->name==CDISASM_MIPS_NAME_LWU && mode!=CDISASM_MIPS_MODE_64)
+        return CDISASM_STATUS_INVALID_INSTRUCTION;
     for(n=0;n<f->count;++n) {
         const compact_operand *d=&f->operand[n];
         cdisasm_mips_operand *o=&i->operand[i->operand_count++];
@@ -219,6 +286,25 @@ static cdisasm_status compact_lower(uint32_t raw,const compact_form *f,cdisasm_m
             }
         }
     }
+    if(i->operand_count==2u &&
+       (f->name==CDISASM_MIPS_NAME_MFC2 || f->name==CDISASM_MIPS_NAME_MTC2 ||
+        f->name==CDISASM_MIPS_NAME_MFHC2 || f->name==CDISASM_MIPS_NAME_MTHC2 ||
+        f->name==CDISASM_MIPS_NAME_CFC2 || f->name==CDISASM_MIPS_NAME_CTC2)) {
+        cdisasm_mips_operand *cop=&i->operand[1];
+        const int control=f->name==CDISASM_MIPS_NAME_CFC2 || f->name==CDISASM_MIPS_NAME_CTC2;
+        const int high=f->name==CDISASM_MIPS_NAME_MFHC2 || f->name==CDISASM_MIPS_NAME_MTHC2;
+        cop->reg=control ? CDISASM_MIPS_REG_FCR2_FIRST : CDISASM_MIPS_REG_COP2_FIRST;
+        cop->imm=(raw>>16)&31u;
+        cop->size=high ? 8u : 4u;
+        cop->detail.flags=CDISASM_MIPS_OPERAND_DETAIL_REGISTER_SELECTOR|
+            (high ? CDISASM_MIPS_OPERAND_DETAIL_HIGH_HALF : 0u);
+        if(f->name==CDISASM_MIPS_NAME_MTHC2)cop->access=CDISASM_OPERAND_ACCESS_READ_WRITE;
+    }
+    if(mode==CDISASM_MIPS_MODE_64 && i->operand_count &&
+       (f->name==CDISASM_MIPS_NAME_MFC0 || f->name==CDISASM_MIPS_NAME_MFC1 ||
+        f->name==CDISASM_MIPS_NAME_CFC1 || f->name==CDISASM_MIPS_NAME_MFHC1 ||
+        f->name==CDISASM_MIPS_NAME_MFC2 || f->name==CDISASM_MIPS_NAME_CFC2 || f->name==CDISASM_MIPS_NAME_MFHC2))
+        i->operand[0].size=8u;
     if(f->name==CDISASM_MIPS_NAME_INS && i->operand_count>=4u && i->operand[2].imm+i->operand[3].imm>32u) return CDISASM_STATUS_INVALID_INSTRUCTION;
     if(f->name==CDISASM_MIPS_NAME_EXT && i->operand_count>=4u && i->operand[2].imm+i->operand[3].imm>32u) return CDISASM_STATUS_INVALID_INSTRUCTION;
     if((f->name==CDISASM_MIPS_NAME_LWP || f->name==CDISASM_MIPS_NAME_SWP) && i->operand[0].reg==CDISASM_MIPS_REG_GPR31) return CDISASM_STATUS_INVALID_INSTRUCTION;
@@ -228,6 +314,43 @@ static cdisasm_status compact_lower(uint32_t raw,const compact_form *f,cdisasm_m
         i->instruction_flags&=~CDISASM_MIPS_INSTRUCTION_FLAG_LINK;
         i->opcode_groups&=~CDISASM_GROUP_CALL;
         if(i->operand[1].reg==CDISASM_MIPS_REG_GPR31)i->opcode_groups|=CDISASM_GROUP_RETURN;
+    }
+    return CDISASM_STATUS_OK;
+}
+
+/* Numeric allocation: MD00594 rev6.05 pp179-182, table5.23. The lower
+ * sixteen conditions already have generated forms. Only six of the sixteen
+ * negated conditions are allocated; the other ten remain reserved. */
+static cdisasm_status micro_negated_compare(uint32_t raw,uint64_t address,
+    cdisasm_mips_mode mode,cdisasm_mips_revision revision,uint64_t active,cdisasm_mips_instruction *i)
+{
+    static const cdisasm_mips_name_id names[6][2]={
+        {CDISASM_MIPS_NAME_CMP_OR_S,CDISASM_MIPS_NAME_CMP_OR_D},
+        {CDISASM_MIPS_NAME_CMP_UNE_S,CDISASM_MIPS_NAME_CMP_UNE_D},
+        {CDISASM_MIPS_NAME_CMP_NE_S,CDISASM_MIPS_NAME_CMP_NE_D},
+        {CDISASM_MIPS_NAME_CMP_SOR_S,CDISASM_MIPS_NAME_CMP_SOR_D},
+        {CDISASM_MIPS_NAME_CMP_SUNE_S,CDISASM_MIPS_NAME_CMP_SUNE_D},
+        {CDISASM_MIPS_NAME_CMP_SNE_S,CDISASM_MIPS_NAME_CMP_SNE_D}};
+    const unsigned condition=(raw>>6)&31u,predicate=condition&7u;
+    const unsigned format=(raw&16u)!=0u;
+    const unsigned index=predicate-1u+((condition&8u) ? 3u : 0u);
+    unsigned n;
+    if(predicate<1u || predicate>3u)return CDISASM_STATUS_INVALID_INSTRUCTION;
+    if(!(active&CDISASM_MIPS_DECODE_FLAG_FPU))return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+    memset(i,0,sizeof(*i));
+    i->address=address;i->raw_instruction=raw;i->opcode_size=4u;
+    i->mode=(uint8_t)mode;i->revision=(uint8_t)revision;
+    i->name_id=names[index][format];i->form_id=(uint16_t)(33820u+2u*index+format);
+    i->operand_count=3u;
+    i->instruction_flags=CDISASM_MIPS_INSTRUCTION_FLAG_FLOATING_POINT|
+        CDISASM_MIPS_INSTRUCTION_FLAG_READS_FCSR|CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_FCSR;
+    for(n=0;n<3u;++n) {
+        cdisasm_mips_operand *o=&i->operand[n];
+        const unsigned field=n==0u ? 11u : n==1u ? 16u : 21u;
+        o->type=CDISASM_OPERAND_REGISTER;
+        o->reg=(uint16_t)(CDISASM_MIPS_REG_FPR0+((raw>>field)&31u));
+        o->size=format ? 8u : 4u;
+        o->access=n==0u ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ;
     }
     return CDISASM_STATUS_OK;
 }
@@ -255,6 +378,59 @@ static void m16_memory(cdisasm_mips_instruction *i,unsigned base,int64_t displac
         o->address=compact_address((cdisasm_mips_mode)i->mode,(i->address&~UINT64_C(3))+(uint64_t)displacement);
     } else o->base_reg=(uint16_t)(CDISASM_MIPS_REG_GPR0+base);
 }
+
+/* MD00594 pp90-93/111-113; GNU's distinct short-delay JALRS.HB slot.
+ * Runtime address alignment, restartability and hazard clearing are not
+ * properties that can be established from an instruction word. */
+static cdisasm_status micro_supplement_decode(uint32_t raw,const micro_supplement_form *f,
+    uint64_t address,cdisasm_mips_mode mode,cdisasm_mips_revision revision,cdisasm_mips_instruction *i)
+{
+    unsigned reg=(raw>>21)&31u,base=(raw>>16)&31u,count=2u;
+    uint32_t list=0;
+    if(f->kind==2u) {
+        if(revision==37u || revision==69u)return CDISASM_STATUS_INVALID_INSTRUCTION;
+    } else {
+        if(mode!=CDISASM_MIPS_MODE_64 || !((revision>=3u && revision<=5u) || revision>=64u))
+            return CDISASM_STATUS_INVALID_INSTRUCTION;
+        if(f->kind==1u) {
+            unsigned saved=reg&15u,n;
+            if(!reg || saved>9u)return CDISASM_STATUS_INVALID_INSTRUCTION;
+            count=saved+((reg&16u)!=0u);
+            for(n=0;n<saved;++n)list|=UINT32_C(1)<<(n==8u ? 30u : 16u+n);
+            if(reg&16u)list|=UINT32_C(1)<<31;
+        } else if(reg==31u) {
+            /* No in-range adjacent GPR exists for this undefined operand. */
+            return CDISASM_STATUS_INVALID_INSTRUCTION;
+        }
+    }
+    memset(i,0,sizeof(*i));
+    i->address=address;i->raw_instruction=raw;i->opcode_size=4;
+    i->mode=(uint8_t)mode;i->revision=(uint8_t)revision;i->name_id=f->name;i->form_id=f->form;
+    if(f->kind==2u) {
+        const unsigned width=mode==CDISASM_MIPS_MODE_64 ? 8u : 4u;
+        m16_register(i,reg,width,CDISASM_OPERAND_ACCESS_WRITE);
+        m16_register(i,base,width,CDISASM_OPERAND_ACCESS_READ);
+        i->instruction_flags=CDISASM_MIPS_INSTRUCTION_FLAG_DELAY_SLOT;
+        i->opcode_groups=CDISASM_GROUP_JUMP;
+        if(reg) {
+            i->instruction_flags|=CDISASM_MIPS_INSTRUCTION_FLAG_LINK;
+            i->opcode_groups|=CDISASM_GROUP_CALL;
+        } else if(base==31u)i->opcode_groups|=CDISASM_GROUP_RETURN;
+    } else {
+        m16_register(i,reg,8u,f->store ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
+        if(f->kind==1u) {
+            i->operand[0].reg=CDISASM_MIPS_REG_NONE;
+            i->operand[0].imm=list;
+            i->operand[0].detail.flags=CDISASM_MIPS_OPERAND_DETAIL_REGISTER_LIST;
+        }
+        m16_memory(i,base,compact_signed(raw&4095u,12u),count*8u,f->store,0);
+        if(!base) {
+            i->operand[1].address=(uint64_t)compact_signed(raw&4095u,12u);
+            i->operand[1].flags|=CDISASM_MIPS_OPERAND_FLAG_ABSOLUTE|CDISASM_MIPS_OPERAND_FLAG_HAS_ADDRESS;
+        }
+    }
+    return CDISASM_STATUS_OK;
+}
 static void m16_branch(cdisasm_mips_instruction *i,int64_t displacement,int conditional)
 {
     cdisasm_mips_operand *o;
@@ -275,6 +451,25 @@ size_t cdisasm_mips_compact_effects(const cdisasm_mips_instruction *instruction,
     cdisasm_mips_reg_id extra_reg=CDISASM_MIPS_REG_NONE;
     cdisasm_operand_access extra_access=CDISASM_OPERAND_ACCESS_NONE;
     if(!instruction)return 0u;
+    if(instruction->form_id==31089u || instruction->form_id==31090u) {
+        if(effects && capacity) {
+            memset(effects,0,sizeof(*effects));effects[0].reg=CDISASM_MIPS_REG_PC;
+            effects[0].size=8;effects[0].access=CDISASM_OPERAND_ACCESS_READ;
+        }
+        return 1u;
+    }
+    for(n=0;n<sizeof(micro_paired_forms)/sizeof(micro_paired_forms[0]);++n) {
+        const micro_paired_form *f=&micro_paired_forms[n];
+        if(f->form!=instruction->form_id)continue;
+        if(effects && capacity) {
+            memset(&effects[0],0,sizeof(effects[0]));
+            effects[0].reg=CDISASM_MIPS_REG_CP0(17,0);
+            /* Optional LLAddr has unknown extent; stores preserve address
+             * bits while clearing the aliased LLbit in bit0. */
+            effects[0].access=f->store ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE;
+        }
+        return 1u;
+    }
     for(n=0;n<sizeof(compact_effects)/sizeof(compact_effects[0]);++n) {
         const compact_effect *source=&compact_effects[n];
         if(source->form!=instruction->form_id)continue;
@@ -303,10 +498,12 @@ size_t cdisasm_mips_compact_effects(const cdisasm_mips_instruction *instruction,
         }
         ++count;
     }
-    if((instruction->name_id==CDISASM_MIPS_NAME_LWP || instruction->name_id==CDISASM_MIPS_NAME_SWP) && instruction->operand_count) {
+    if((instruction->name_id==CDISASM_MIPS_NAME_LWP || instruction->name_id==CDISASM_MIPS_NAME_SWP ||
+        instruction->name_id==CDISASM_MIPS_NAME_LDP || instruction->name_id==CDISASM_MIPS_NAME_SDP) && instruction->operand_count) {
         if(count<capacity) {
             memset(&effects[count],0,sizeof(effects[count]));effects[count].reg=(uint16_t)(instruction->operand[0].reg+1u);
-            effects[count].access=instruction->operand[0].access;effects[count].size=4u;
+            effects[count].access=instruction->operand[0].access;
+            effects[count].size=(instruction->name_id==CDISASM_MIPS_NAME_LDP || instruction->name_id==CDISASM_MIPS_NAME_SDP) ? 8u : 4u;
         }
         ++count;
     }
@@ -515,6 +712,25 @@ cdisasm_status cdisasm_mips_decode_compact(uint64_t raw, uint32_t size, cdisasm_
         instruction->instruction_flags=fr32 ? CDISASM_MIPS_INSTRUCTION_FLAG_FPR32 : 0u;
         return compact_mips16((uint32_t)raw,size,instruction);
     }
+    if((unsigned)encoding==2u && size==4u && (revision==37u || revision==69u)) {
+        if(((uint32_t)raw&UINT32_C(0xfc00003f))==UINT32_C(0x54000005) ||
+           ((uint32_t)raw&UINT32_C(0xfc00003f))==UINT32_C(0x54000015)) {
+            if(((raw>>6)&31u)>=16u)
+                return micro_negated_compare((uint32_t)raw,address,mode,revision,active,instruction);
+        }
+        for(n=0;n<sizeof(micro_paired_forms)/sizeof(micro_paired_forms[0]);++n) {
+            const micro_paired_form *f=&micro_paired_forms[n];
+            if(((uint32_t)raw&f->mask)==f->value)
+                return micro_paired_decode((uint32_t)raw,f,address,mode,revision,active,instruction);
+        }
+    }
+    if((unsigned)encoding==2u && size==4u) {
+        for(n=0;n<sizeof(micro_supplement_forms)/sizeof(micro_supplement_forms[0]);++n) {
+            const micro_supplement_form *f=&micro_supplement_forms[n];
+            if(((uint32_t)raw&f->mask)==f->value)
+                return micro_supplement_decode((uint32_t)raw,f,address,mode,revision,instruction);
+        }
+    }
     for(n=0;n<sizeof(compact_forms)/sizeof(compact_forms[0]);++n) {
         const compact_form *f=&compact_forms[n];
         cdisasm_mips_instruction candidate;
@@ -541,6 +757,20 @@ cdisasm_status cdisasm_mips_decode_compact(uint64_t raw, uint32_t size, cdisasm_
         if(status!=CDISASM_STATUS_OK)continue;
         *instruction=candidate;
         return CDISASM_STATUS_OK;
+    }
+    if((unsigned)encoding==2u && size==4u) {
+        {
+            cdisasm_status status=cdisasm_mips_micro64_r6((uint32_t)raw,address,mode,revision,features,instruction);
+            if(status!=CDISASM_STATUS_UNSUPPORTED_INSTRUCTION)return status;
+            status=cdisasm_mips_micro64_arithmetic((uint32_t)raw,address,mode,revision,features,instruction);
+            if(status!=CDISASM_STATUS_UNSUPPORTED_INSTRUCTION)return status;
+            status=cdisasm_mips_micro64_cop((uint32_t)raw,address,mode,revision,features,instruction);
+            if(status!=CDISASM_STATUS_UNSUPPORTED_INSTRUCTION)return status;
+            status=cdisasm_mips_micro64_fp((uint32_t)raw,address,mode,revision,features,instruction);
+            if(status!=CDISASM_STATUS_UNSUPPORTED_INSTRUCTION)return status;
+            status=cdisasm_mips_micro64_memory((uint32_t)raw,address,mode,revision,features,instruction);
+            if(status!=CDISASM_STATUS_UNSUPPORTED_INSTRUCTION)return status;
+        }
     }
     return disabled || !matched ? CDISASM_STATUS_UNSUPPORTED_INSTRUCTION : CDISASM_STATUS_INVALID_INSTRUCTION;
 }

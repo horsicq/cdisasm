@@ -60,7 +60,10 @@ static const mips_cpu_profile mips_profiles[] = {
     {CDISASM_MIPS_REVISION_III, CDISASM_MIPS_MODE_MASK_64, FPU | PS | CDISASM_MIPS_FAMILY_MASK_LOONGSON | CDISASM_MIPS_FAMILY_MASK_LOONGSON2E},
     {CDISASM_MIPS_REVISION_III, CDISASM_MIPS_MODE_MASK_64, FPU | PS | CDISASM_MIPS_FAMILY_MASK_LOONGSON | CDISASM_MIPS_FAMILY_MASK_LOONGSON2F},
     {CDISASM_MIPS_REVISION_64R2, CDISASM_MIPS_MODE_MASK_64, FPU | CDISASM_MIPS_FAMILY_MASK_LOONGSON | CDISASM_MIPS_FAMILY_MASK_LOONGSIMD},
-    {CDISASM_MIPS_REVISION_64R2, CDISASM_MIPS_MODE_MASK_64, FPU | MSA | CDISASM_MIPS_FAMILY_MASK_LOONGSON | CDISASM_MIPS_FAMILY_MASK_LOONGSIMD | CDISASM_MIPS_FAMILY_MASK_LOONGASX}
+    {CDISASM_MIPS_REVISION_64R2, CDISASM_MIPS_MODE_MASK_64, FPU | MSA | CDISASM_MIPS_FAMILY_MASK_LOONGSON | CDISASM_MIPS_FAMILY_MASK_LOONGSIMD | CDISASM_MIPS_FAMILY_MASK_LOONGASX},
+    {CDISASM_MIPS_REVISION_64R1, M64, COP2 | CDISASM_MIPS_FAMILY_MASK_XLR}, /* RMI XLR */
+    {CDISASM_MIPS_REVISION_64R1, M64, COP2 | CDISASM_MIPS_FAMILY_MASK_XLR}, /* RMI XLS */
+    {CDISASM_MIPS_REVISION_64R2, M64, FPU | COP2 | CDISASM_MIPS_FAMILY_MASK_XLP} /* Netlogic XLP */
 };
 _Static_assert(sizeof(mips_profiles) / sizeof(mips_profiles[0]) == CDISASM_CPU_ORDINAL_OF(CDISASM_MIPS_CPU_LAST) + 1u, "MIPS profiles must cover public CPU IDs");
 
@@ -112,11 +115,13 @@ static const cdisasm_mips_family_descriptor mips_families[] = {
     {CDISASM_MIPS_FAMILY_R5900_VU0, 0, CDISASM_MIPS_MODE_MASK_64, CDISASM_MIPS_DECODE_FLAG_R5900 | CDISASM_MIPS_DECODE_FLAG_R5900_VU0},
     {CDISASM_MIPS_FAMILY_R5900_VU1, 0, CDISASM_MIPS_MODE_MASK_64, CDISASM_MIPS_DECODE_FLAG_R5900 | CDISASM_MIPS_DECODE_FLAG_R5900_VU1},
     {CDISASM_MIPS_FAMILY_MXU3_1, 0, M32, CDISASM_MIPS_DECODE_FLAG_MXU3 | CDISASM_MIPS_DECODE_FLAG_MXU3_1},
-    {CDISASM_MIPS_FAMILY_LOONGASX, 0, CDISASM_MIPS_MODE_MASK_64, CDISASM_MIPS_DECODE_FLAG_FPU | CDISASM_MIPS_DECODE_FLAG_LOONGSON | CDISASM_MIPS_DECODE_FLAG_LOONGASX}
+    {CDISASM_MIPS_FAMILY_LOONGASX, 0, CDISASM_MIPS_MODE_MASK_64, CDISASM_MIPS_DECODE_FLAG_FPU | CDISASM_MIPS_DECODE_FLAG_LOONGSON | CDISASM_MIPS_DECODE_FLAG_LOONGASX},
+    {CDISASM_MIPS_FAMILY_XLR, 0, M64, CDISASM_MIPS_DECODE_FLAG_XLR},
+    {CDISASM_MIPS_FAMILY_XLP, 0, CDISASM_MIPS_MODE_MASK_64, CDISASM_MIPS_DECODE_FLAG_XLP}
 };
 
 static const uint8_t mips_family_flag_bits[] = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 61, 31
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 61, 31, 62, 63
 };
 _Static_assert(sizeof(mips_family_flag_bits) == CDISASM_MIPS_FAMILY_LAST + 1u, "MIPS family allocation incomplete");
 
@@ -221,7 +226,7 @@ static cdisasm_mips_family_mask available_families(const mips_cpu_profile *profi
         CDISASM_MIPS_FAMILY_MASK_LOONGSON2E | CDISASM_MIPS_FAMILY_MASK_LOONGSON2F |
         CDISASM_MIPS_FAMILY_MASK_LOONGSON_EXT | CDISASM_MIPS_FAMILY_MASK_LOONGSON_EXT2 | CDISASM_MIPS_FAMILY_MASK_LOONGSON_CAM |
         CDISASM_MIPS_FAMILY_MASK_MXU2 | CDISASM_MIPS_FAMILY_MASK_MXU3 | CDISASM_MIPS_FAMILY_MASK_MXU3_1 |
-        CDISASM_MIPS_FAMILY_MASK_LOONGSIMD | CDISASM_MIPS_FAMILY_MASK_LOONGASX | CDISASM_MIPS_FAMILY_MASK_R5900_VU0 | CDISASM_MIPS_FAMILY_MASK_R5900_VU1 |
+        CDISASM_MIPS_FAMILY_MASK_XLR | CDISASM_MIPS_FAMILY_MASK_XLP | CDISASM_MIPS_FAMILY_MASK_LOONGSIMD | CDISASM_MIPS_FAMILY_MASK_LOONGASX | CDISASM_MIPS_FAMILY_MASK_R5900_VU0 | CDISASM_MIPS_FAMILY_MASK_R5900_VU1 |
         (mode == CDISASM_MIPS_MODE_64 ? CDISASM_MIPS_FAMILY_MASK_DSP64 : 0) |
         (mode == CDISASM_MIPS_MODE_64 ? CDISASM_MIPS_FAMILY_MASK_MDMX : 0));
 #else
@@ -229,6 +234,7 @@ static cdisasm_mips_family_mask available_families(const mips_cpu_profile *profi
      * coverage is gated separately by USE_EXTRA_OPCODES. */
     result = profile->families & (FPU | PS | COP2 | COP3 | CDISASM_MIPS_FAMILY_MASK_ALLEGREX | CDISASM_MIPS_FAMILY_MASK_R5900);
 #endif
+    result &= CDISASM_MIPS_BUILD_FAMILY_MASK;
     for (id = 1; id <= CDISASM_MIPS_FAMILY_LAST; ++id)
         if ((mips_families[id].allowed_modes & mode_bit(mode)) == 0) result &= ~(UINT64_C(1) << (id - 1u));
     return result;
@@ -238,7 +244,7 @@ static void apply_cpu_policy(const mips_cpu_profile *profile, cdisasm_mips_decod
 {
     if (profile->revision != CDISASM_MIPS_REVISION_NONE) {
         effective->bitmap[CDISASM_MIPS_INTERNAL_POLICY_WORD] = family_flags(profile->families) &
-            (CDISASM_MIPS_DECODE_FLAG_ALLEGREX | CDISASM_MIPS_DECODE_FLAG_R5900);
+            (CDISASM_MIPS_DECODE_FLAG_ALLEGREX | CDISASM_MIPS_DECODE_FLAG_R5900 | CDISASM_MIPS_DECODE_FLAG_XLR | CDISASM_MIPS_DECODE_FLAG_XLP);
         /* Retain physical MSA eligibility after a caller disables its active
          * families. Only the named MSA-capable Loongson profile gets this
          * marker; it does not enable MSA/FPU operand lowering. */
@@ -258,6 +264,8 @@ static cdisasm_mips_family_mask revision_families(const mips_cpu_profile *profil
     if (revision != CDISASM_MIPS_REVISION_III)
         families &= ~(CDISASM_MIPS_FAMILY_MASK_R5900 | CDISASM_MIPS_FAMILY_MASK_R5900_VU0 | CDISASM_MIPS_FAMILY_MASK_R5900_VU1 |
             CDISASM_MIPS_FAMILY_MASK_LOONGSON2E | CDISASM_MIPS_FAMILY_MASK_LOONGSON2F);
+    if (revision != CDISASM_MIPS_REVISION_64R1) families &= ~CDISASM_MIPS_FAMILY_MASK_XLR;
+    if (revision != CDISASM_MIPS_REVISION_64R2 || mode != CDISASM_MIPS_MODE_64) families &= ~CDISASM_MIPS_FAMILY_MASK_XLP;
     if (revision != CDISASM_MIPS_REVISION_32R1) families &= ~CDISASM_MIPS_FAMILY_MASK_ALLEGREX;
     if (revision != CDISASM_MIPS_REVISION_64R2 && revision != CDISASM_MIPS_REVISION_64R3 && revision != CDISASM_MIPS_REVISION_64R5)
         families &= ~CDISASM_MIPS_FAMILY_MASK_LOONGSIMD;
@@ -272,7 +280,7 @@ static cdisasm_mips_family_mask revision_families(const mips_cpu_profile *profil
         case CDISASM_MIPS_REVISION_V: return families & (FPU | COP2 | PS);
         case CDISASM_MIPS_REVISION_32R1: return families & (FPU | COP2 | CDISASM_MIPS_FAMILY_MASK_SMARTMIPS | CDISASM_MIPS_FAMILY_MASK_ALLEGREX | CDISASM_MIPS_FAMILY_MASK_MXU | CDISASM_MIPS_FAMILY_MASK_MIPS16E2 |
             CDISASM_MIPS_FAMILY_MASK_MXU2 | CDISASM_MIPS_FAMILY_MASK_MXU3 | CDISASM_MIPS_FAMILY_MASK_MXU3_1);
-        case CDISASM_MIPS_REVISION_64R1: return families & (FPU | COP2 | PS | M3D | CDISASM_MIPS_FAMILY_MASK_MDMX | CDISASM_MIPS_FAMILY_MASK_MIPS16E2);
+        case CDISASM_MIPS_REVISION_64R1: return families & (FPU | COP2 | PS | M3D | CDISASM_MIPS_FAMILY_MASK_MDMX | CDISASM_MIPS_FAMILY_MASK_MIPS16E2 | CDISASM_MIPS_FAMILY_MASK_XLR);
         case CDISASM_MIPS_REVISION_32R2: case CDISASM_MIPS_REVISION_32R3:
         case CDISASM_MIPS_REVISION_64R2: case CDISASM_MIPS_REVISION_64R3:
             return families & ~((revision == CDISASM_MIPS_REVISION_64R2 && (families & CDISASM_MIPS_FAMILY_MASK_LOONGSIMD) != 0 ? 0 : MSA) |
@@ -304,7 +312,7 @@ static cdisasm_mips_family_mask default_families(const mips_cpu_profile *profile
             CDISASM_MIPS_FAMILY_MASK_LOONGSON_EXT | CDISASM_MIPS_FAMILY_MASK_LOONGSON_EXT2 | CDISASM_MIPS_FAMILY_MASK_LOONGSON_CAM |
             CDISASM_MIPS_FAMILY_MASK_DSP64 | CDISASM_MIPS_FAMILY_MASK_MIPS16E2 |
             CDISASM_MIPS_FAMILY_MASK_MXU2 | CDISASM_MIPS_FAMILY_MASK_MXU3 | CDISASM_MIPS_FAMILY_MASK_MXU3_1 |
-            CDISASM_MIPS_FAMILY_MASK_LOONGSIMD | CDISASM_MIPS_FAMILY_MASK_R5900_VU0);
+            CDISASM_MIPS_FAMILY_MASK_LOONGSIMD | CDISASM_MIPS_FAMILY_MASK_R5900_VU0 | CDISASM_MIPS_FAMILY_MASK_XLR | CDISASM_MIPS_FAMILY_MASK_XLP);
     }
     return supported;
 }
@@ -318,7 +326,8 @@ static int conflicting_features(uint64_t features)
         (unsigned)((features & CDISASM_MIPS_DECODE_FLAG_R5900) != 0) +
         (unsigned)((features & (CDISASM_MIPS_DECODE_FLAG_CNMIPS | CDISASM_MIPS_DECODE_FLAG_CNMIPSP)) != 0) +
         (unsigned)((features & CDISASM_MIPS_DECODE_FLAG_LOONGSON) != 0) +
-        (unsigned)(mxu != 0);
+        (unsigned)(mxu != 0) + (unsigned)((features & CDISASM_MIPS_DECODE_FLAG_XLR) != 0) +
+        (unsigned)((features & CDISASM_MIPS_DECODE_FLAG_XLP) != 0);
     if (processors > 1u) return 1;
     if (loongson != 0 && (loongson & (loongson - 1u)) != 0) return 1;
     if (mxu != 0 && (mxu & (mxu - 1u)) != 0) return 1;
@@ -478,7 +487,9 @@ static uint64_t form_required_flags(cdisasm_mips_form_id form)
     if (form >= 56000u && form < 59000u) return cdisasm_mips_mxu_vector_required_flags(form);
     if (form >= 60000u && form < 62000u) return cdisasm_mips_loongasx_required_flags(form);
     if (form >= 59000u && form < 62000u) return cdisasm_mips_loongsimd_required_flags(form);
-    if (form >= 62000u) return cdisasm_mips_vu_required_flags(form);
+    if (form >= 62000u && form < 65000u) return cdisasm_mips_vu_required_flags(form);
+    if (form >= 65020u) return cdisasm_mips_xlp_required_flags(form);
+    if (form >= 65000u) return cdisasm_mips_xlr_required_flags(form);
     return 0;
 }
 
@@ -505,6 +516,12 @@ static cdisasm_mips_family_mask instruction_families(const cdisasm_mips_instruct
     if (instruction->instruction_flags & CDISASM_MIPS_INSTRUCTION_FLAG_XPA) result |= CDISASM_MIPS_FAMILY_MASK_XPA;
     if (instruction->name_id >= CDISASM_MIPS_NAME_ADDQH_PH && instruction->name_id <= CDISASM_MIPS_NAME_SUBUH_R_QB) result |= DSP2 | DSP;
     return result;
+}
+
+int cdisasm_mips_instruction_build_allowed(const cdisasm_mips_instruction *instruction)
+{
+    return instruction != NULL &&
+        (instruction_families(instruction) & ~CDISASM_MIPS_BUILD_FAMILY_MASK) == 0;
 }
 
 uint64_t cdisasm_mips_instruction_required_flags(const cdisasm_mips_instruction *instruction)
@@ -614,12 +631,14 @@ uint32_t CDISASM_CALL cdisasm_mips_decode(cdisasm_mips_cpu_id cpu_id, cdisasm_mi
     if (((requested & CDISASM_MIPS_DECODE_FLAG_DSPR2) != 0 && (requested & CDISASM_MIPS_DECODE_FLAG_DSP) == 0) ||
         ((requested & CDISASM_MIPS_DECODE_FLAG_MSA) != 0 &&
          ((requested & CDISASM_MIPS_DECODE_FLAG_FPU) == 0 || (options & CDISASM_MIPS_DECODE_FLAG_FPR32) != 0))) return fail_result(instruction, CDISASM_STATUS_INVALID_ARGUMENT);
+    if ((flag_families(requested) & ~CDISASM_MIPS_BUILD_FAMILY_MASK) != 0)
+        return fail_result(instruction, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
     supported = revision_families(profile, mode, revision);
     effective.bitmap[0] = (requested != 0 || (options & CDISASM_MIPS_DECODE_FLAG_EXPLICIT_FAMILIES) != 0) ? requested & family_flags(supported) : family_flags(default_families(profile, supported, revision));
     effective.bitmap[0] |= options & CDISASM_MIPS_DECODE_FLAG_FPR32;
     apply_cpu_policy(profile, &effective);
     effective.bitmap[CDISASM_MIPS_INTERNAL_POLICY_WORD] |= requested &
-        (CDISASM_MIPS_DECODE_FLAG_MXU2 | CDISASM_MIPS_DECODE_FLAG_MXU3 | CDISASM_MIPS_DECODE_FLAG_MXU3_1 | CDISASM_MIPS_DECODE_FLAG_LOONGASX);
+        (CDISASM_MIPS_DECODE_FLAG_MXU2 | CDISASM_MIPS_DECODE_FLAG_MXU3 | CDISASM_MIPS_DECODE_FLAG_MXU3_1 | CDISASM_MIPS_DECODE_FLAG_LOONGASX | CDISASM_MIPS_DECODE_FLAG_XLR | CDISASM_MIPS_DECODE_FLAG_XLP);
     if (conflicting_features(effective.bitmap[0])) return fail_result(instruction, CDISASM_STATUS_INVALID_ARGUMENT);
     if ((effective.bitmap[0] & (CDISASM_MIPS_DECODE_FLAG_MSA | CDISASM_MIPS_DECODE_FLAG_FPR32)) ==
         (CDISASM_MIPS_DECODE_FLAG_MSA | CDISASM_MIPS_DECODE_FLAG_FPR32)) return fail_result(instruction, CDISASM_STATUS_INVALID_ARGUMENT);
@@ -629,6 +648,13 @@ uint32_t CDISASM_CALL cdisasm_mips_decode(cdisasm_mips_cpu_id cpu_id, cdisasm_mi
     if (code_size < 4u) return fail_result(instruction, CDISASM_STATUS_TRUNCATED);
     if (options & CDISASM_MIPS_DECODE_FLAG_BIG_ENDIAN) raw = ((uint32_t)code[0] << 24) | ((uint32_t)code[1] << 16) | ((uint32_t)code[2] << 8) | code[3];
     else raw = (uint32_t)code[0] | ((uint32_t)code[1] << 8) | ((uint32_t)code[2] << 16) | ((uint32_t)code[3] << 24);
+    /* Octeon repurposes the four legacy COP2 memory primary slots as BBIT
+     * branches. Disabling CNMIPS must not expose generic COP2 decoding. */
+    if (((profile->families | flag_families(requested)) & CDISASM_MIPS_FAMILY_MASK_CNMIPS) != 0 &&
+        (profile->revision != CDISASM_MIPS_REVISION_NONE || (requested & CDISASM_MIPS_DECODE_FLAG_CNMIPS) != 0) &&
+        ((raw >> 26) == 50u || (raw >> 26) == 54u || (raw >> 26) == 58u || (raw >> 26) == 62u) &&
+        (effective.bitmap[0] & CDISASM_MIPS_DECODE_FLAG_CNMIPS) == 0)
+        return fail_result(instruction, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
     status = cdisasm_mips_decode_core(raw, address, mode, revision, &effective, instruction);
     if (status == CDISASM_STATUS_UNSUPPORTED_INSTRUCTION) {
         cdisasm_mips_instruction recognized;
@@ -638,7 +664,7 @@ uint32_t CDISASM_CALL cdisasm_mips_decode(cdisasm_mips_cpu_id cpu_id, cdisasm_mi
             CDISASM_MIPS_DECODE_FLAG_CNMIPS | CDISASM_MIPS_DECODE_FLAG_CNMIPSP | CDISASM_MIPS_DECODE_FLAG_MXU |
             CDISASM_MIPS_DECODE_FLAG_LOONGSON_EXT | CDISASM_MIPS_DECODE_FLAG_LOONGSON_EXT2 | CDISASM_MIPS_DECODE_FLAG_LOONGSON_CAM |
             CDISASM_MIPS_DECODE_FLAG_SMARTMIPS | CDISASM_MIPS_DECODE_FLAG_MXU2 | CDISASM_MIPS_DECODE_FLAG_MXU3 |
-            CDISASM_MIPS_DECODE_FLAG_MXU3_1 | CDISASM_MIPS_DECODE_FLAG_LOONGSIMD | CDISASM_MIPS_DECODE_FLAG_LOONGASX |
+            CDISASM_MIPS_DECODE_FLAG_MXU3_1 | CDISASM_MIPS_DECODE_FLAG_LOONGSIMD | CDISASM_MIPS_DECODE_FLAG_LOONGASX | CDISASM_MIPS_DECODE_FLAG_XLR | CDISASM_MIPS_DECODE_FLAG_XLP |
             CDISASM_MIPS_DECODE_FLAG_R5900_VU0 | CDISASM_MIPS_DECODE_FLAG_R5900_VU1;
         all.bitmap[0] = (all.bitmap[0] & ~processor_flags) | (effective.bitmap[0] & processor_flags);
         all.bitmap[0] |= effective.bitmap[0] & CDISASM_MIPS_DECODE_FLAG_FPR32;
@@ -651,6 +677,7 @@ uint32_t CDISASM_CALL cdisasm_mips_decode(cdisasm_mips_cpu_id cpu_id, cdisasm_mi
     {
         cdisasm_mips_family_mask required = instruction_families(instruction);
         if ((required & ~profile->families) != 0) return fail_result(instruction, CDISASM_STATUS_INVALID_INSTRUCTION);
+        if ((required & ~CDISASM_MIPS_BUILD_FAMILY_MASK) != 0) return fail_result(instruction, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
         if ((required & ~flag_families(effective.bitmap[0] | effective.bitmap[CDISASM_MIPS_INTERNAL_POLICY_WORD])) != 0) return fail_result(instruction, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
     }
     instruction->address = address;
@@ -738,9 +765,9 @@ static cdisasm_status prepare_v2(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode m
     if (encoding > CDISASM_MIPS_ENCODING_STANDARD && encoding < CDISASM_MIPS_ENCODING_VU_UPPER &&
         (((profile->revision != CDISASM_MIPS_REVISION_NONE) && (profile->families &
             (CDISASM_MIPS_FAMILY_MASK_ALLEGREX | CDISASM_MIPS_FAMILY_MASK_R5900 | CDISASM_MIPS_FAMILY_MASK_LOONGSON |
-             CDISASM_MIPS_FAMILY_MASK_CNMIPS | CDISASM_MIPS_FAMILY_MASK_MXU | CDISASM_MIPS_FAMILY_MASK_MXU2 | CDISASM_MIPS_FAMILY_MASK_MXU3)) != 0) ||
+             CDISASM_MIPS_FAMILY_MASK_CNMIPS | CDISASM_MIPS_FAMILY_MASK_MXU | CDISASM_MIPS_FAMILY_MASK_MXU2 | CDISASM_MIPS_FAMILY_MASK_MXU3 | CDISASM_MIPS_FAMILY_MASK_XLR | CDISASM_MIPS_FAMILY_MASK_XLP)) != 0) ||
          (requested & (CDISASM_MIPS_DECODE_FLAG_ALLEGREX | CDISASM_MIPS_DECODE_FLAG_R5900 | CDISASM_MIPS_DECODE_FLAG_LOONGSON |
-             CDISASM_MIPS_DECODE_FLAG_CNMIPS | CDISASM_MIPS_DECODE_FLAG_MXU | CDISASM_MIPS_DECODE_FLAG_MXU2 | CDISASM_MIPS_DECODE_FLAG_MXU3)) != 0)) return CDISASM_STATUS_INVALID_ARGUMENT;
+             CDISASM_MIPS_DECODE_FLAG_CNMIPS | CDISASM_MIPS_DECODE_FLAG_MXU | CDISASM_MIPS_DECODE_FLAG_MXU2 | CDISASM_MIPS_DECODE_FLAG_MXU3 | CDISASM_MIPS_DECODE_FLAG_XLR | CDISASM_MIPS_DECODE_FLAG_XLP)) != 0)) return CDISASM_STATUS_INVALID_ARGUMENT;
     if (encoding == CDISASM_MIPS_ENCODING_MIPS16 &&
         (revision == CDISASM_MIPS_REVISION_32R6 || revision == CDISASM_MIPS_REVISION_64R6)) return CDISASM_STATUS_INVALID_ARGUMENT;
     if (encoding == CDISASM_MIPS_ENCODING_NANOMIPS &&
@@ -751,6 +778,8 @@ static cdisasm_status prepare_v2(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode m
         if ((requested & (UINT64_C(1) << mips_family_flag_bits[index])) != 0 &&
             (requested & mips_families[index].required_flags) != mips_families[index].required_flags)
             return CDISASM_STATUS_INVALID_ARGUMENT;
+    if ((flag_families(requested) & ~CDISASM_MIPS_BUILD_FAMILY_MASK) != 0)
+        return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
     supported = encoding_families(profile, mode, revision, encoding);
     memset(effective, 0, sizeof(*effective));
     effective->bitmap[0] = (requested != 0 || (options & CDISASM_MIPS_DECODE_FLAG_EXPLICIT_FAMILIES) != 0)
@@ -761,7 +790,7 @@ static cdisasm_status prepare_v2(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode m
     effective->bitmap[0] |= options & CDISASM_MIPS_DECODE_FLAG_FPR32;
     apply_cpu_policy(profile, effective);
     effective->bitmap[CDISASM_MIPS_INTERNAL_POLICY_WORD] |= requested &
-        (CDISASM_MIPS_DECODE_FLAG_MXU2 | CDISASM_MIPS_DECODE_FLAG_MXU3 | CDISASM_MIPS_DECODE_FLAG_MXU3_1 | CDISASM_MIPS_DECODE_FLAG_LOONGASX);
+        (CDISASM_MIPS_DECODE_FLAG_MXU2 | CDISASM_MIPS_DECODE_FLAG_MXU3 | CDISASM_MIPS_DECODE_FLAG_MXU3_1 | CDISASM_MIPS_DECODE_FLAG_LOONGASX | CDISASM_MIPS_DECODE_FLAG_XLR | CDISASM_MIPS_DECODE_FLAG_XLP);
     if (conflicting_features(effective->bitmap[0])) return CDISASM_STATUS_INVALID_ARGUMENT;
     if ((effective->bitmap[0] & (CDISASM_MIPS_DECODE_FLAG_MSA | CDISASM_MIPS_DECODE_FLAG_FPR32)) ==
         (CDISASM_MIPS_DECODE_FLAG_MSA | CDISASM_MIPS_DECODE_FLAG_FPR32)) return CDISASM_STATUS_INVALID_ARGUMENT;
@@ -813,6 +842,8 @@ uint32_t CDISASM_CALL cdisasm_mips_decode_v2(cdisasm_mips_cpu_id cpu_id, cdisasm
         if (status != CDISASM_STATUS_OK) return fail_v2(instruction, status);
         if ((instruction_families(&instruction->instruction) & ~profile->families) != 0)
             return fail_v2(instruction, CDISASM_STATUS_INVALID_INSTRUCTION);
+        if (!cdisasm_mips_instruction_build_allowed(&instruction->instruction))
+            return fail_v2(instruction, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
         if ((instruction_families(&instruction->instruction) & ~flag_families(effective.bitmap[0])) != 0)
             return fail_v2(instruction, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
         size = 4u;
@@ -843,6 +874,8 @@ uint32_t CDISASM_CALL cdisasm_mips_decode_v2(cdisasm_mips_cpu_id cpu_id, cdisasm
         if (status != CDISASM_STATUS_OK) return fail_v2(instruction, status);
         if ((instruction_families(&instruction->instruction) & ~profile->families) != 0)
             return fail_v2(instruction, CDISASM_STATUS_INVALID_INSTRUCTION);
+        if (!cdisasm_mips_instruction_build_allowed(&instruction->instruction))
+            return fail_v2(instruction, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
         if ((instruction_families(&instruction->instruction) & ~flag_families(effective.bitmap[0] | effective.bitmap[CDISASM_MIPS_INTERNAL_POLICY_WORD])) != 0)
             return fail_v2(instruction, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
         instruction->instruction.address = address;

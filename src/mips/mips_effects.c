@@ -11,6 +11,7 @@ int cdisasm_mips_instruction_validate(const cdisasm_mips_instruction *instructio
         instruction->opcode_size != 4u || instruction->name_id == 0 || instruction->name_id >= CDISASM_MIPS_NAME_COUNT ||
         instruction->operand_count > CDISASM_MIPS_MAX_OPERANDS ||
         (instruction->mode != CDISASM_MIPS_MODE_32 && instruction->mode != CDISASM_MIPS_MODE_64)) return 0;
+    if (!cdisasm_mips_instruction_build_allowed(instruction)) return 0;
     switch (instruction->revision) {
         case CDISASM_MIPS_REVISION_I: case CDISASM_MIPS_REVISION_II:
         case CDISASM_MIPS_REVISION_32R1: case CDISASM_MIPS_REVISION_32R2: case CDISASM_MIPS_REVISION_32R3:
@@ -113,10 +114,10 @@ static size_t effects_numeric(const cdisasm_mips_instruction *instruction, cdisa
     ADD_FLAG(CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_MSACSR, CDISASM_MIPS_REG_MSACSR, CDISASM_OPERAND_ACCESS_WRITE, 4u);
 #undef ADD_FLAG
     if (instruction->name_id == CDISASM_MIPS_NAME_LL || instruction->name_id == CDISASM_MIPS_NAME_LLD ||
-        instruction->name_id == CDISASM_MIPS_NAME_LLE || instruction->name_id == CDISASM_MIPS_NAME_LLWP || instruction->name_id == CDISASM_MIPS_NAME_LLWPE)
+        instruction->name_id == CDISASM_MIPS_NAME_LLDP || instruction->name_id == CDISASM_MIPS_NAME_LLE || instruction->name_id == CDISASM_MIPS_NAME_LLWP || instruction->name_id == CDISASM_MIPS_NAME_LLWPE)
         effect_add(list, &count, CDISASM_MIPS_REG_LLBIT, CDISASM_OPERAND_ACCESS_WRITE, 1u, 0, 0);
     if (instruction->name_id == CDISASM_MIPS_NAME_SC || instruction->name_id == CDISASM_MIPS_NAME_SCD ||
-        instruction->name_id == CDISASM_MIPS_NAME_SCE || instruction->name_id == CDISASM_MIPS_NAME_SCWP || instruction->name_id == CDISASM_MIPS_NAME_SCWPE)
+        instruction->name_id == CDISASM_MIPS_NAME_SCDP || instruction->name_id == CDISASM_MIPS_NAME_SCE || instruction->name_id == CDISASM_MIPS_NAME_SCWP || instruction->name_id == CDISASM_MIPS_NAME_SCWPE)
         effect_add(list, &count, CDISASM_MIPS_REG_LLBIT, CDISASM_OPERAND_ACCESS_READ_WRITE, 1u, 0, 0);
     generated_count = instruction->form_id >= 20000u && instruction->form_id < 25000u
         ? cdisasm_mips_generated_effects(instruction->form_id, generated, 64u) : 0;
@@ -142,8 +143,13 @@ static size_t effects_numeric(const cdisasm_mips_instruction *instruction, cdisa
         ? cdisasm_mips_mxu_vector_effects(instruction, generated, 64u) : 0;
     for (index = 0; index < generated_count && index < 64u; ++index)
         effect_add(list, &count, generated[index].reg, generated[index].access, generated[index].size, generated[index].flags, generated[index].selector);
-    generated_count = instruction->form_id >= 62000u
+    generated_count = instruction->form_id >= 62000u && instruction->form_id < 65000u
         ? cdisasm_mips_vu_effects(instruction, generated, 64u) : 0;
+    for (index = 0; index < generated_count && index < 64u; ++index)
+        effect_add(list, &count, generated[index].reg, generated[index].access, generated[index].size, generated[index].flags, generated[index].selector);
+    generated_count = instruction->form_id >= 65020u
+        ? cdisasm_mips_xlp_effects(instruction, generated, 64u)
+        : (instruction->form_id >= 65000u ? cdisasm_mips_xlr_effects(instruction, generated, 64u) : 0);
     for (index = 0; index < generated_count && index < 64u; ++index)
         effect_add(list, &count, generated[index].reg, generated[index].access, generated[index].size, generated[index].flags, generated[index].selector);
     if (capacity > count) capacity = count;
@@ -156,6 +162,28 @@ size_t CDISASM_CALL cdisasm_mips_register_effects(const cdisasm_mips_instruction
 {
     if ((capacity != 0 && effects == NULL) || !cdisasm_mips_instruction_validate(instruction)) return 0;
     return effects_numeric(instruction, effects, capacity);
+}
+
+static cdisasm_mips_effect_limitations effect_limitations(const cdisasm_mips_instruction *instruction)
+{
+    /* Source models agree on LV.Q's encoded option and explicit load operands,
+     * but establish neither its hardware legality nor hidden option effects. */
+    if (instruction->form_id == 40032u) return CDISASM_MIPS_EFFECT_LIMITATION_IMPLICIT_EFFECTS;
+    return cdisasm_mips_mxu_vector_effect_limitations(instruction);
+}
+
+cdisasm_mips_effect_limitations CDISASM_CALL cdisasm_mips_register_effect_limitations(
+    const cdisasm_mips_instruction *instruction)
+{
+    if (!cdisasm_mips_instruction_validate(instruction)) return CDISASM_MIPS_EFFECT_LIMITATION_INVALID;
+    return effect_limitations(instruction);
+}
+
+cdisasm_mips_effect_limitations CDISASM_CALL cdisasm_mips_register_effect_limitations_v2(
+    const cdisasm_mips_instruction_v2 *instruction)
+{
+    if (!cdisasm_mips_instruction_validate_v2(instruction)) return CDISASM_MIPS_EFFECT_LIMITATION_INVALID;
+    return effect_limitations(&instruction->instruction);
 }
 
 size_t CDISASM_CALL cdisasm_mips_register_effects_v2(const cdisasm_mips_instruction_v2 *instruction,

@@ -3,17 +3,65 @@
   "inputs": {
     "src/mips/generated/mips_compact_facts.json": "6dfc3ed6736d7b33fec54f66da6d0f093613ca1a83c7934bd9d53d25b95ce458",
     "tools/data/mips/llvm_instruction_inventory.json": "38079435500412a495b99f52c0efb58d1df9c60d32f8b8cfe3e9f9b9e0c9f623",
-    "tools/isa_codegen/generate_mips_compact.py": "cbddb231e0722afe87f752c451a691f26b775f9d12d5a6dfa28ac664aadebda6"
+    "tools/isa_codegen/generate_mips_compact.py": "a24051880cf7cc4896c381f42cee04a178e91e9382b02f539791c86a33616e0d"
   },
   "micromips": 746,
   "mips16": 69,
-  "output_sha256": "85e9ff03d5c811a0e5fe7ce32b597dd71c709871ace2d318b11147d21adf8f4a",
+  "output_sha256": "bb61c46aa98d75251ac0553e376b6be489d1651de5a158b0d30d33e96d775562",
   "primary_corrections": {
     "boundary": "Original LLVM inventory is preserved; manufacturer numeric corrections apply to authored native recipes only.",
     "micromips": {
+      "cop2_protocol_correction": {
+        "mnemonics": [
+          "bc2eqzc",
+          "bc2nezc",
+          "cfc2",
+          "ctc2",
+          "ldc2",
+          "lwc2",
+          "mfc2",
+          "mfhc2",
+          "mtc2",
+          "mthc2",
+          "sdc2",
+          "swc2"
+        ],
+        "native_selector_correction": "Five-bit opaque Impl; CFC2/CTC2 use control bank; high-half transfers use eight-byte views preserving low32 on writes.",
+        "release2_high_half_records": [
+          "MFHC2_MMR6",
+          "MTHC2_MMR6"
+        ],
+        "required_family": "COP2",
+        "retained_pre_r6_records": [
+          "MFC0_MMR6",
+          "MFC2_MMR6",
+          "MTC0_MMR6",
+          "MTC2_MMR6"
+        ],
+        "source": "tools/data/mips/micro64_cop_facts.json"
+      },
+      "long_fp_control_correction": {
+        "fcsr_access": "read_write",
+        "mnemonics": [
+          "ceil.l.d",
+          "ceil.l.s",
+          "cvt.d.l",
+          "cvt.l.d",
+          "cvt.l.s",
+          "cvt.s.l",
+          "floor.l.d",
+          "floor.l.s",
+          "round.l.d",
+          "round.l.s",
+          "trunc.l.d",
+          "trunc.l.s"
+        ],
+        "source": "tools/data/mips/micro64_fp_facts.json"
+      },
       "pages": [
         272,
-        274
+        274,
+        308
       ],
       "records": {
         "JIALC_MMR6": {
@@ -23,6 +71,33 @@
         "JIC_MMR6": {
           "mask": "ffe00000",
           "value": "80000000"
+        }
+      },
+      "resource_corrections": {
+        "CVT_S_L_MMR6": {
+          "destination_size": 4,
+          "form": 30248,
+          "source": "tools/data/mips/micro64_fp_facts.json",
+          "source_size": 8
+        },
+        "LDC2_MMR6": {
+          "coprocessor_size": 8,
+          "form": 30453,
+          "required_family": "COP2",
+          "source": "tools/data/mips/micro64_cop_facts.json"
+        },
+        "LWU_MM": {
+          "destination_size": 8,
+          "form": 30486,
+          "mode": 64,
+          "revisions": 31772,
+          "source": "tools/data/mips/micro64_memory_facts.json"
+        },
+        "SDC2_MMR6": {
+          "coprocessor_size": 8,
+          "form": 30673,
+          "required_family": "COP2",
+          "source": "tools/data/mips/micro64_cop_facts.json"
         }
       },
       "sha256": "e38fbb4b985df49efdf990af391355b5678bec6813b2c7d4153225a86cea3d97",

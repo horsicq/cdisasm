@@ -4339,6 +4339,42 @@ static const char *const mips_mnemonics[CDISASM_MIPS_NAME_COUNT] = {
     "xinsert.d", /* 3431: XINSERT_D */
     "xvcopy.s.d", /* 3432: XVCOPY_S_D */
     "xvseli.d", /* 3433: XVSELI_D */
+    "daddwc", /* 3434: DADDWC */
+    "ldaddw", /* 3435: LDADDW */
+    "ldaddwu", /* 3436: LDADDWU */
+    "ldaddd", /* 3437: LDADDD */
+    "swapw", /* 3438: SWAPW */
+    "swapwu", /* 3439: SWAPWU */
+    "swapd", /* 3440: SWAPD */
+    "mfcr", /* 3441: MFCR */
+    "mtcr", /* 3442: MTCR */
+    "msgsnd", /* 3443: MSGSND */
+    "msgld", /* 3444: MSGLD */
+    "msgwait", /* 3445: MSGWAIT */
+    "crc", /* 3446: CRC */
+    "dcrc", /* 3447: DCRC */
+    "dmfur", /* 3448: DMFUR */
+    "dmtur", /* 3449: DMTUR */
+    "msgsnds", /* 3450: MSGSNDS */
+    "msglds", /* 3451: MSGLDS */
+    "msgsync", /* 3452: MSGSYNC */
+    "lldp", /* 3453: LLDP */
+    "scdp", /* 3454: SCDP */
+    "ldp", /* 3455: LDP */
+    "sdp", /* 3456: SDP */
+    "ldm", /* 3457: LDM */
+    "sdm", /* 3458: SDM */
+    "jalrs.hb", /* 3459: JALRS_HB */
+    "lwc1x", /* 3460: LWC1X */
+    "swc1x", /* 3461: SWC1X */
+    "ldc1x", /* 3462: LDC1X */
+    "sdc1x", /* 3463: SDC1X */
+    "lwc1xs", /* 3464: LWC1XS */
+    "swc1xs", /* 3465: SWC1XS */
+    "ldc1xs", /* 3466: LDC1XS */
+    "sdc1xs", /* 3467: SDC1XS */
+    "savef", /* 3468: SAVEF */
+    "restoref", /* 3469: RESTOREF */
 #else
     NULL, /* 1285: ADDIU_B32 */
     NULL, /* 1286: ADDIU_32 */
@@ -6489,5 +6525,41 @@ static const char *const mips_mnemonics[CDISASM_MIPS_NAME_COUNT] = {
     NULL, /* 3431: XINSERT_D */
     NULL, /* 3432: XVCOPY_S_D */
     NULL, /* 3433: XVSELI_D */
+    NULL, /* 3434: DADDWC */
+    NULL, /* 3435: LDADDW */
+    NULL, /* 3436: LDADDWU */
+    NULL, /* 3437: LDADDD */
+    NULL, /* 3438: SWAPW */
+    NULL, /* 3439: SWAPWU */
+    NULL, /* 3440: SWAPD */
+    NULL, /* 3441: MFCR */
+    NULL, /* 3442: MTCR */
+    NULL, /* 3443: MSGSND */
+    NULL, /* 3444: MSGLD */
+    NULL, /* 3445: MSGWAIT */
+    NULL, /* 3446: CRC */
+    NULL, /* 3447: DCRC */
+    NULL, /* 3448: DMFUR */
+    NULL, /* 3449: DMTUR */
+    NULL, /* 3450: MSGSNDS */
+    NULL, /* 3451: MSGLDS */
+    NULL, /* 3452: MSGSYNC */
+    NULL, /* 3453: LLDP */
+    NULL, /* 3454: SCDP */
+    NULL, /* 3455: LDP */
+    NULL, /* 3456: SDP */
+    NULL, /* 3457: LDM */
+    NULL, /* 3458: SDM */
+    NULL, /* 3459: JALRS_HB */
+    NULL, /* 3460: LWC1X */
+    NULL, /* 3461: SWC1X */
+    NULL, /* 3462: LDC1X */
+    NULL, /* 3463: SDC1X */
+    NULL, /* 3464: LWC1XS */
+    NULL, /* 3465: SWC1XS */
+    NULL, /* 3466: LDC1XS */
+    NULL, /* 3467: SDC1XS */
+    NULL, /* 3468: SAVEF */
+    NULL, /* 3469: RESTOREF */
 #endif
 };

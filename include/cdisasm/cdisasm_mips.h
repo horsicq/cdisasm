@@ -2,6 +2,7 @@
 #define CDISASM_CDISASM_MIPS_H
 
 #include "cdisasm_common.h"
+#include "cdisasm_mips_build.h"
 #if !USE_ARCH_MIPS
 #error "cdisasm MIPS support is disabled in this build"
 #endif
@@ -77,8 +78,11 @@ typedef cdisasm_cpu_id cdisasm_mips_cpu_id;
 #define CDISASM_MIPS_CPU_LOONGSON2F (CDISASM_CPU_GROUP_MIPS | UINT32_C(30))
 #define CDISASM_MIPS_CPU_LOONGSON3A3000 (CDISASM_CPU_GROUP_MIPS | UINT32_C(31))
 #define CDISASM_MIPS_CPU_LOONGSON3A4000 (CDISASM_CPU_GROUP_MIPS | UINT32_C(32))
+#define CDISASM_MIPS_CPU_XLR (CDISASM_CPU_GROUP_MIPS | UINT32_C(33))
+#define CDISASM_MIPS_CPU_XLS (CDISASM_CPU_GROUP_MIPS | UINT32_C(34))
+#define CDISASM_MIPS_CPU_XLP (CDISASM_CPU_GROUP_MIPS | UINT32_C(35))
 #define CDISASM_MIPS_CPU_FIRST CDISASM_MIPS_CPU_R3000
-#define CDISASM_MIPS_CPU_LAST CDISASM_MIPS_CPU_LOONGSON3A4000
+#define CDISASM_MIPS_CPU_LAST CDISASM_MIPS_CPU_XLP
 
 typedef cdisasm_decode_flags cdisasm_mips_decode_flags;
 typedef uint32_t cdisasm_mips_decode_bit_id;
@@ -208,7 +212,11 @@ typedef uint32_t cdisasm_mips_decode_bit_id;
 #define CDISASM_MIPS_DECODE_FLAG_MXU3_1 (UINT64_C(1) << 61)
 #define CDISASM_MIPS_DECODE_BIT_LOONGASX UINT32_C(31)
 #define CDISASM_MIPS_DECODE_FLAG_LOONGASX (UINT64_C(1) << 31)
-#define CDISASM_MIPS_DECODE_FLAG_FEATURE_MASK (UINT64_C(0x1f80007fffc1fe) | CDISASM_MIPS_DECODE_FLAG_MXU2 | CDISASM_MIPS_DECODE_FLAG_MXU3 | CDISASM_MIPS_DECODE_FLAG_LOONGSIMD | CDISASM_MIPS_DECODE_FLAG_R5900_VU0 | CDISASM_MIPS_DECODE_FLAG_R5900_VU1 | CDISASM_MIPS_DECODE_FLAG_MXU3_1 | CDISASM_MIPS_DECODE_FLAG_LOONGASX)
+#define CDISASM_MIPS_DECODE_BIT_XLR UINT32_C(62)
+#define CDISASM_MIPS_DECODE_FLAG_XLR (UINT64_C(1) << 62)
+#define CDISASM_MIPS_DECODE_BIT_XLP UINT32_C(63)
+#define CDISASM_MIPS_DECODE_FLAG_XLP (UINT64_C(1) << 63)
+#define CDISASM_MIPS_DECODE_FLAG_FEATURE_MASK (UINT64_C(0x1f80007fffc1fe) | CDISASM_MIPS_DECODE_FLAG_MXU2 | CDISASM_MIPS_DECODE_FLAG_MXU3 | CDISASM_MIPS_DECODE_FLAG_LOONGSIMD | CDISASM_MIPS_DECODE_FLAG_R5900_VU0 | CDISASM_MIPS_DECODE_FLAG_R5900_VU1 | CDISASM_MIPS_DECODE_FLAG_MXU3_1 | CDISASM_MIPS_DECODE_FLAG_LOONGASX | CDISASM_MIPS_DECODE_FLAG_XLR | CDISASM_MIPS_DECODE_FLAG_XLP)
 #define CDISASM_MIPS_DECODE_FLAG_ENCODING_MASK (UINT64_C(0xe00) | CDISASM_MIPS_DECODE_FLAG_VU_UPPER | CDISASM_MIPS_DECODE_FLAG_VU_LOWER | CDISASM_MIPS_DECODE_FLAG_VU_LOWER_LOI)
 #define CDISASM_MIPS_DECODE_FLAG_ISA_MASK UINT64_C(0x7fff00000000)
 #define CDISASM_MIPS_DECODE_FLAG_KNOWN_MASK_0 (CDISASM_MIPS_DECODE_FLAG_BIG_ENDIAN | CDISASM_MIPS_DECODE_FLAG_FEATURE_MASK | CDISASM_MIPS_DECODE_FLAG_ENCODING_MASK | CDISASM_MIPS_DECODE_FLAG_FPR32 | CDISASM_MIPS_DECODE_FLAG_EXPLICIT_FAMILIES | CDISASM_MIPS_DECODE_FLAG_ISA_MASK)
@@ -312,8 +320,13 @@ typedef uint64_t cdisasm_mips_family_mask;
  * FPU/LOONGSON and FR=1. Explicit selection is required even on 3A4000. */
 #define CDISASM_MIPS_FAMILY_LOONGASX UINT16_C(38)
 #define CDISASM_MIPS_FAMILY_MASK_LOONGASX (UINT64_C(1) << 37)
-#define CDISASM_MIPS_FAMILY_LAST CDISASM_MIPS_FAMILY_LOONGASX
-#define CDISASM_MIPS_FAMILY_MASK_ALL UINT64_C(0x3fffffffff)
+/* RMI XLR/XLS MIPS64r1 extensions. Messaging forms additionally require COP2. */
+#define CDISASM_MIPS_FAMILY_XLR UINT16_C(39)
+#define CDISASM_MIPS_FAMILY_MASK_XLR (UINT64_C(1) << 38)
+#define CDISASM_MIPS_FAMILY_XLP UINT16_C(40)
+#define CDISASM_MIPS_FAMILY_MASK_XLP (UINT64_C(1) << 39)
+#define CDISASM_MIPS_FAMILY_LAST CDISASM_MIPS_FAMILY_XLP
+#define CDISASM_MIPS_FAMILY_MASK_ALL UINT64_C(0xffffffffff)
 
 typedef struct cdisasm_mips_family_descriptor {
     cdisasm_mips_family_id family_id;
@@ -464,6 +477,17 @@ typedef struct cdisasm_mips_register_effect {
     uint64_t selector;
 } cdisasm_mips_register_effect;
 
+/* Specific gaps tracked by the targeted MXU3/MXU3.1 register-effect census and
+ * the Allegrex LV.Q source-defined option (form40032: IMPLICIT_EFFECTS).
+ * These are knowledge limits, not additional reads or writes. Zero means none
+ * of these tracked gaps; it does not certify complete effects, even for MXU3.
+ * Other implicit controls and physical bank relationships remain unaudited. */
+typedef uint32_t cdisasm_mips_effect_limitations;
+#define CDISASM_MIPS_EFFECT_LIMITATION_EXPLICIT_OPERANDS UINT32_C(1)
+#define CDISASM_MIPS_EFFECT_LIMITATION_IMPLICIT_EFFECTS UINT32_C(2)
+#define CDISASM_MIPS_EFFECT_LIMITATION_REGISTER_ALIASES UINT32_C(4)
+#define CDISASM_MIPS_EFFECT_LIMITATION_INVALID UINT32_MAX
+
 /* Caller-owned reusable policy, with no mutable stream/host state. flags holds
  * a supported explicit family selection; family_value further restricts it.
  * Neither accepted option masks nor BE are enabled implicitly by initialization. */
@@ -516,16 +540,37 @@ typedef struct cdisasm_mips_encoding_pattern {
     cdisasm_mips_name_id partial_alias_name_id;
 } cdisasm_mips_encoding_pattern;
 
+/* A parsed source encoding, deliberately distinct from an architectural
+ * instruction. field_value entries correspond to pattern.field, preserving
+ * encoded selectors even when their register footprint or legality is unknown.
+ * Success means a pattern matched; it never establishes executable semantics.
+ * Unused fields and reserved bytes are zero. No register effects are implied. */
+#define CDISASM_MIPS_PATTERN_INSTRUCTION_SIZE 128u
+#define CDISASM_MIPS_PATTERN_LITTLE_ENDIAN UINT32_C(0)
+#define CDISASM_MIPS_PATTERN_BIG_ENDIAN UINT32_C(1)
+typedef struct cdisasm_mips_pattern_instruction {
+    uint64_t address;
+    int64_t field_value[CDISASM_MIPS_PATTERN_MAX_FIELDS];
+    cdisasm_mips_encoding_pattern pattern;
+    uint32_t raw;
+    uint8_t raw_bytes[4];
+    cdisasm_status last_error_id;
+    uint32_t byte_order;
+    uint32_t reserved;
+} cdisasm_mips_pattern_instruction;
+
 #if defined(__cplusplus) && __cplusplus >= 201103L
 static_assert(sizeof(cdisasm_mips_operand) == CDISASM_MIPS_OPERAND_SIZE, "unexpected MIPS operand ABI size");
 static_assert(offsetof(cdisasm_mips_instruction, operand) == 40, "unexpected MIPS operand ABI offset");
 static_assert(sizeof(cdisasm_mips_instruction) == CDISASM_MIPS_INSTRUCTION_SIZE, "unexpected MIPS instruction ABI size");
 static_assert(sizeof(cdisasm_mips_decode_context) == CDISASM_MIPS_DECODE_CONTEXT_SIZE, "unexpected MIPS context ABI size");
+static_assert(sizeof(cdisasm_mips_pattern_instruction) == CDISASM_MIPS_PATTERN_INSTRUCTION_SIZE, "unexpected MIPS pattern ABI size");
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 _Static_assert(sizeof(cdisasm_mips_operand) == CDISASM_MIPS_OPERAND_SIZE, "unexpected MIPS operand ABI size");
 _Static_assert(offsetof(cdisasm_mips_instruction, operand) == 40, "unexpected MIPS operand ABI offset");
 _Static_assert(sizeof(cdisasm_mips_instruction) == CDISASM_MIPS_INSTRUCTION_SIZE, "unexpected MIPS instruction ABI size");
 _Static_assert(sizeof(cdisasm_mips_decode_context) == CDISASM_MIPS_DECODE_CONTEXT_SIZE, "unexpected MIPS context ABI size");
+_Static_assert(sizeof(cdisasm_mips_pattern_instruction) == CDISASM_MIPS_PATTERN_INSTRUCTION_SIZE, "unexpected MIPS pattern ABI size");
 #endif
 
 #ifdef __cplusplus
@@ -541,7 +586,9 @@ CDISASM_MIPS_API cdisasm_status CDISASM_CALL cdisasm_mips_cpu_decode_flag_mask(c
 /* Intersection of CPU capabilities and implemented family slices in this build.
  * A set family bit does not claim exhaustive coverage of every encoding. ANY
  * reports the union across revisions; a context narrows it to its exact ISA.
- * The handwritten FPU slice is always present. Generated ASE/vendor slices,
+ * USE_MIPS_* switches restrict the configured families. Explicit requests for
+ * an excluded build family return UNSUPPORTED_INSTRUCTION. The handwritten
+ * FPU slice survives USE_EXTRA_OPCODES=0 when USE_MIPS_FPU is enabled. ASE/vendor slices,
  * including DSP, MT, MSA, VZ, EVA and XPA, require USE_EXTRA_OPCODES. */
 CDISASM_MIPS_API cdisasm_mips_family_mask CDISASM_CALL cdisasm_mips_cpu_family_mask(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode);
 CDISASM_MIPS_API const cdisasm_mips_family_descriptor *CDISASM_CALL cdisasm_mips_family_descriptor_get(cdisasm_mips_family_id family_id);
@@ -575,6 +622,12 @@ CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_with_context(const cd
 /* Returns total required effect records; capacity zero is a size query.
  * A valid instruction with no register effects returns zero as well. */
 CDISASM_MIPS_API size_t CDISASM_CALL cdisasm_mips_register_effects(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
+/* Strictly validates the instruction, then reports the targeted MXU3 gaps:
+ * 40 unknown scatter operand contracts, 26 FP/6 NNA implicit state forms and
+ * physical aliases of VSR or VW16..31. Allegrex LV.Q option form40032 reports
+ * unknown implicit option effects. INVALID denotes NULL/failed/forged
+ * instructions. Existing register_effects output remains the known subset. */
+CDISASM_MIPS_API cdisasm_mips_effect_limitations CDISASM_CALL cdisasm_mips_register_effect_limitations(const cdisasm_mips_instruction *instruction);
 /* Immutable catalog pointers live for the lifetime of the library. get uses a
  * zero-based catalog position; inventory_index is the stable source identity.
  * find accepts a normalized word, independent of host/input byte order or CPU.
@@ -586,6 +639,17 @@ CDISASM_MIPS_API size_t CDISASM_CALL cdisasm_mips_allegrex_pattern_count(void);
 CDISASM_MIPS_API const cdisasm_mips_encoding_pattern *CDISASM_CALL cdisasm_mips_allegrex_pattern_get(size_t index);
 CDISASM_MIPS_API const cdisasm_mips_encoding_pattern *CDISASM_CALL cdisasm_mips_allegrex_pattern_find(uint32_t word);
 CDISASM_MIPS_API cdisasm_status CDISASM_CALL cdisasm_mips_allegrex_pattern_field_value(const cdisasm_mips_encoding_pattern *pattern, uint32_t word, size_t field_index, int64_t *value);
+/* Explicit Allegrex source-pattern parsing in either byte order. Returns four
+ * for a match, zero otherwise, clearing the whole output on failure except
+ * last_error_id. byte_order accepts only PATTERN_LITTLE_ENDIAN/BIG_ENDIAN.
+ * A NULL code pointer is invalid even for an empty input. Missing family or
+ * extra-opcode code returns UNSUPPORTED_INSTRUCTION. The ordinary typed
+ * decoder remains responsible for architectural instruction support. */
+CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_allegrex_pattern_decode(const uint8_t *code, size_t code_size, uint64_t address, uint32_t byte_order, cdisasm_mips_pattern_instruction *instruction);
+/* Strictly reconstructs the complete source-pattern result, including its
+ * descriptor, raw bytes and every field value. Inconsistent records are
+ * rejected; the caller-selected address is not independently authenticated. */
+CDISASM_MIPS_API int CDISASM_CALL cdisasm_mips_allegrex_pattern_validate(const cdisasm_mips_pattern_instruction *instruction);
 /* Numeric register syntax initially; no multi-instruction pseudo-operations.
  * flags uses the shared FORMAT_* contract. Returns required size excluding NUL;
  * size zero queries length, nonempty buffers are always NUL-terminated. */

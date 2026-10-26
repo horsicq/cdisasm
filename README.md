@@ -1,6 +1,6 @@
 # cdisasm
 
-`cdisasm` 12.2.0 is a C11 structured disassembler for x86, ARM, and MIPS. It
+`cdisasm` 12.14.0 is a C11 structured disassembler for x86, ARM, and MIPS. It
 returns stable numeric instruction, register, operand, access, and
 classification metadata, with optional text formatting. The API is stateless,
 allocation-free, reentrant, and usable from C or C++.
@@ -40,6 +40,8 @@ Main options:
 | `USE_ARCH_MIPS` | `ON` | Enable the MIPS decoder |
 | `USE_DISASM_FORMAT` | `ON` | Enable text formatting |
 | `USE_EXTRA_OPCODES` | `ON` | Enable extended instruction families |
+| `USE_MIPS_<family>` | `ON` | Select any of the 40 MIPS families, for example `USE_MIPS_FPU`, `USE_MIPS_ALLEGREX` or `USE_MIPS_MXU3` |
+| `USE_MIPS_ALLEGREX_UNVERIFIED` | `OFF` | Build the explicit V3 source-syntax path for the remaining 19 Allegrex patterns |
 
 When embedded with `add_subdirectory()`, use `CDISASM_BUILD_SHARED_LIBS`
 to select linkage without changing the parent project's
@@ -69,19 +71,27 @@ preprocessor defines. Configure the library itself; changing a consumer's
 defines cannot change an already compiled library's features. Disabled
 architectures have no decoder code or exported decoder symbols.
 
+All 40 MIPS families also have `USE_MIPS_<family>` CMake options. For example,
+`-DUSE_MIPS_DSP=OFF` excludes DSP and disables its dependent DSPR2/DSPR3/DSP64
+families; `-DUSE_MIPS_FPU=OFF` also disables MSA and other FPU-dependent families.
+The installed header exposes the effective choices and
+`CDISASM_MIPS_BUILD_FAMILY_MASK`. Family switches define decoder availability;
+shared tables can retain data for multiple families. The package fingerprint
+includes the effective family mask, so incompatible variants cannot overlay.
+
 For MIPS, the base build retains handwritten integer/system and scalar FPU
 decoding and processor-specific legality checks. The extra build adds ASE,
 compressed-encoding and vendor opcode tables, including DSP/DSP R2/R3, DSP64,
 MIPS16e2, MT, MSA,
 MIPS-3D, paired-single, VZ, EVA, XPA, CRC, GINV, SmartMIPS, MCU, MDMX,
 Allegrex/VFPU, R5900/MMI and VU0/VU1, original Ingenic MXU, MXU2/MXU3/MXU3.1,
-Octeon, Loongson, later MIPS LoongMMI and a bounded LoongASX context subset.
+Octeon, RMI XLR/XLS, Netlogic XLP, Loongson, later MIPS LoongMMI and a bounded LoongASX context subset.
 CPU profiles and runtime flags further restrict
 the instructions accepted within the compiled coverage.
 
 MIPS uses the same selectable-family model as x86: stable family IDs and masks,
 immutable descriptors, CPU/context availability, and context add/remove helpers.
-The 38 families include separate MXU, MXU2, MXU3 and MXU3.1 selectors; Loongson
+The 40 families include separate MXU, MXU2, MXU3 and MXU3.1 selectors; Loongson
 generation selectors, LoongSIMD and LoongASX; and separate R5900 VU0/VU1 selectors.
 Adding a family also selects its required parents. Conflicting generations or
 VU units are rejected without changing the context. Removing a parent removes
@@ -127,6 +137,8 @@ Include the narrowest header needed:
 | `<cdisasm/cdisasm_arm.h>` | ARM modes, profiles, results, and decoding |
 | `<cdisasm/cdisasm_mips.h>` | MIPS revisions, processor profiles, 232-byte results and standard decoding |
 | `<cdisasm/cdisasm_mips_v2.h>` | 256-byte results, variable-length decoding and register-effect queries |
+| `<cdisasm/cdisasm_mips_v3.h>` | 320-byte results, 512-bit replay requirements and versioned contexts |
+| `<cdisasm/cdisasm_mips_build.h>` | Effective compile-time MIPS family choices |
 | `<cdisasm/cdisasm_format.h>` | Optional x86, ARM, and MIPS formatting |
 | `<cdisasm/cdisasm.h>` | Umbrella header for enabled decoders |
 
@@ -164,15 +176,15 @@ The denominator must come from the complete manufacturer instruction/allocation
 tables, reconciled with a pinned independent toolchain. A compiler's supported
 subset alone cannot define architectural completeness.
 
-Implementation checkpoint, 2026-10-22: the checked-in MXU vector manifest has
+Implementation checkpoint, 2026-10-26: the checked-in MXU vector manifest has
 364 MXU2 and 496 MXU3/3.1 typed forms. Of the latter, 489 are shared, four are
 MXU3-only and three are MXU3.1-only. The later MIPS LoongMMI manifest has 80 forms,
 and the VU manifest lists 134 macro forms, 95 upper forms and 69 lower forms,
 with unit restrictions and typed LOI. Independent tests retain 17,945 MXU vendor
 witnesses, 882 VU literal words and 80 externally assembled LoongMMI words.
-Full and base MIPS configurations pass 19 suites each; the build without
-formatting passes 18 applicable suites. The prior eight static/shared,
-formatter/no-formatter, base/extra installed C/C++ package cells pass.
+The current native matrix passes 32 full, 32 base and 31 no-format suites.
+The static/shared, formatter/no-formatter and base/extra package matrix
+separately checks installed C and C++ consumers.
 The standard audit also corrected WAIT's 19-bit code domain and Release 6
 RDHWR's PerfCtr selector domain beyond the compiler's zero-filled witnesses.
 
@@ -212,7 +224,7 @@ The 2026-10-22 follow-up establishes a bounded compiler contract for `VW0` throu
 Nine VWR forms now retain the encoded resource and add a conservative whole
 `VR31` dependency: read for reads, read/write for partial writes. These effects
 use the existing ABI; they do not claim exact lane masks in the effect record.
-Independent numeric tests cover 199 alias and boundary words. Selectors 16–31
+Independent numeric tests cover 199 alias and boundary words. Selectors 16ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ31
 and VSR relationships remain unresolved, as do implicit FP controls.
 The initial VWR effect audit constrained 442 forms; the backend audit below
 extends that coverage to 455 forms.
@@ -222,12 +234,15 @@ halves, VSR transfers and the saved 32-bit control selector 31.
 The original 61 excluded Allegrex patterns now have a classification ledger.
 Published PSP 6.61 hardware observations support typed syntax for six forms:
 `vdot.s`, `vhdp.s`, `vdet.s`, `vdet.t`, `vdet.q` and `vmmul.s`.
-An independent source-schema review adds 29 further forms, including unusual
-rotation, scaling, sorting, reduction and scalar-matrix widths. The typed
-Allegrex catalog now contains 308 forms. Of the original 61 patterns, 35 have
-typed syntax and 26 remain unresolved. Only six have the bounded hardware
+An independent source-schema review adds 36 further forms, including unusual
+rotation, scaling, sorting, reduction, color-conversion, random-seed and
+scalar-matrix widths, plus the source-defined LV.Q option. The typed
+Allegrex catalog now contains 315 forms. Of the original 61 patterns, 42 have
+typed syntax and 19 remain unresolved. Only six have the bounded hardware
 observations above; source-defined syntax does not establish complete hardware
-semantics. A further 30 captured matrix words
+semantics. The existing `vt4444.q`, `vt5551.q` and `vt5650.q` forms now expose
+the source-defined eight-byte packed destination and 16-byte source.
+A further 30 captured matrix words
 cover wrapping matrix origins and physical scalar footprints, including 26
 previously rejected operand-domain cases. Their existing public form IDs remain
 unchanged. Custom MIPS LoongSX1/LoongSX2/LoongASX
@@ -243,7 +258,10 @@ using the existing `vuc2i.s` and `vc2i.s` operand recipes. Their source wrappers
 four-input expected results and linked PRX instruction sequences agree. These
 are source-bound test aliases with architectural signoff still open; adjacent
 encodings and the broader `.q` patterns are not enabled.
-There are 311 runtime recipes for 308 typed Allegrex catalog forms. The 55
+The exact nonzero-register probe word `0xd03888a8` also maps to
+`vuc2i.s R200, S200`. Its authored source has a printed input discrepancy,
+retained in the facts; this alias does not generalize its encoding neighbors.
+There are 319 runtime recipes for 315 typed Allegrex catalog forms. The 55
 patterns without hardware observations retain a physical-PSP capture program, three input scenarios
 and a source-bound observation importer. Build it from `tests/hardware/allegrex`
 with PSPSDK; run one selected case and scenario at a time. The host bridge and
@@ -254,9 +272,9 @@ opcodes.
 
 The new pattern-inspection API exposes all 61 original source masks, candidate
 identities and structural field slices. It is separate from typed decoding and
-does not assign unknown architectural operands or effects. The 26 unresolved
-patterns comprise 17 packed conversions, five butterfly widths, three VRNDS
-widths and one LV.Q option. Exact conversion aliases remain bounded as above.
+does not assign unknown architectural operands or effects. The 19 unresolved
+patterns comprise 14 packed conversions and five butterfly widths; the LV.Q
+option has source-defined typed syntax with unverified hidden effects. Exact conversion aliases remain bounded as above.
 `cdisasm_mips_allegrex_pattern_count/get/find/field_value` require MIPS support;
 their optional catalog is empty when `USE_EXTRA_OPCODES=0`. With formatting
 enabled, `cdisasm_mips_allegrex_pattern_format` emits a `.word` directive with
@@ -315,23 +333,30 @@ architecture gate.
 This subset exposes 32 logical 256-bit registers, formatted as `$lasx0` through
 `$lasx31`. The spellings normalize kernel macro names and numeric registers;
 they do not claim vendor assembler syntax. Memory forms retain base GPR1 and
-32-byte-aligned signed 10-bit byte displacements. Insert forms retain source
-GPR1 and upper doubleword lanes 2/3. Select forms retain source register 0,
-destinations 1–31 and patterns `0xc`/`0xe`. The former preserves the lower128
-bits and selects the upper128 from source0; the latter preserves the lower64
-and selects the upper192. The `0xe` case follows a separate vendor kernel
-compatible-mode initialization sequence. Other selector patterns remain unclassified.
-Copy syntax uses a fixed GPR1 destination, all 32 vector sources and upper
-doubleword lanes 2/3. It conservatively records a full vector read and an
-eight-byte scalar write. Low lanes 0/1 retain ordinary MSA COPY_S.D decoding.
+all signed 10-bit byte displacements. Displacement alignment alone cannot
+determine effective-address alignment when the base value is unknown. Insert
+forms retain source GPR1 and doubleword lane selectors 0ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ3. Select syntax covers
+all 16 four-bit patterns and all 32 source/destination indices, conservatively
+reading/writing the whole destination and reading the whole source. Kernel
+execution contracts separately establish source0, destinations1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ31 and patterns
+`0xc`/`0xe`: the former preserves the lower128 bits and selects the upper128;
+the latter preserves the lower64 and selects the upper192. Other pattern
+execution semantics remain unverified.
+Copy syntax uses a fixed GPR1 destination, all 32 vector sources and
+doubleword lane selectors 0ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ3. It conservatively records a full vector read and
+an eight-byte scalar write. For both insert and copy, low lanes 0/1 use the ASX
+syntax only with explicit ASX selection and MSA absent. When MSA is selected,
+they retain ordinary MSA INSERT.D/COPY_S.D decoding. Lower-lane insert effects
+conservatively read/write the entire vector; exact preserved lanes remain
+unverified.
 Other operand domains, macro-only `xvsd`, wider physical aliases and implicit
 controls remain unverified. The XVSD mnemonic slot remains vocabulary rather
 than an implemented form.
 
 The compiler-source follow-up also binds the manufacturer GCC7.2 and GCC12.1
 register models and all 26 FP operation patterns. Both compiler versions model
-16 word resources and corroborate the existing VW0–15 compiler transfers; they
-do not establish encoded VW16–31 hardware aliases. FP patterns omit implicit
+16 word resources and corroborate the existing VW0ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ15 compiler transfers; they
+do not establish encoded VW16ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ31 hardware aliases. FP patterns omit implicit
 control dependencies, which does not prove architectural independence. The FP
 capture importer can additionally emit paired raw-control comparisons with
 `--analysis-output`; observed bit/output differences never promote runtime
@@ -341,27 +366,216 @@ The backend effect audit now constrains 455 of the 496 MXU3/3.1 forms.
 Three MXU3.1 shuffles and four basic LU loads preserve destination contents;
 their destinations are read/write. Eight basic LU/SU forms postincrement a
 32-bit base register, now exposed as a read/write register effect. Kernel
-context words corroborate MFSUM/MTSUM transfer directions and widths. Forty
-other update/scatter forms and NNCMD still lack explicit-effect definitions;
-higher aliases and hidden controls retain their existing uncertainty.
+context words corroborate MFSUM/MTSUM transfer directions and widths. The NNCMD
+immediate-only compiler contract brings the explicit-operand census
+to 456 forms, including one with no explicit register operand. Its hidden
+accelerator state remains unknown. Forty other update/scatter forms still lack
+complete explicit-effect definitions; higher aliases and hidden controls retain their existing uncertainty.
 The original-MXU D32ADD recipe also preserves the carry-control register through
 a read/write effect: only selected LC/RC bits change, while other control fields
 survive. Two XR0 destinations still produce no control-register effect.
 
 The custom-vector source auditor pins eight current LoongASX kernel macros,
-168 scoped calls and 2,270 numeric observations, plus the 2019 vendor pattern
+168 scoped calls, 2,366 original numeric observations and 408 additional
+independent macro-domain witnesses. Five forms now accept 82,176 distinct
+encoding combinations. These syntax domains remain separate from the 2019 vendor pattern
 `0xe` caller contract. XVSD has an unresolved field overlap:
 32 register arguments produce only 16 different words. This ambiguity prevents
-promotion of that macro-only record. Upper-lane XVCOPY has unambiguous source
-fields, while its low lanes preserve the ordinary MSA identity. Allegrex source
-review resolves 29 syntax recipes without promoting hardware or full-semantics
-signoff; the 26 unresolved syntax patterns remain visible in the inspection API.
+promotion of that macro-only record. XVCOPY and XINSERT have unambiguous four-lane numeric
+fields; low-lane ownership remains conditional on the selected family. Allegrex
+source review resolves 36 syntax recipes without promoting hardware or full-semantics
+signoff; the 19 unresolved syntax patterns remain visible in the inspection API.
+
+The RMI XLR/XLS family adds twelve typed extensions in the optional build:
+`daddwc`, `ldaddw/ldaddwu/ldaddd`, `swapw/swapwu/swapd`, `mfcr/mtcr`,
+`msgsnd/msgld/msgwait`. Processor profiles select MIPS64r1; generic ISA defaults
+do not enable the vendor family. Family 39 and decode bit 62 are append-only;
+existing identities and public structure sizes are unchanged. Messaging also
+requires COP2. Atomic forms expose the assembly base GPR and an implicit
+read/write memory operand. DADDWC records Status[16] through a conservative
+whole-Status dependency. Dynamic control indices and FMN queue/credit state
+use aggregate resources with unknown byte extent; these effects do not assert
+complete FMN behavior. The initial MFCR/MTCR and messaging recipes are bounded
+to 64-bit mode. XLR/XLS compressed encodings are not enabled.
+
+The Netlogic XLP family adds eighteen vendor-published extension allocations,
+including `crc/dcrc`, `dmfur/dmtur`, `dmul`, `msgsnds/msglds/msgsync` and shared
+atomic/control instructions. CPU XLP selects MIPS64r2. Family40 uses decode
+bit63; the initial optional decoding slice is bounded to 64-bit standard
+encoding. Messaging also requires COP2. XLP send/load instructions expose a
+separate GPR result, and receive status is COP2 register3. They retain distinct
+form IDs and effects from XLR. UR's second encoded field is opaque syntax;
+no physical UR bank is inferred. CRC/DCRC conservatively expose whole GPR
+resource access without claiming arithmetic lane widths, polynomial or hidden
+controls. MSGSYNC's name alone does not establish a global memory barrier.
+These source-defined recipes do not establish complete architectural semantics.
+
+Standard Release 6 decoding additionally implements six paired atomic forms:
+`llwp/scwp`, `lldp/scdp` and EVA `llwpe/scwpe`. The existing optional-table gate
+controls these forms. Word pairs transfer eight memory bytes; doubleword pairs
+transfer sixteen. Loads write both GPRs, including sign extension of word
+results; stores read both and write the success result only to the first GPR.
+LLbit and a conservative possible LLAddr dependency are exposed. LLAddr has
+unknown byte extent because its cacheless implementation is optional. The EVA
+slice follows the existing 32-bit EVA family policy. Config5.XNP availability,
+runtime alignment, coherence and synchronization state remain outside static
+decoding. Equal nonzero load destinations are UNPREDICTABLE execution, rather
+than reserved encodings. Fourteen independent GNU words corroborate the six
+standard allocations, separately from existing nanoMIPS forms.
+
+The MXU2 manual audit corrects 38 existing recipes: 20 missing accumulator reads
+and 30 element-layout errors, with 12 forms affected by both. Seven existing
+LoongMMI word arithmetic/shift forms now expose whole 64-bit FPR resources,
+retaining their 32-bit arithmetic width separately. These corrections preserve
+all existing form/family IDs and do not settle undocumented MXU3 or SX/ASX
+semantics. Native standard supplements now contain 504 forms and 544 independent
+manufacturer/GNU numeric witnesses.
+
+Six microMIPS Release 6 paired atomic forms now supplement the compiler
+inventory: `llwp/scwp`, `lldp/scdp` and EVA `llwpe/scwpe`. These use rt25:21,
+base20:16 and the deliberately nonstandard rd8:4 field, with microMIPS parcel
+byte ordering. The decoder applies the new meanings only at Release 6 and
+preserves the earlier LWR/SWR/LDR/SDR and EVA partial-memory interpretations.
+Their resource contracts match the standard paired operations above; runtime
+Config5/cache/coherence conditions remain unverified. No new family selector or
+public structure change is required.
+
+The COP0/COP1 transfer audit corrects full GPR writes for MFC0, MFC1, CFC1 and
+MFHC1 in 64-bit mode, preserving separate source and opposite-direction input
+widths. CTC1 writes through FCCR/FEXR/FENR now read/write aggregate FCSR because
+other FCSR fields survive; direct FCSR31 writes retain write-only access.
+Sony VU termination-position TPC effects now follow termination controls,
+without ordinary branches or calls treating TPC as a live execution PC. The VU
+review also records conditional control writes, interlocked observations and
+DIV/EFU/GIF busy-state dependencies. R5900 PCPYLD sources and the PDIVBW divisor
+now expose their documented eight-byte and two-byte input widths.
+
+The microMIPS supplement also implements `ldp/sdp`, `ldm/sdm` and
+`jalrs.hb`. Doubleword memory forms require 64-bit operations. Pair results
+include the adjacent GPR effect; multiple-register forms validate the saved
+register list and expose the full memory extent. The signed 12-bit offset is
+unscaled. JALRS.HB retains its pre-Release 6 short-delay encoding. Runtime
+alignment, restartability and hazard clearing are not inferred from static
+bytes. The COP2 word-result audit also corrects full GPR writes for MFC2,
+CFC2 and MFHC2 while preserving opaque implementation selectors.
+
+The 12.10 addition supplies 81 exact microMIPS encoding/revision forms:
+32 integer arithmetic, 14 Release 6 arithmetic/miscellaneous, eight COP
+register/memory transfers, eleven memory and PC-relative forms, eleven FP
+conversion/packing forms, and five pair/list/short-delay forms. Existing form
+corrections and Allegrex ignored-bit aliases are separate from that count.
+A finite audit of the named 64-bit allocations in MD00594 maps 458-463 found
+no further unimplemented named allocations within that bounded inventory;
+generic format expansions, all-MIPS coverage and execution semantics remain
+separate verification work.
+
+The expanded microMIPS64 inventory now includes doubleword arithmetic and
+bitfield operations, COP0/COP1/COP2 doubleword transfers, ordinary/partial and
+atomic doubleword memory forms, and Release 6 PC-relative loads. Existing LWU
+keeps its form identity while correcting the whole GPR result, 64-bit mode gate
+and Release 6 availability. Legacy HI/LO operations and their Release 6
+three-GPR replacements retain distinct encodings and resource contracts.
+Primary pages and known manual diagram discrepancies are retained in the
+`micro64_*_facts.json` catalogs; these source recipes do not certify runtime
+alignment, processor state or complete architectural execution.
+
+The original MXU audit adds documented element widths to 85 operands across
+23 forms, retaining four-byte XR resource extents. R5900 and Loongson 2F word
+operations distinguish arithmetic widths from physical register accesses.
+Hardware-tested Allegrex ignored-bit aliases now follow their partially decoded
+fields; the SPECIAL3 function 0x18 space produces no bit-operation side effects.
+The 19 unusual VFPU widths and undocumented MXU3/SX/ASX boundaries remain open.
+
+Version 12.11 adds `cdisasm_mips_register_effect_limitations` and its V2
+counterpart. Callers can distinguish the known register effects from recorded
+MXU3 gaps: explicit scatter operands, implicit FP/accelerator state, and
+physical aliases involving VSR or VW16..31. The query validates the complete
+instruction and returns `CDISASM_MIPS_EFFECT_LIMITATION_INVALID` for an invalid
+record. Zero means none of the targeted gaps; it does not certify complete
+MXU3 effects. Other implicit controls and physical bank relationships remain
+unaudited. No guessed control-bank effects are added.
+
+Version 12.12 adds 160 source-defined encoding forms: twelve standard Release 6
+negated FP comparisons, twelve microMIPS counterparts and 136 nanoMIPS scalar
+FPU forms. The existing 32 microMIPS comparison forms also gain their documented
+aggregate FCSR dependencies. nanoMIPS encoding facts come from the pinned
+MIPS/Imagination-authored decoder; the base manufacturer manual reserves CP1
+pools without defining that extension. Four RINT/CLASS operand-role conflicts
+and SAVEF/RESTOREF resource contracts remain unresolved. Two nanoMIPS64 transfer
+allocations remain outside the current nanoMIPS32 mode support.
+
+The V3 API preserves V1/V2 layouts while carrying complete 512-bit replay
+requirements. It includes strict replay, contexts, family/effect queries and
+formatting. Word 1 bit 0 is assigned to the V3 unverified-Allegrex policy in
+version 12.14; all other upper feature bits are rejected. The retained MXU
+validator records executed independent checks per form; partial checks do not
+satisfy the seven-dimension catalog completion gate.
+
+Retained reports are imported automatically from
+`tools/data/mips/retained_validation_reports.json`. The two finite catalogs
+`fp_compare_r6` and `micro_fp_compare_r6` pass all seven static decoder checks
+for their twelve forms each. Their scope covers encoded operands, canonical
+text, aggregate FPR/FCSR dependencies, revision/FR restrictions, both byte
+orders and disabled-FPU behavior. These observations do not execute numeric
+floating-point operations or establish hardware behavior. The 369 retained
+MXU/MXU2 records have partial checks; effects and legality remain unverified.
+
+Version 12.13 adds structured byte parsing for all twenty formerly unresolved
+Allegrex patterns, alongside the complete original 61-pattern catalog.
+`cdisasm_mips_allegrex_pattern_decode` returns a separate 128-byte record with
+candidate identities, raw bytes, encoded field values and source confidence;
+`cdisasm_mips_allegrex_pattern_validate` checks their internal consistency.
+Pattern matches do not imply architectural instruction support or effects.
+
+The LV.Q option form40032 now has source-defined typed syntax: a quad register,
+a signed displacement load and the source spelling `wb`. Independent source
+models agree on those explicit operands, but hardware legality and extra option
+effects remain unverified. Its effect-limitations query therefore returns
+`IMPLICIT_EFFECTS`; the option field remains `RAW@1`, without an invented
+cache or base-register writeback effect. The remaining nineteen conversion and
+butterfly widths retain contradictory physical operand models; the optional
+V3 source-view path described below leaves those definitions unverified. CXDisasm's `--show-mips-patterns` includes their encoded fields
+and confidence in JSON/XML output while preserving the listing strings.
+
+Version 12.14 implements the remaining nineteen encoded source views through an
+explicit V3 policy: fourteen packed conversions and five butterfly forms. Build
+with `-DUSE_MIPS_ALLEGREX_UNVERIFIED=ON` as well as MIPS, extra opcodes and the
+Allegrex family. The option defaults OFF and its effective value is exported in
+the public configuration, package metadata and install fingerprint. Family IDs,
+mnemonic/form identities and existing result sizes remain unchanged.
+
+At runtime set `flags.bitmap[1] |= CDISASM_MIPS_DECODE_FLAG_ALLEGREX_UNVERIFIED`
+and use V3 with a selected Allegrex/MIPS32r1 standard-encoding policy. This is
+absolute decode bit 64; V1/V2 continue to reject it. Query the available policy
+with `cdisasm_mips_cpu_decode_flag_mask_v3`. A result identified by
+`cdisasm_mips_instruction_is_unverified_v3` contains source notation, with
+register accesses NONE and sizes describing encoded views. Physical footprints,
+prefix effects, numerical behavior and hardware legality remain unknown. Its
+register-effects query returns zero and all three effect-limitations bits are
+set. V3 formatting appends `[unverified source syntax]`, and strict replay
+preserves the upper requirement word. Ordinary instructions and established
+exact aliases retain their ordinary results and do not acquire this marker.
+
+CXDisasm enables the policy explicitly, including structured JSON/XML confidence:
+
+```sh
+cxdisasm --arch mips32 --cpu allegrex --allow-unverified-mips --hex 234642d0
+# vbfy1.s S031, S122 [unverified source syntax]
+```
+
+These nineteen source-view implementations do not promote the architectural
+coverage ledger: it still records 315 typed Allegrex forms and 19 unresolved
+physical operand/effect definitions. No hardware execution is claimed.
+
+A newly retained 2015 LoongISA
+paper gives an exact XSETVS vector-prefix allocation, but does not connect it
+to the later SX1/SX2/ASX capability bits, so it does not enable new ASX forms.
 
 #### Immediate focus: three parallel workstreams
 
 1. **MXU3/3.1 effects:** the known 114 original-MXU, 364 MXU2 and 496
    MXU3/3.1 source opcode rows already have typed decoding. Finish explicit
-   effects for 40 update/scatter forms and NNCMD. Establish implicit controls
+   effects for 40 update/scatter forms and hidden accelerator state for NNCMD. Establish implicit controls
    for the 26 FP operations and higher VW/VSR aliases. Obtain primary
    definitions for VR/VWR/VSR/MCS physical relationships, accumulator preservation,
    saturation/exception state and implicit floating-point controls. Produce a
@@ -381,13 +595,14 @@ signoff; the 26 unresolved syntax patterns remain visible in the inspection API.
    then implement typed registers, lanes, immediates, memory operands, formatting
    and effects. Establish collisions and ownership against MSA, LoongMMI and
    ordinary coprocessor spaces. Add distinct public families and dependencies
-   when supported by the references, preserving the existing 38 IDs and checking
+   when supported by the references, preserving the existing 40 IDs and checking
    the remaining flag/form budget first. MIPS custom vectors require their own
    encoding evidence; LoongArch LSX/LASX encodings are a different backend.
    The reference inventory is a prerequisite for implementing these new forms.
 
-3. **The remaining 26 Allegrex patterns:** resolve 17 packed conversions,
-   five butterfly widths, three VRNDS widths and the `lv.q` cache-option variant,
+3. **The remaining 19 Allegrex widths:** resolve 14 packed conversions and
+   five butterfly widths; separately establish hardware legality and hidden
+   behavior of the source-defined `lv.q` option,
    retaining original masks/values, sources and numeric witnesses. Resolve each as a
    supported form, canonical alias, reserved/restricted encoding, importer
    artifact or unresolved pattern using architectural references and independent
@@ -409,7 +624,7 @@ when its unsupported and unverified counts reach zero.
 #### Follow-on roadmap
 
 The next milestone starts from the integrated catalogs and family APIs above.
-The ledger currently contains 6,773 records across 18 overlapping catalogs.
+The ledger currently contains 7,062 records across 30 overlapping catalogs.
 The 594 formerly unbound LLVM records are reconciled: 588 bind to exact
 handwritten handlers, two microMIPS templates bind to all sixteen concrete
 condition recipes, and four MIPS16 Save/Restore entries are compiler-only
@@ -421,8 +636,8 @@ numeric probes in both byte orders as partial per-form evidence; it does not
 certify complete operands, effects, formatting or legality. Full catalog
 signoff remains open.
 Allegrex's original 61 excluded source patterns comprise 60 width variants and
-one `lv.q` cache-option variant. Six have hardware-observed typed syntax and 29
-have independently reconciled source-defined syntax. The remaining 26 are
+one `lv.q` unknown-option variant. Six have hardware-observed typed syntax and 36
+have independently reconciled source-defined syntax. The remaining 19 are
 inspection-only; 55 still lack hardware observations. Confidence limits remain
 explicit for every pattern.
 Independent toolchain rejection alone does not establish hardware illegality.
@@ -431,14 +646,14 @@ Independent toolchain rejection alone does not establish hardware illegality.
 | --- | --- | --- |
 | 0 | Retained per-form validation reports | Test runners emit source-bound evidence for decode, operands, text, effects, legality, both byte orders and disabled-family behavior; import reports into the ledger without promoting partial observations to full signoff |
 | 1 | Complete inventory reconciliation | Maintain the reviewed LLVM bindings/classifications; resolve remaining Allegrex legality/semantics gaps; pin manufacturer instruction/allocation indexes for each declared catalog; produce a reviewed list of actual missing forms |
-| 2 | Standard encoding-domain completion | Audit MIPS I–V and MIPS32/64 R1/R2/R3/R5/R6 beyond zero-filled witnesses: COP0/COP1/COP2/COP3 fields, implementation codes, selectors, revision removals, register widths and reserved combinations; implement verified omissions |
+| 2 | Standard encoding-domain completion | Audit MIPS IÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œV and MIPS32/64 R1/R2/R3/R5/R6 beyond zero-filled witnesses: COP0/COP1/COP2/COP3 fields, implementation codes, selectors, revision removals, register widths and reserved combinations; implement verified omissions |
 | 3 | ASE form and family completion | Audit FPU/paired-single, MIPS-3D, MDMX, DSP R1/R2/R3/DSP64, MT, MSA, VZ, EVA, XPA, SmartMIPS, MCU, CRC and GINV; bind each form to its public family/mask, dependencies, processor/revision and compile class |
 | 4 | Compressed encoding-domain completion | Reconcile MIPS16/e2, microMIPS and nanoMIPS manufacturer tables; validate length/prefix handling, endian parcels, register lists, stack effects, branch targets and malformed/truncated streams |
 | 5 | Remaining vendor forms and semantics | Obtain primary numeric definitions for custom MIPS LoongSX/LoongASX, MXU3 physical aliases and implicit FP controls; reconcile vendor allocation tables with existing MXU/LoongMMI/R5900/VU/Octeon catalogs and implement proven omissions |
 | 6 | Capacity for further catalogs | Centralize form-range allocation and dispatch, preserve published identities, and design versioned wider form/feature/replay metadata before existing limits are crossed |
-| 7 | Automated family and release gates | Exercise all 38 families across supported processor/revision/mode/FR states, including dependency/conflict transactions and enabled/disabled/unavailable statuses; retain the existing build/package matrix and require complete evidence for each catalog claimed complete |
+| 7 | Automated family and release gates | Exercise all 40 families across supported processor/revision/mode/FR states, including dependency/conflict transactions and enabled/disabled/unavailable statuses; retain the existing build/package matrix and require complete evidence for each catalog claimed complete |
 
-Run the immediate batch as four parallel tracks: Allegrex's 26 unresolved
+Run the immediate batch as four parallel tracks: Allegrex's 19 unresolved
 patterns, MXU effects and aliases, custom Loongson inventories, and retained
 validation plus capacity planning. Each vendor track must deliver an exact
 source-backed definition or classification, native lowering where supported,
@@ -453,7 +668,7 @@ Then run the wider architecture audit as four parallel tracks:
   Deliver reproducible reports and CI gates first so the other tracks can attach
   evidence as they implement forms.
 - **Standard and ASE:** reconcile manufacturer indexes, audit operand domains and
-  implement omissions from priorities 2–3. Deliver reviewed numeric facts,
+  implement omissions from priorities 2ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ3. Deliver reviewed numeric facts,
   independent boundary witnesses, typed lowering and exact family requirements.
 - **Compressed encodings:** complete priority 4, validating the reconciled
   templates and retaining compiler-only Save/Restore artifacts separately.
@@ -471,13 +686,15 @@ lowering, family APIs and package integration do not need to be recreated.
 
 Before expanding the public vocabulary further, budget the numeric namespaces.
 The current mnemonic appender reserves IDs below 4096, form IDs are 16-bit with
-vendor ranges near 65000, and decode option word 0 has only bits 62 and 63
-unallocated.
-The current vocabulary uses 3,434 slots and the highest assigned form is 64,999.
+vendor ranges near 65000, and decode option word0 now has no unallocated bits.
+The current vocabulary uses 3,470 slots and the highest assigned form is 65,037.
 Allocate remaining ranges centrally and check collisions automatically. A wider
 feature design must also preserve complete replay requirements: V2 currently
-retains one 64-bit `required_flags` word. Design versioned larger form/feature
-descriptors and a compatible replay envelope before crossing those limits;
+retains one 64-bit `required_flags` word. V3 now supplies a separately versioned
+320-byte result and 112-byte context with all eight requirement words. The
+upper words reserve every bit except word 1 bit 0 (absolute bit 64), which selects
+the compile-gated V3 Allegrex source-view policy. The other 447 upper bits must
+remain zero. Design larger form descriptors before crossing the form limit;
 preserve existing numeric identities and V1/V2 structure layouts. Replace
 hardcoded range dispatch with a common allocation/descriptor source as needed.
 
@@ -522,6 +739,8 @@ application-defined coprocessor operations need an explicitly supplied catalog.
 | Allegrex | MIPS32 Release 1 derivative | Single-precision FPU, VFPU and Allegrex scalar extensions |
 | R5900 | MIPS III derivative | Single-precision FPU, MMI, 128-bit GPR views and bank-1 accumulators |
 | Octeon / Octeon+ | MIPS64 Release 2 derivative | Separate CNMIPS and CNMIPSP selections |
+| XLR / XLS | MIPS64 Release 1 derivative | RMI extensions and COP2 messaging |
+| XLP | MIPS64 Release 2 derivative | Separate Netlogic extensions and COP2 messaging; initial64-bit slice |
 | Loongson 2E / 2F | MIPS III derivative | Explicit generation selectors, MMI and paired-single |
 
 These profiles apply instruction legality and register policies; they do not
@@ -530,7 +749,8 @@ control-flow metadata and register-effect queries. Release 6 has separate
 collision rules and rejects removed legacy forms. Vendor encoding spaces require
 explicit selection, and generic defaults do not silently select a vendor.
 Loongson 2E and 2F use distinct selectors because their opcodes differ.
-Unsupported encodings never succeed as opaque operands.
+Unclassified words remain unsupported. Source-defined operand fields whose
+physical meaning is unresolved retain explicit boundaries in the source facts.
 
 The pinned LLVM standard catalog contains 1,351 concrete records; aliases and
 compiler-only bundles are classified separately in the inventory. Additional

@@ -33,15 +33,15 @@ int cdisasm_mips_allegrex_owns(uint32_t raw)
     if (op == 0u && sa == 0u && ((rt == 0u && (fn == 22u || fn == 23u)) || fn == 44u || fn == 45u ||
         (rd == 0u && (fn == 28u || fn == 29u || fn == 46u || fn == 47u)))) return 1;
     if (op == 28u && sa == 0u && rd == 0u && rs == 0u && (fn == 36u || fn == 38u || (fn == 0u && rt == 0u))) return 1;
-    if (op == 31u && ((fn == 0u || fn == 4u) || (rs == 0u && (fn == 32u || fn == 24u) &&
-        (sa == 2u || sa == 3u || sa == 16u || sa == 20u || sa == 24u)))) return 1;
-    if (op == 0u && ((fn == 2u && rs == 1u) || (fn == 6u && sa == 1u))) return 1;
+    if (op == 31u && (fn == 0u || fn == 4u || fn == 24u || fn == 32u)) return 1;
+    if (op == 0u && (((fn == 0u || fn == 2u || fn == 3u) && rs != 0u) ||
+                     ((fn == 4u || fn == 6u || fn == 7u) && sa != 0u))) return 1;
     return 0;
 }
 
 /* Numeric encoding facts derive from pinned Apache-2.0 Ghidra Allegrex
  * declarations. This decoder does not use SLEIGH, pcode, or text parsing. */
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && USE_MIPS_ALLEGREX
 typedef struct allegrex_operand_recipe {
     uint8_t kind, shift, bits, size, access, aux;
 } allegrex_operand_recipe;
@@ -206,11 +206,21 @@ static int allegrex_scalar(uint32_t raw, cdisasm_mips_instruction *i)
         form += 64u + fn;
         if (fn) allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rt, 4u, fn == 36u ? 2u : 1u);
         i->opcode_groups |= CDISASM_GROUP_PRIVILEGED;
-    } else if (op == 31u && rs == 0u && (fn == 32u || fn == 24u) &&
-               (sa == 2u || sa == 3u || sa == 16u || sa == 20u || sa == 24u)) {
-        id = sa == 2u ? CDISASM_MIPS_NAME_WSBH : sa == 3u ? CDISASM_MIPS_NAME_WSBW :
-             sa == 16u ? CDISASM_MIPS_NAME_SEB : sa == 20u ? CDISASM_MIPS_NAME_BITREV : CDISASM_MIPS_NAME_SEH;
-        form += 128u + sa + (fn == 24u ? 32u : 0u);
+    } else if (op == 31u && fn == 24u) {
+        /* The published PSP allegrex_encodings output leaves RD unchanged for
+         * every tested SA and both RS extremes. This is not a bit operation.
+         * Its fields are ignored, as independently modeled by PPSSPP. */
+        id = CDISASM_MIPS_NAME_NOP;
+        form = 41299u;
+    } else if (op == 31u && fn == 32u) {
+        /* Only part of SA is decoded; RS is ignored. Preserve canonical form
+         * identities while accepting the aliases in the published PSP probe.
+         * See allegrex_encoding_facts.json: scalar_bit_operation_domains. */
+        unsigned operation = sa < 16u ? 2u + (sa & 1u) :
+                             (sa & 4u) ? 20u : (sa & 8u) ? 24u : 16u;
+        id = operation == 2u ? CDISASM_MIPS_NAME_WSBH : operation == 3u ? CDISASM_MIPS_NAME_WSBW :
+             operation == 16u ? CDISASM_MIPS_NAME_SEB : operation == 20u ? CDISASM_MIPS_NAME_BITREV : CDISASM_MIPS_NAME_SEH;
+        form += 128u + operation;
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rd, 4u, 2u);
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rt, 4u, 1u);
     } else if (op == 31u && (fn == 0u || fn == 4u)) {
@@ -222,12 +232,26 @@ static int allegrex_scalar(uint32_t raw, cdisasm_mips_instruction *i)
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rs, 4u, 1u);
         allegrex_imm(i, sa, 1u, 0u);
         allegrex_imm(i, size, 1u, 0u);
-    } else if (op == 0u && ((fn == 2u && rs == 1u) || (fn == 6u && sa == 1u))) {
-        id = fn == 2u ? CDISASM_MIPS_NAME_ROTR : CDISASM_MIPS_NAME_ROTRV;
-        form += 220u + fn;
+    } else if (op == 0u && (((fn == 0u || fn == 2u || fn == 3u) && rs != 0u) ||
+                            ((fn == 4u || fn == 6u || fn == 7u) && sa != 0u))) {
+        /* PSP shift_encodings probes establish ignored fields, with only bit0
+         * selecting SRL/ROTR or SRLV/ROTRV. Keep ordinary canonical shifts in
+         * the shared standard decoder; these additional encodings require the
+         * Allegrex family. Existing rotate form identities remain unchanged. */
+        unsigned variable = fn >= 4u;
+        unsigned rotate = (fn == 2u && (rs & 1u)) || (fn == 6u && (sa & 1u));
+        if (rotate) {
+            id = variable ? CDISASM_MIPS_NAME_ROTRV : CDISASM_MIPS_NAME_ROTR;
+            form += variable ? 226u : 222u;
+        } else {
+            id = fn == 0u ? CDISASM_MIPS_NAME_SLL : fn == 2u ? CDISASM_MIPS_NAME_SRL :
+                 fn == 3u ? CDISASM_MIPS_NAME_SRA : fn == 4u ? CDISASM_MIPS_NAME_SLLV :
+                 fn == 6u ? CDISASM_MIPS_NAME_SRLV : CDISASM_MIPS_NAME_SRAV;
+            form += 240u + (fn == 0u ? 0u : fn == 2u ? 1u : fn == 3u ? 2u : fn == 4u ? 3u : fn == 6u ? 4u : 5u);
+        }
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rd, 4u, 2u);
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rt, 4u, 1u);
-        if (fn == 2u) allegrex_imm(i, sa, 1u, 0u);
+        if (!variable) allegrex_imm(i, sa, 1u, 0u);
         else allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rs, 4u, 1u);
     } else return 0;
     i->name_id = (cdisasm_mips_name_id)id;
@@ -240,7 +264,7 @@ cdisasm_status cdisasm_mips_decode_allegrex(uint32_t raw, uint64_t address, cdis
                                          cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
                                          cdisasm_mips_instruction *instruction)
 {
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && USE_MIPS_ALLEGREX
     cdisasm_mips_instruction candidate;
     size_t n;
     int scalar;
@@ -288,7 +312,7 @@ cdisasm_status cdisasm_mips_decode_allegrex(uint32_t raw, uint64_t address, cdis
 
 uint64_t cdisasm_mips_allegrex_required_flags(cdisasm_mips_form_id form)
 {
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && USE_MIPS_ALLEGREX
     if ((form >= 40000u && form < 41000u) || (form >= 41000u && form < 41300u))
         return CDISASM_MIPS_DECODE_FLAG_ALLEGREX;
 #else
@@ -297,7 +321,7 @@ uint64_t cdisasm_mips_allegrex_required_flags(cdisasm_mips_form_id form)
     return 0;
 }
 
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && USE_MIPS_ALLEGREX
 static void allegrex_effect(cdisasm_mips_register_effect *out, size_t *count, unsigned reg, unsigned access)
 {
     size_t n;
@@ -347,7 +371,7 @@ static void allegrex_expand(const cdisasm_mips_operand *o, cdisasm_mips_register
 size_t cdisasm_mips_allegrex_effects(const cdisasm_mips_instruction *instruction,
                                    cdisasm_mips_register_effect *effects, size_t capacity)
 {
-#if USE_EXTRA_OPCODES
+#if USE_EXTRA_OPCODES && USE_MIPS_ALLEGREX
     cdisasm_mips_register_effect result[64] = {{0}};
     size_t count = 0, n;
     unsigned control = 0;

@@ -279,6 +279,8 @@ cdisasm_status cdisasm_mips_decode_nano(uint64_t raw, uint32_t size, uint64_t ad
     if (mode != CDISASM_MIPS_MODE_32 || features == NULL || instruction == NULL) return CDISASM_STATUS_INVALID_ARGUMENT;
     if (size != 2u && size != 4u && size != 6u) return CDISASM_STATUS_INVALID_ARGUMENT;
     if (cdisasm_mips_nano_size((uint16_t)(raw >> (8u * (size - 2u)))) != size) return CDISASM_STATUS_INVALID_INSTRUCTION;
+    if (size == 4u && cdisasm_mips_nano_fpu_owns((uint32_t)raw))
+        return cdisasm_mips_nano_fpu((uint32_t)raw,address,mode,revision,features,instruction);
     for (n = 0u; n < sizeof(nano_forms) / sizeof(nano_forms[0]); ++n) {
         const nano_form *form = &nano_forms[n];
         cdisasm_mips_instruction candidate;
@@ -311,6 +313,8 @@ cdisasm_status cdisasm_mips_decode_nano(uint64_t raw, uint32_t size, uint64_t ad
 uint64_t cdisasm_mips_nano_required_flags(cdisasm_mips_form_id form)
 {
     size_t n;
+    uint64_t fpu = cdisasm_mips_nano_fpu_required_flags(form);
+    if (fpu != 0) return fpu;
     for (n = 0u; n < sizeof(nano_forms) / sizeof(nano_forms[0]); ++n)
         if (nano_forms[n].form == form) return nano_forms[n].required;
     return 0u;

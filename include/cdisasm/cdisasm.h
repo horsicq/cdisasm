@@ -16,6 +16,7 @@
 #if USE_ARCH_MIPS
 #include "cdisasm_mips.h"
 #include "cdisasm_mips_v2.h"
+#include "cdisasm_mips_v3.h"
 #endif
 
 #endif
