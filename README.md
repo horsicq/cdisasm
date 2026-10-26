@@ -222,14 +222,17 @@ halves, VSR transfers and the saved 32-bit control selector 31.
 The original 61 excluded Allegrex patterns now have a classification ledger.
 Published PSP 6.61 hardware observations support typed syntax for six forms:
 `vdot.s`, `vhdp.s`, `vdet.s`, `vdet.t`, `vdet.q` and `vmmul.s`.
-This brings the typed Allegrex catalog to 279 forms; the other 55 patterns remain
-unverified. The six additions retain limited operand/effect confidence rather
-than claiming complete hardware semantics. A further 30 captured matrix words
+An independent source-schema review adds 29 further forms, including unusual
+rotation, scaling, sorting, reduction and scalar-matrix widths. The typed
+Allegrex catalog now contains 308 forms. Of the original 61 patterns, 35 have
+typed syntax and 26 remain unresolved. Only six have the bounded hardware
+observations above; source-defined syntax does not establish complete hardware
+semantics. A further 30 captured matrix words
 cover wrapping matrix origins and physical scalar footprints, including 26
 previously rejected operand-domain cases. Their existing public form IDs remain
 unchanged. Custom MIPS LoongSX1/LoongSX2/LoongASX
 research has three separate family records with unknown opcode counts, pinned
-sources and probe observations. LoongSX1/2 remain unallocated; four sourced
+sources and probe observations. LoongSX1/2 remain unallocated; five sourced
 LoongASX context recipes use the appended family 38 without changing existing
 family IDs.
 
@@ -240,14 +243,25 @@ using the existing `vuc2i.s` and `vc2i.s` operand recipes. Their source wrappers
 four-input expected results and linked PRX instruction sequences agree. These
 are source-bound test aliases with architectural signoff still open; adjacent
 encodings and the broader `.q` patterns are not enabled.
-There are 282 runtime recipes for 279 typed Allegrex catalog forms. The remaining
-55 patterns have an authored physical-PSP capture program, three input scenarios
+There are 311 runtime recipes for 308 typed Allegrex catalog forms. The 55
+patterns without hardware observations retain a physical-PSP capture program, three input scenarios
 and a source-bound observation importer. Build it from `tests/hardware/allegrex`
 with PSPSDK; run one selected case and scenario at a time. The host bridge and
 independently assembled helpers are checked, but actual PSPSDK linking and
 device execution have not been performed. Captures remain unreviewed evidence
 until their semantics are assessed; collection does not automatically enable
 opcodes.
+
+The new pattern-inspection API exposes all 61 original source masks, candidate
+identities and structural field slices. It is separate from typed decoding and
+does not assign unknown architectural operands or effects. The 26 unresolved
+patterns comprise 17 packed conversions, five butterfly widths, three VRNDS
+widths and one LV.Q option. Exact conversion aliases remain bounded as above.
+`cdisasm_mips_allegrex_pattern_count/get/find/field_value` require MIPS support;
+their optional catalog is empty when `USE_EXTRA_OPCODES=0`. With formatting
+enabled, `cdisasm_mips_allegrex_pattern_format` emits a `.word` directive with
+the candidate name, encoded fields and confidence. CXDisasm exposes this through
+`--show-mips-patterns` with standard MIPS32 and Allegrex explicitly selected.
 
 For custom MIPS LoongSX/LoongASX, the follow-up retains an audit of 214 MIPS files
 from official source drops and observations from the official binary toolchain.
@@ -289,8 +303,8 @@ does not alter form counts, families, legality, validation status or unresolved
 effects. Higher aliases, implicit FP semantics and custom SX/ASX encoding
 definitions beyond the bounded kernel subset still require architectural evidence.
 
-The new primary Loongnix kernel source establishes four bounded MIPS LoongASX
-recipes: `xvld.b`, `xvst.b`, `xinsert.d` and `xvseli.d`. Select
+The primary Loongnix kernel sources establish five bounded MIPS LoongASX
+recipes: `xvld.b`, `xvst.b`, `xinsert.d`, `xvseli.d` and `xvcopy.s.d`. Select
 `CDISASM_MIPS_DECODE_FLAG_LOONGASX` with `FPU` and `LOONGSON`, or add
 `CDISASM_MIPS_FAMILY_LOONGASX` to a decode context. It supports 64-bit MIPS64R2
 with FR=1, explicitly selected on CPU_ANY or the 3A4000 profile. It is disabled
@@ -307,9 +321,12 @@ destinations 1–31 and patterns `0xc`/`0xe`. The former preserves the lower128
 bits and selects the upper128 from source0; the latter preserves the lower64
 and selects the upper192. The `0xe` case follows a separate vendor kernel
 compatible-mode initialization sequence. Other selector patterns remain unclassified.
-Other operand domains, the macro-only `xvsd`/`xvcopy.s.d` definitions, wider
-physical aliases and implicit controls remain unverified. Two appended mnemonic
-slots for those macro-only names are vocabulary, not implemented forms.
+Copy syntax uses a fixed GPR1 destination, all 32 vector sources and upper
+doubleword lanes 2/3. It conservatively records a full vector read and an
+eight-byte scalar write. Low lanes 0/1 retain ordinary MSA COPY_S.D decoding.
+Other operand domains, macro-only `xvsd`, wider physical aliases and implicit
+controls remain unverified. The XVSD mnemonic slot remains vocabulary rather
+than an implemented form.
 
 The compiler-source follow-up also binds the manufacturer GCC7.2 and GCC12.1
 register models and all 26 FP operation patterns. Both compiler versions model
@@ -327,18 +344,25 @@ their destinations are read/write. Eight basic LU/SU forms postincrement a
 context words corroborate MFSUM/MTSUM transfer directions and widths. Forty
 other update/scatter forms and NNCMD still lack explicit-effect definitions;
 higher aliases and hidden controls retain their existing uncertainty.
+The original-MXU D32ADD recipe also preserves the carry-control register through
+a read/write effect: only selected LC/RC bits change, while other control fields
+survive. Two XR0 destinations still produce no control-register effect.
 
 The custom-vector source auditor pins eight current LoongASX kernel macros,
-168 scoped calls and 2,206 numeric observations, plus the 2019 vendor pattern
+168 scoped calls and 2,270 numeric observations, plus the 2019 vendor pattern
 `0xe` caller contract. XVSD has an unresolved field overlap:
-32 register arguments produce only 16 different words. This ambiguity and
-the low-lane XVCOPY/MSA overlap prevent promotion of the two macro-only records.
-Allegrex follow-up evidence adds one bounded VDOT.S prefix case and a VROT
-source-scope census; neither resolves the remaining 55 patterns.
+32 register arguments produce only 16 different words. This ambiguity prevents
+promotion of that macro-only record. Upper-lane XVCOPY has unambiguous source
+fields, while its low lanes preserve the ordinary MSA identity. Allegrex source
+review resolves 29 syntax recipes without promoting hardware or full-semantics
+signoff; the 26 unresolved syntax patterns remain visible in the inspection API.
 
 #### Immediate focus: three parallel workstreams
 
-1. **MXU3/3.1 effects:** retain the existing 496 typed forms and obtain primary
+1. **MXU3/3.1 effects:** the known 114 original-MXU, 364 MXU2 and 496
+   MXU3/3.1 source opcode rows already have typed decoding. Finish explicit
+   effects for 40 update/scatter forms and NNCMD. Establish implicit controls
+   for the 26 FP operations and higher VW/VSR aliases. Obtain primary
    definitions for VR/VWR/VSR/MCS physical relationships, accumulator preservation,
    saturation/exception state and implicit floating-point controls. Produce a
    sourced register-alias graph and per-form read/write/preserve table. Extend
@@ -349,7 +373,9 @@ source-scope census; neither resolves the remaining 55 patterns.
    observations. Completion requires verified explicit and implicit effects for
    every form in the declared catalog.
 
-2. **Custom MIPS Loongson vectors:** obtain exact numeric allocation tables or
+2. **Custom MIPS Loongson vectors:** resolve XVSD's overlapping register bits
+   and extend the five implemented ASX recipes where additional operand domains
+   are established. Obtain exact numeric allocation tables or
    vendor encoder/disassembler evidence for LoongSX1, LoongSX2 and LoongASX.
    Freeze a separate instruction inventory and processor/generation matrix;
    then implement typed registers, lanes, immediates, memory operands, formatting
@@ -360,16 +386,16 @@ source-scope census; neither resolves the remaining 55 patterns.
    encoding evidence; LoongArch LSX/LASX encodings are a different backend.
    The reference inventory is a prerequisite for implementing these new forms.
 
-3. **The 61 Allegrex patterns:** make a reviewed classification row for each
-   of the 60 width variants and the single `lv.q` cache-option variant, retaining
-   its original mask/value, source and numeric witness. Resolve each as a
+3. **The remaining 26 Allegrex patterns:** resolve 17 packed conversions,
+   five butterfly widths, three VRNDS widths and the `lv.q` cache-option variant,
+   retaining original masks/values, sources and numeric witnesses. Resolve each as a
    supported form, canonical alias, reserved/restricted encoding, importer
    artifact or unresolved pattern using architectural references and independent
    observations. Implement any proven supported forms in the existing Allegrex
    family; add rejection tests for proven reserved encodings and canonical tests
    for aliases. GNU objdump currently rejects all 61 while positive controls
    decode; that observation alone leaves their hardware status unverified.
-   Completion requires evidence-backed classification of all 61, with every
+   Completion requires evidence-backed classification of all original 61, with every
    supported form implemented and all unresolved rows still blocking signoff.
 
 All three tracks must attach source-bound evidence to the unified ledger and
@@ -395,8 +421,10 @@ numeric probes in both byte orders as partial per-form evidence; it does not
 certify complete operands, effects, formatting or legality. Full catalog
 signoff remains open.
 Allegrex's original 61 excluded source patterns comprise 60 width variants and
-one `lv.q` cache-option variant. Six now have hardware-observed typed syntax and
-55 remain unverified, with the exact confidence limits recorded per pattern.
+one `lv.q` cache-option variant. Six have hardware-observed typed syntax and 29
+have independently reconciled source-defined syntax. The remaining 26 are
+inspection-only; 55 still lack hardware observations. Confidence limits remain
+explicit for every pattern.
 Independent toolchain rejection alone does not establish hardware illegality.
 
 | Priority | Next addition | Acceptance criterion |
@@ -410,7 +438,15 @@ Independent toolchain rejection alone does not establish hardware illegality.
 | 6 | Capacity for further catalogs | Centralize form-range allocation and dispatch, preserve published identities, and design versioned wider form/feature/replay metadata before existing limits are crossed |
 | 7 | Automated family and release gates | Exercise all 38 families across supported processor/revision/mode/FR states, including dependency/conflict transactions and enabled/disabled/unavailable statuses; retain the existing build/package matrix and require complete evidence for each catalog claimed complete |
 
-Run the next work as four parallel tracks with separate deliverables:
+Run the immediate batch as four parallel tracks: Allegrex's 26 unresolved
+patterns, MXU effects and aliases, custom Loongson inventories, and retained
+validation plus capacity planning. Each vendor track must deliver an exact
+source-backed definition or classification, native lowering where supported,
+independent operand/domain witnesses and updated coverage records. The
+validation track extends retained reports to all seven required dimensions
+without equating structural pattern recognition with typed opcode support.
+
+Then run the wider architecture audit as four parallel tracks:
 
 - **Evidence and infrastructure:** implement priority 0, resolve source bindings,
   generate family/namespace audits and prepare the metadata capacity design.
@@ -419,8 +455,9 @@ Run the next work as four parallel tracks with separate deliverables:
 - **Standard and ASE:** reconcile manufacturer indexes, audit operand domains and
   implement omissions from priorities 2–3. Deliver reviewed numeric facts,
   independent boundary witnesses, typed lowering and exact family requirements.
-- **Compressed encodings:** complete priority 4, including the outstanding
-  template and Save/Restore classifications. Deliver framing, operand, effect
+- **Compressed encodings:** complete priority 4, validating the reconciled
+  templates and retaining compiler-only Save/Restore artifacts separately.
+  Deliver framing, operand, effect
   and malformed-input evidence for every concrete form.
 - **Vendor catalogs:** resolve the remaining primary-reference questions,
   classify the 61 Allegrex patterns, audit vendor domains and add verified forms.
