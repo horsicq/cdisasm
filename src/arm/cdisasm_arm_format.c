@@ -13,430 +13,440 @@ typedef struct arm_text_writer {
     size_t length;
 } arm_text_writer;
 
-static const char *const arm_mnemonic_names[CDISASM_ARM_NAME_COUNT] = {
-    NULL,        "adc",       "add",       "adds",      "adr",      "adrp",    "and",      "ands",     "b",        "bic",      "bkpt",     "bl",        "blr",
-    "blx",       "br",        "brk",       "bx",        "cbnz",     "cbz",     "cmn",      "cmp",      "eor",      "hvc",      "ldm",      "ldp",       "ldr",
-    "ldrb",      "ldrh",      "ldur",      "ldurb",     "ldurh",    "mov",     "movk",     "movn",     "movz",     "mvn",      "nop",      "orr",       "pop",
-    "push",      "ret",       "rsb",       "rsc",       "sbc",      "smc",     "stm",      "stp",      "str",      "strb",     "strh",     "stur",      "sturb",
-    "sturh",     "sub",       "subs",      "svc",       "tbnz",     "tbz",     "teq",      "tst",      "ldrbt",    "ldrt",     "strbt",    "strt",      "vadd",
-    "vsub",      "vand",      "vorr",      "veor",      "vmul",     "fadd",    "fsub",     "fmul",     "fdiv",     "mul",      "vbic",     "at_as1elx", "clr",
-    "extrx",     "extry",     "fma16",     "fma32",     "fma64",    "fms16",   "fms32",    "fms64",    "genlut",   "genter",   "gexit",    "ldx",       "ldy",
-    "ldz",       "ldzi",      "mac16",     "matfp",     "matint",   "mrs",     "msr",      "mul53hi",  "mul53lo",  "sdsb",     "set",      "stx",       "sty",
-    "stz",       "stzi",      "vecfp",     "vecint",    "wkdmc",    "wkdmd",   "ldarb",    "ldarh",    "ldar",     "ldaxrb",   "ldaxrh",   "ldaxr",     "ldxrb",
-    "ldxrh",     "ldxr",      "ldxp",      "ldaxp",     "stlrb",    "stlrh",   "stlr",     "stlxrb",   "stlxrh",   "stlxr",    "stxrb",    "stxrh",     "stxr",
-    "stxp",      "stlxp",
+static const char *const arm_mnemonic_names[] = {
+    NULL,        "adc",       "add",       "adds",      "adr",      "adrp",    "and",      "ands",     "b",        "bic",      "bkpt",     "bl",       "blr",
+    "blx",       "br",        "brk",       "bx",        "cbnz",     "cbz",     "cmn",      "cmp",      "eor",      "hvc",      "ldm",      "ldp",      "ldr",
+    "ldrb",      "ldrh",      "ldur",      "ldurb",     "ldurh",    "mov",     "movk",     "movn",     "movz",     "mvn",      "nop",      "orr",      "pop",
+    "push",      "ret",       "rsb",       "rsc",       "sbc",      "smc",     "stm",      "stp",      "str",      "strb",     "strh",     "stur",     "sturb",
+    "sturh",     "sub",       "subs",      "svc",       "tbnz",     "tbz",     "teq",      "tst",      "ldrbt",    "ldrt",     "strbt",    "strt",     "vadd",
+    "vsub",      "vand",      "vorr",      "veor",      "vmul",     "fadd",    "fsub",     "fmul",     "fdiv",     "mul",      "vbic",
 #if USE_EXTRA_OPCODES
-    "casb",      "cash",      "cas",       "casab",     "casah",    "casa",    "caslb",    "caslh",    "casl",     "casalb",   "casalh",   "casal",     "casp",
-    "caspa",     "caspl",     "caspal",    "ldaddb",    "ldaddh",   "ldadd",   "ldaddab",  "ldaddah",  "ldadda",   "ldaddlb",  "ldaddlh",  "ldaddl",    "ldaddalb",
-    "ldaddalh",  "ldaddal",   "ldclrb",    "ldclrh",    "ldclr",    "ldclrab", "ldclrah",  "ldclra",   "ldclrlb",  "ldclrlh",  "ldclrl",   "ldclralb",  "ldclralh",
-    "ldclral",   "ldeorb",    "ldeorh",    "ldeor",     "ldeorab",  "ldeorah", "ldeora",   "ldeorlb",  "ldeorlh",  "ldeorl",   "ldeoralb", "ldeoralh",  "ldeoral",
-    "ldsetb",    "ldseth",    "ldset",     "ldsetab",   "ldsetah",  "ldseta",  "ldsetlb",  "ldsetlh",  "ldsetl",   "ldsetalb", "ldsetalh", "ldsetal",   "swpb",
-    "swph",      "swp",       "swpab",     "swpah",     "swpa",     "swplb",   "swplh",    "swpl",     "swpalb",   "swpalh",   "swpal",    "ldlarb",    "ldlarh",
-    "ldlar",     "stllrb",    "stllrh",    "stllr",     "ldaprb",   "ldaprh",  "ldapr",    "mla",      "movw",     "movt",     "clz",      "rev",       "ldrsb",
-    "ldrsh",     "dmb",       "dsb",       "isb",       "it",       "sdiv",    "udiv",     "vmla",     "vmls",     "fabs",     "fneg",     "fsqrt",     "fcmp",
-    "fcsel",     "fmla",      "fmls",      "smax",      "smin",     "umax",    "umin",     "ptrue",    "whilelo",  "cntb",     "cnth",     "cntw",      "cntd",
-    "ld1b",      "ld1h",      "ld1w",      "ld1d",      "st1b",     "st1h",    "st1w",     "st1d",     "adclb",    "adclt",    "eor3",     "rax1",      "smstart",
-    "smstop",    "rdsvl",     "fmopa",     "smopa",     "umopa",    "luti2",   "ldclrp",   "ldclrpa",  "ldclrpl",  "ldclrpal", "ldsetp",   "ldsetpa",   "ldsetpl",
-    "ldsetpal",  "swpp",      "swppa",     "swppl",     "swppal",   "ldiapp",  "stilp",    "bti",      "pacia",    "autia",    "xpaci",    "paciasp",   "irg",
-    "gmi",       "addg",      "subg",      "stg",       "stzg",     "ldg",     "cpyfp",    "cpyfm",    "cpyfe",    "setp",     "setm",     "sete",      "ld64b",
-    "st64b",     "st64bv",    "st64bv0",   "abs",       "cnt",      "ctz",     "lsl",      "lsr",      "asr",      "mls",      "vdiv",     "sqrdmlah",  "adcs",
-    "sbcs",      "csel",      "csinc",     "csinv",     "csneg",    "madd",    "msub",     "mneg",     "ror",      "neg",      "negs",     "ngc",       "ngcs",
-    "cinc",      "cset",      "cinv",      "csetm",     "cneg",     "bics",    "eors",     "nand",     "nands",    "nor",      "nors",     "orn",       "orns",
-    "orrs",      "sel",       "sqadd",     "uqadd",     "sqsub",    "uqsub",   "addpt",    "subpt",    "zip1",     "zip2",     "uzp1",     "uzp2",      "trn1",
-    "trn2",      "tbl",       "tbx",       "tbxq",      "tblq",     "subr",    "sabd",     "uabd",     "smulh",    "umulh",    "sdivr",    "udivr",     "cls",
-    "cnot",      "not",       "sxtb",      "sxth",      "sxtw",     "uxtb",    "uxth",     "uxtw",     "revb",     "revh",     "revw",     "rbit",      "asrr",
-    "lsrr",      "lslr",      "asrd",      "sqshl",     "uqshl",    "srshr",   "urshr",    "sqshlu",   "cmpeq",    "cmpne",    "cmpge",    "cmpgt",     "cmphs",
-    "cmphi",     "cmplt",     "cmple",     "cmplo",     "cmpls",    "fcmeq",   "fcmne",    "fcmge",    "fcmgt",    "fcmle",    "fcmlt",    "fcmuo",     "facge",
-    "facgt",     "fsubr",     "fmaxnm",    "fminnm",    "fmax",     "fmin",    "fabd",     "fscale",   "fmulx",    "fdivr",    "faddv",    "fmaxnmv",   "fminnmv",
-    "fmaxv",     "fminv",     "fadda",     "frintn",    "frintp",   "frintm",  "frintz",   "frinta",   "frintx",   "frinti",   "frecpx",   "frecpe",    "frsqrte",
-    "scvtf",     "ucvtf",     "fcvt",      "fcvtzs",    "fcvtzu",   "bfcvt",   "bfcvtnt",  "bfcvtn",   "sbfm",     "bfm",      "ubfm",     "extr",      "ccmp",
-    "ccmn",      "crc32b",    "crc32h",    "crc32w",    "crc32x",   "crc32cb", "crc32ch",  "crc32cw",  "crc32cx",  "eret",     "yield",    "wfe",       "wfi",
-    "sev",       "sevl",      "hint",      "sys",       "sysl",     "clrex",   "ldsmaxb",  "ldsmaxh",  "ldsmax",   "ldsmaxab", "ldsmaxah", "ldsmaxa",   "ldsmaxlb",
-    "ldsmaxlh",  "ldsmaxl",   "ldsmaxalb", "ldsmaxalh", "ldsmaxal", "ldsminb", "ldsminh",  "ldsmin",   "ldsminab", "ldsminah", "ldsmina",  "ldsminlb",  "ldsminlh",
-    "ldsminl",   "ldsminalb", "ldsminalh", "ldsminal",  "ldumaxb",  "ldumaxh", "ldumax",   "ldumaxab", "ldumaxah", "ldumaxa",  "ldumaxlb", "ldumaxlh",  "ldumaxl",
-    "ldumaxalb", "ldumaxalh", "ldumaxal",  "lduminb",   "lduminh",  "ldumin",  "lduminab", "lduminah", "ldumina",  "lduminlb", "lduminlh", "lduminl",   "lduminalb",
+    "at_as1elx", "clr",       "extrx",     "extry",     "fma16",    "fma32",   "fma64",    "fms16",    "fms32",    "fms64",    "genlut",   "genter",   "gexit",
+    "ldx",       "ldy",       "ldz",       "ldzi",      "mac16",    "matfp",   "matint",
+#else
+    NULL,    NULL,    NULL,    NULL,     NULL,     NULL,    NULL,    NULL,    NULL,   NULL,   NULL,    NULL,    NULL,    NULL,    NULL,     NULL,
+    NULL,    NULL,    NULL,    NULL,
+#endif
+    "mrs",       "msr",
+#if USE_EXTRA_OPCODES
+    "mul53hi",   "mul53lo",   "sdsb",      "set",       "stx",      "sty",     "stz",      "stzi",     "vecfp",    "vecint",   "wkdmc",    "wkdmd",
+#else
+    NULL,    NULL,    NULL,    NULL,     NULL,     NULL,    NULL,    NULL,    NULL,   NULL,   NULL,    NULL,
+#endif
+    "ldarb",     "ldarh",     "ldar",      "ldaxrb",    "ldaxrh",   "ldaxr",   "ldxrb",    "ldxrh",    "ldxr",     "ldxp",     "ldaxp",    "stlrb",    "stlrh",
+    "stlr",      "stlxrb",    "stlxrh",    "stlxr",     "stxrb",    "stxrh",   "stxr",     "stxp",     "stlxp",
+#if USE_EXTRA_OPCODES
+    "casb",      "cash",      "cas",       "casab",     "casah",    "casa",    "caslb",    "caslh",    "casl",     "casalb",   "casalh",   "casal",    "casp",
+    "caspa",     "caspl",     "caspal",    "ldaddb",    "ldaddh",   "ldadd",   "ldaddab",  "ldaddah",  "ldadda",   "ldaddlb",  "ldaddlh",  "ldaddl",   "ldaddalb",
+    "ldaddalh",  "ldaddal",   "ldclrb",    "ldclrh",    "ldclr",    "ldclrab", "ldclrah",  "ldclra",   "ldclrlb",  "ldclrlh",  "ldclrl",   "ldclralb", "ldclralh",
+    "ldclral",   "ldeorb",    "ldeorh",    "ldeor",     "ldeorab",  "ldeorah", "ldeora",   "ldeorlb",  "ldeorlh",  "ldeorl",   "ldeoralb", "ldeoralh", "ldeoral",
+    "ldsetb",    "ldseth",    "ldset",     "ldsetab",   "ldsetah",  "ldseta",  "ldsetlb",  "ldsetlh",  "ldsetl",   "ldsetalb", "ldsetalh", "ldsetal",  "swpb",
+    "swph",      "swp",       "swpab",     "swpah",     "swpa",     "swplb",   "swplh",    "swpl",     "swpalb",   "swpalh",   "swpal",    "ldlarb",   "ldlarh",
+    "ldlar",     "stllrb",    "stllrh",    "stllr",     "ldaprb",   "ldaprh",  "ldapr",    "mla",      "movw",     "movt",     "clz",      "rev",      "ldrsb",
+    "ldrsh",     "dmb",       "dsb",       "isb",       "it",       "sdiv",    "udiv",     "vmla",     "vmls",     "fabs",     "fneg",     "fsqrt",    "fcmp",
+    "fcsel",     "fmla",      "fmls",      "smax",      "smin",     "umax",    "umin",     "ptrue",    "whilelo",  "cntb",     "cnth",     "cntw",     "cntd",
+    "ld1b",      "ld1h",      "ld1w",      "ld1d",      "st1b",     "st1h",    "st1w",     "st1d",     "adclb",    "adclt",    "eor3",     "rax1",     "smstart",
+    "smstop",    "rdsvl",     "fmopa",     "smopa",     "umopa",    "luti2",   "ldclrp",   "ldclrpa",  "ldclrpl",  "ldclrpal", "ldsetp",   "ldsetpa",  "ldsetpl",
+    "ldsetpal",  "swpp",      "swppa",     "swppl",     "swppal",   "ldiapp",  "stilp",    "bti",      "pacia",    "autia",    "xpaci",    "paciasp",  "irg",
+    "gmi",       "addg",      "subg",      "stg",       "stzg",     "ldg",     "cpyfp",    "cpyfm",    "cpyfe",    "setp",     "setm",     "sete",     "ld64b",
+    "st64b",     "st64bv",    "st64bv0",   "abs",       "cnt",      "ctz",     "lsl",      "lsr",      "asr",      "mls",      "vdiv",     "sqrdmlah", "adcs",
+    "sbcs",      "csel",      "csinc",     "csinv",     "csneg",    "madd",    "msub",     "mneg",     "ror",      "neg",      "negs",     "ngc",      "ngcs",
+    "cinc",      "cset",      "cinv",      "csetm",     "cneg",     "bics",    "eors",     "nand",     "nands",    "nor",      "nors",     "orn",      "orns",
+    "orrs",      "sel",       "sqadd",     "uqadd",     "sqsub",    "uqsub",   "addpt",    "subpt",    "zip1",     "zip2",     "uzp1",     "uzp2",     "trn1",
+    "trn2",      "tbl",       "tbx",       "tbxq",      "tblq",     "subr",    "sabd",     "uabd",     "smulh",    "umulh",    "sdivr",    "udivr",    "cls",
+    "cnot",      "not",       "sxtb",      "sxth",      "sxtw",     "uxtb",    "uxth",     "uxtw",     "revb",     "revh",     "revw",     "rbit",     "asrr",
+    "lsrr",      "lslr",      "asrd",      "sqshl",     "uqshl",    "srshr",   "urshr",    "sqshlu",   "cmpeq",    "cmpne",    "cmpge",    "cmpgt",    "cmphs",
+    "cmphi",     "cmplt",     "cmple",     "cmplo",     "cmpls",    "fcmeq",   "fcmne",    "fcmge",    "fcmgt",    "fcmle",    "fcmlt",    "fcmuo",    "facge",
+    "facgt",     "fsubr",     "fmaxnm",    "fminnm",    "fmax",     "fmin",    "fabd",     "fscale",   "fmulx",    "fdivr",    "faddv",    "fmaxnmv",  "fminnmv",
+    "fmaxv",     "fminv",     "fadda",     "frintn",    "frintp",   "frintm",  "frintz",   "frinta",   "frintx",   "frinti",   "frecpx",   "frecpe",   "frsqrte",
+    "scvtf",     "ucvtf",     "fcvt",      "fcvtzs",    "fcvtzu",   "bfcvt",   "bfcvtnt",  "bfcvtn",   "sbfm",     "bfm",      "ubfm",     "extr",     "ccmp",
+    "ccmn",      "crc32b",    "crc32h",    "crc32w",    "crc32x",   "crc32cb", "crc32ch",  "crc32cw",  "crc32cx",  "eret",     "yield",    "wfe",      "wfi",
+    "sev",       "sevl",      "hint",      "sys",       "sysl",     "clrex",   "ldsmaxb",  "ldsmaxh",  "ldsmax",   "ldsmaxab", "ldsmaxah", "ldsmaxa",  "ldsmaxlb",
+    "ldsmaxlh",  "ldsmaxl",   "ldsmaxalb", "ldsmaxalh", "ldsmaxal", "ldsminb", "ldsminh",  "ldsmin",   "ldsminab", "ldsminah", "ldsmina",  "ldsminlb", "ldsminlh",
+    "ldsminl",   "ldsminalb", "ldsminalh", "ldsminal",  "ldumaxb",  "ldumaxh", "ldumax",   "ldumaxab", "ldumaxah", "ldumaxa",  "ldumaxlb", "ldumaxlh", "ldumaxl",
+    "ldumaxalb", "ldumaxalh", "ldumaxal",  "lduminb",   "lduminh",  "ldumin",  "lduminab", "lduminah", "ldumina",  "lduminlb", "lduminlh", "lduminl",  "lduminalb",
     "lduminalh", "lduminal",  "insr",      "dupq",      "famax",    "famin",
 #include "arm_mnemonic_names_generated.inc"
 #endif
 };
 
-static const char *const arm_register_names[CDISASM_ARM_REG_COUNT] = {NULL,
-                                                                      "r0",
-                                                                      "r1",
-                                                                      "r2",
-                                                                      "r3",
-                                                                      "r4",
-                                                                      "r5",
-                                                                      "r6",
-                                                                      "r7",
-                                                                      "r8",
-                                                                      "r9",
-                                                                      "r10",
-                                                                      "r11",
-                                                                      "r12",
-                                                                      "sp",
-                                                                      "lr",
-                                                                      "pc",
-                                                                      "w0",
-                                                                      "w1",
-                                                                      "w2",
-                                                                      "w3",
-                                                                      "w4",
-                                                                      "w5",
-                                                                      "w6",
-                                                                      "w7",
-                                                                      "w8",
-                                                                      "w9",
-                                                                      "w10",
-                                                                      "w11",
-                                                                      "w12",
-                                                                      "w13",
-                                                                      "w14",
-                                                                      "w15",
-                                                                      "w16",
-                                                                      "w17",
-                                                                      "w18",
-                                                                      "w19",
-                                                                      "w20",
-                                                                      "w21",
-                                                                      "w22",
-                                                                      "w23",
-                                                                      "w24",
-                                                                      "w25",
-                                                                      "w26",
-                                                                      "w27",
-                                                                      "w28",
-                                                                      "w29",
-                                                                      "w30",
-                                                                      "wsp",
-                                                                      "wzr",
-                                                                      "x0",
-                                                                      "x1",
-                                                                      "x2",
-                                                                      "x3",
-                                                                      "x4",
-                                                                      "x5",
-                                                                      "x6",
-                                                                      "x7",
-                                                                      "x8",
-                                                                      "x9",
-                                                                      "x10",
-                                                                      "x11",
-                                                                      "x12",
-                                                                      "x13",
-                                                                      "x14",
-                                                                      "x15",
-                                                                      "x16",
-                                                                      "x17",
-                                                                      "x18",
-                                                                      "x19",
-                                                                      "x20",
-                                                                      "x21",
-                                                                      "x22",
-                                                                      "x23",
-                                                                      "x24",
-                                                                      "x25",
-                                                                      "x26",
-                                                                      "x27",
-                                                                      "x28",
-                                                                      "x29",
-                                                                      "x30",
-                                                                      "sp",
-                                                                      "xzr",
-                                                                      "d0",
-                                                                      "d1",
-                                                                      "d2",
-                                                                      "d3",
-                                                                      "d4",
-                                                                      "d5",
-                                                                      "d6",
-                                                                      "d7",
-                                                                      "d8",
-                                                                      "d9",
-                                                                      "d10",
-                                                                      "d11",
-                                                                      "d12",
-                                                                      "d13",
-                                                                      "d14",
-                                                                      "d15",
-                                                                      "d16",
-                                                                      "d17",
-                                                                      "d18",
-                                                                      "d19",
-                                                                      "d20",
-                                                                      "d21",
-                                                                      "d22",
-                                                                      "d23",
-                                                                      "d24",
-                                                                      "d25",
-                                                                      "d26",
-                                                                      "d27",
-                                                                      "d28",
-                                                                      "d29",
-                                                                      "d30",
-                                                                      "d31",
-                                                                      "q0",
-                                                                      "q1",
-                                                                      "q2",
-                                                                      "q3",
-                                                                      "q4",
-                                                                      "q5",
-                                                                      "q6",
-                                                                      "q7",
-                                                                      "q8",
-                                                                      "q9",
-                                                                      "q10",
-                                                                      "q11",
-                                                                      "q12",
-                                                                      "q13",
-                                                                      "q14",
-                                                                      "q15",
-                                                                      "v0",
-                                                                      "v1",
-                                                                      "v2",
-                                                                      "v3",
-                                                                      "v4",
-                                                                      "v5",
-                                                                      "v6",
-                                                                      "v7",
-                                                                      "v8",
-                                                                      "v9",
-                                                                      "v10",
-                                                                      "v11",
-                                                                      "v12",
-                                                                      "v13",
-                                                                      "v14",
-                                                                      "v15",
-                                                                      "v16",
-                                                                      "v17",
-                                                                      "v18",
-                                                                      "v19",
-                                                                      "v20",
-                                                                      "v21",
-                                                                      "v22",
-                                                                      "v23",
-                                                                      "v24",
-                                                                      "v25",
-                                                                      "v26",
-                                                                      "v27",
-                                                                      "v28",
-                                                                      "v29",
-                                                                      "v30",
-                                                                      "v31",
-                                                                      "cpm_ioacc_ctl_el3"
+static const char *const arm_register_names[] = {NULL,
+                                                 "r0",
+                                                 "r1",
+                                                 "r2",
+                                                 "r3",
+                                                 "r4",
+                                                 "r5",
+                                                 "r6",
+                                                 "r7",
+                                                 "r8",
+                                                 "r9",
+                                                 "r10",
+                                                 "r11",
+                                                 "r12",
+                                                 "sp",
+                                                 "lr",
+                                                 "pc",
+                                                 "w0",
+                                                 "w1",
+                                                 "w2",
+                                                 "w3",
+                                                 "w4",
+                                                 "w5",
+                                                 "w6",
+                                                 "w7",
+                                                 "w8",
+                                                 "w9",
+                                                 "w10",
+                                                 "w11",
+                                                 "w12",
+                                                 "w13",
+                                                 "w14",
+                                                 "w15",
+                                                 "w16",
+                                                 "w17",
+                                                 "w18",
+                                                 "w19",
+                                                 "w20",
+                                                 "w21",
+                                                 "w22",
+                                                 "w23",
+                                                 "w24",
+                                                 "w25",
+                                                 "w26",
+                                                 "w27",
+                                                 "w28",
+                                                 "w29",
+                                                 "w30",
+                                                 "wsp",
+                                                 "wzr",
+                                                 "x0",
+                                                 "x1",
+                                                 "x2",
+                                                 "x3",
+                                                 "x4",
+                                                 "x5",
+                                                 "x6",
+                                                 "x7",
+                                                 "x8",
+                                                 "x9",
+                                                 "x10",
+                                                 "x11",
+                                                 "x12",
+                                                 "x13",
+                                                 "x14",
+                                                 "x15",
+                                                 "x16",
+                                                 "x17",
+                                                 "x18",
+                                                 "x19",
+                                                 "x20",
+                                                 "x21",
+                                                 "x22",
+                                                 "x23",
+                                                 "x24",
+                                                 "x25",
+                                                 "x26",
+                                                 "x27",
+                                                 "x28",
+                                                 "x29",
+                                                 "x30",
+                                                 "sp",
+                                                 "xzr",
+                                                 "d0",
+                                                 "d1",
+                                                 "d2",
+                                                 "d3",
+                                                 "d4",
+                                                 "d5",
+                                                 "d6",
+                                                 "d7",
+                                                 "d8",
+                                                 "d9",
+                                                 "d10",
+                                                 "d11",
+                                                 "d12",
+                                                 "d13",
+                                                 "d14",
+                                                 "d15",
+                                                 "d16",
+                                                 "d17",
+                                                 "d18",
+                                                 "d19",
+                                                 "d20",
+                                                 "d21",
+                                                 "d22",
+                                                 "d23",
+                                                 "d24",
+                                                 "d25",
+                                                 "d26",
+                                                 "d27",
+                                                 "d28",
+                                                 "d29",
+                                                 "d30",
+                                                 "d31",
+                                                 "q0",
+                                                 "q1",
+                                                 "q2",
+                                                 "q3",
+                                                 "q4",
+                                                 "q5",
+                                                 "q6",
+                                                 "q7",
+                                                 "q8",
+                                                 "q9",
+                                                 "q10",
+                                                 "q11",
+                                                 "q12",
+                                                 "q13",
+                                                 "q14",
+                                                 "q15",
+                                                 "v0",
+                                                 "v1",
+                                                 "v2",
+                                                 "v3",
+                                                 "v4",
+                                                 "v5",
+                                                 "v6",
+                                                 "v7",
+                                                 "v8",
+                                                 "v9",
+                                                 "v10",
+                                                 "v11",
+                                                 "v12",
+                                                 "v13",
+                                                 "v14",
+                                                 "v15",
+                                                 "v16",
+                                                 "v17",
+                                                 "v18",
+                                                 "v19",
+                                                 "v20",
+                                                 "v21",
+                                                 "v22",
+                                                 "v23",
+                                                 "v24",
+                                                 "v25",
+                                                 "v26",
+                                                 "v27",
+                                                 "v28",
+                                                 "v29",
+                                                 "v30",
+                                                 "v31",
+                                                 "cpm_ioacc_ctl_el3"
 #if USE_EXTRA_OPCODES
-                                                                      ,
-                                                                      "b0",
-                                                                      "b1",
-                                                                      "b2",
-                                                                      "b3",
-                                                                      "b4",
-                                                                      "b5",
-                                                                      "b6",
-                                                                      "b7",
-                                                                      "b8",
-                                                                      "b9",
-                                                                      "b10",
-                                                                      "b11",
-                                                                      "b12",
-                                                                      "b13",
-                                                                      "b14",
-                                                                      "b15",
-                                                                      "b16",
-                                                                      "b17",
-                                                                      "b18",
-                                                                      "b19",
-                                                                      "b20",
-                                                                      "b21",
-                                                                      "b22",
-                                                                      "b23",
-                                                                      "b24",
-                                                                      "b25",
-                                                                      "b26",
-                                                                      "b27",
-                                                                      "b28",
-                                                                      "b29",
-                                                                      "b30",
-                                                                      "b31",
-                                                                      "h0",
-                                                                      "h1",
-                                                                      "h2",
-                                                                      "h3",
-                                                                      "h4",
-                                                                      "h5",
-                                                                      "h6",
-                                                                      "h7",
-                                                                      "h8",
-                                                                      "h9",
-                                                                      "h10",
-                                                                      "h11",
-                                                                      "h12",
-                                                                      "h13",
-                                                                      "h14",
-                                                                      "h15",
-                                                                      "h16",
-                                                                      "h17",
-                                                                      "h18",
-                                                                      "h19",
-                                                                      "h20",
-                                                                      "h21",
-                                                                      "h22",
-                                                                      "h23",
-                                                                      "h24",
-                                                                      "h25",
-                                                                      "h26",
-                                                                      "h27",
-                                                                      "h28",
-                                                                      "h29",
-                                                                      "h30",
-                                                                      "h31",
-                                                                      "s0",
-                                                                      "s1",
-                                                                      "s2",
-                                                                      "s3",
-                                                                      "s4",
-                                                                      "s5",
-                                                                      "s6",
-                                                                      "s7",
-                                                                      "s8",
-                                                                      "s9",
-                                                                      "s10",
-                                                                      "s11",
-                                                                      "s12",
-                                                                      "s13",
-                                                                      "s14",
-                                                                      "s15",
-                                                                      "s16",
-                                                                      "s17",
-                                                                      "s18",
-                                                                      "s19",
-                                                                      "s20",
-                                                                      "s21",
-                                                                      "s22",
-                                                                      "s23",
-                                                                      "s24",
-                                                                      "s25",
-                                                                      "s26",
-                                                                      "s27",
-                                                                      "s28",
-                                                                      "s29",
-                                                                      "s30",
-                                                                      "s31",
-                                                                      "q16",
-                                                                      "q17",
-                                                                      "q18",
-                                                                      "q19",
-                                                                      "q20",
-                                                                      "q21",
-                                                                      "q22",
-                                                                      "q23",
-                                                                      "q24",
-                                                                      "q25",
-                                                                      "q26",
-                                                                      "q27",
-                                                                      "q28",
-                                                                      "q29",
-                                                                      "q30",
-                                                                      "q31",
-                                                                      "z0",
-                                                                      "z1",
-                                                                      "z2",
-                                                                      "z3",
-                                                                      "z4",
-                                                                      "z5",
-                                                                      "z6",
-                                                                      "z7",
-                                                                      "z8",
-                                                                      "z9",
-                                                                      "z10",
-                                                                      "z11",
-                                                                      "z12",
-                                                                      "z13",
-                                                                      "z14",
-                                                                      "z15",
-                                                                      "z16",
-                                                                      "z17",
-                                                                      "z18",
-                                                                      "z19",
-                                                                      "z20",
-                                                                      "z21",
-                                                                      "z22",
-                                                                      "z23",
-                                                                      "z24",
-                                                                      "z25",
-                                                                      "z26",
-                                                                      "z27",
-                                                                      "z28",
-                                                                      "z29",
-                                                                      "z30",
-                                                                      "z31",
-                                                                      "p0",
-                                                                      "p1",
-                                                                      "p2",
-                                                                      "p3",
-                                                                      "p4",
-                                                                      "p5",
-                                                                      "p6",
-                                                                      "p7",
-                                                                      "p8",
-                                                                      "p9",
-                                                                      "p10",
-                                                                      "p11",
-                                                                      "p12",
-                                                                      "p13",
-                                                                      "p14",
-                                                                      "p15",
-                                                                      "pn0",
-                                                                      "pn1",
-                                                                      "pn2",
-                                                                      "pn3",
-                                                                      "pn4",
-                                                                      "pn5",
-                                                                      "pn6",
-                                                                      "pn7",
-                                                                      "pn8",
-                                                                      "pn9",
-                                                                      "pn10",
-                                                                      "pn11",
-                                                                      "pn12",
-                                                                      "pn13",
-                                                                      "pn14",
-                                                                      "pn15",
-                                                                      "ffr",
-                                                                      "za",
-                                                                      "za0.b",
-                                                                      "za0.h",
-                                                                      "za1.h",
-                                                                      "za0.s",
-                                                                      "za1.s",
-                                                                      "za2.s",
-                                                                      "za3.s",
-                                                                      "za0.d",
-                                                                      "za1.d",
-                                                                      "za2.d",
-                                                                      "za3.d",
-                                                                      "za4.d",
-                                                                      "za5.d",
-                                                                      "za6.d",
-                                                                      "za7.d",
-                                                                      "za0.q",
-                                                                      "za1.q",
-                                                                      "za2.q",
-                                                                      "za3.q",
-                                                                      "za4.q",
-                                                                      "za5.q",
-                                                                      "za6.q",
-                                                                      "za7.q",
-                                                                      "za8.q",
-                                                                      "za9.q",
-                                                                      "za10.q",
-                                                                      "za11.q",
-                                                                      "za12.q",
-                                                                      "za13.q",
-                                                                      "za14.q",
-                                                                      "za15.q",
-                                                                      "zt0",
-                                                                      "vg"
+                                                 ,
+                                                 "b0",
+                                                 "b1",
+                                                 "b2",
+                                                 "b3",
+                                                 "b4",
+                                                 "b5",
+                                                 "b6",
+                                                 "b7",
+                                                 "b8",
+                                                 "b9",
+                                                 "b10",
+                                                 "b11",
+                                                 "b12",
+                                                 "b13",
+                                                 "b14",
+                                                 "b15",
+                                                 "b16",
+                                                 "b17",
+                                                 "b18",
+                                                 "b19",
+                                                 "b20",
+                                                 "b21",
+                                                 "b22",
+                                                 "b23",
+                                                 "b24",
+                                                 "b25",
+                                                 "b26",
+                                                 "b27",
+                                                 "b28",
+                                                 "b29",
+                                                 "b30",
+                                                 "b31",
+                                                 "h0",
+                                                 "h1",
+                                                 "h2",
+                                                 "h3",
+                                                 "h4",
+                                                 "h5",
+                                                 "h6",
+                                                 "h7",
+                                                 "h8",
+                                                 "h9",
+                                                 "h10",
+                                                 "h11",
+                                                 "h12",
+                                                 "h13",
+                                                 "h14",
+                                                 "h15",
+                                                 "h16",
+                                                 "h17",
+                                                 "h18",
+                                                 "h19",
+                                                 "h20",
+                                                 "h21",
+                                                 "h22",
+                                                 "h23",
+                                                 "h24",
+                                                 "h25",
+                                                 "h26",
+                                                 "h27",
+                                                 "h28",
+                                                 "h29",
+                                                 "h30",
+                                                 "h31",
+                                                 "s0",
+                                                 "s1",
+                                                 "s2",
+                                                 "s3",
+                                                 "s4",
+                                                 "s5",
+                                                 "s6",
+                                                 "s7",
+                                                 "s8",
+                                                 "s9",
+                                                 "s10",
+                                                 "s11",
+                                                 "s12",
+                                                 "s13",
+                                                 "s14",
+                                                 "s15",
+                                                 "s16",
+                                                 "s17",
+                                                 "s18",
+                                                 "s19",
+                                                 "s20",
+                                                 "s21",
+                                                 "s22",
+                                                 "s23",
+                                                 "s24",
+                                                 "s25",
+                                                 "s26",
+                                                 "s27",
+                                                 "s28",
+                                                 "s29",
+                                                 "s30",
+                                                 "s31",
+                                                 "q16",
+                                                 "q17",
+                                                 "q18",
+                                                 "q19",
+                                                 "q20",
+                                                 "q21",
+                                                 "q22",
+                                                 "q23",
+                                                 "q24",
+                                                 "q25",
+                                                 "q26",
+                                                 "q27",
+                                                 "q28",
+                                                 "q29",
+                                                 "q30",
+                                                 "q31",
+                                                 "z0",
+                                                 "z1",
+                                                 "z2",
+                                                 "z3",
+                                                 "z4",
+                                                 "z5",
+                                                 "z6",
+                                                 "z7",
+                                                 "z8",
+                                                 "z9",
+                                                 "z10",
+                                                 "z11",
+                                                 "z12",
+                                                 "z13",
+                                                 "z14",
+                                                 "z15",
+                                                 "z16",
+                                                 "z17",
+                                                 "z18",
+                                                 "z19",
+                                                 "z20",
+                                                 "z21",
+                                                 "z22",
+                                                 "z23",
+                                                 "z24",
+                                                 "z25",
+                                                 "z26",
+                                                 "z27",
+                                                 "z28",
+                                                 "z29",
+                                                 "z30",
+                                                 "z31",
+                                                 "p0",
+                                                 "p1",
+                                                 "p2",
+                                                 "p3",
+                                                 "p4",
+                                                 "p5",
+                                                 "p6",
+                                                 "p7",
+                                                 "p8",
+                                                 "p9",
+                                                 "p10",
+                                                 "p11",
+                                                 "p12",
+                                                 "p13",
+                                                 "p14",
+                                                 "p15",
+                                                 "pn0",
+                                                 "pn1",
+                                                 "pn2",
+                                                 "pn3",
+                                                 "pn4",
+                                                 "pn5",
+                                                 "pn6",
+                                                 "pn7",
+                                                 "pn8",
+                                                 "pn9",
+                                                 "pn10",
+                                                 "pn11",
+                                                 "pn12",
+                                                 "pn13",
+                                                 "pn14",
+                                                 "pn15",
+                                                 "ffr",
+                                                 "za",
+                                                 "za0.b",
+                                                 "za0.h",
+                                                 "za1.h",
+                                                 "za0.s",
+                                                 "za1.s",
+                                                 "za2.s",
+                                                 "za3.s",
+                                                 "za0.d",
+                                                 "za1.d",
+                                                 "za2.d",
+                                                 "za3.d",
+                                                 "za4.d",
+                                                 "za5.d",
+                                                 "za6.d",
+                                                 "za7.d",
+                                                 "za0.q",
+                                                 "za1.q",
+                                                 "za2.q",
+                                                 "za3.q",
+                                                 "za4.q",
+                                                 "za5.q",
+                                                 "za6.q",
+                                                 "za7.q",
+                                                 "za8.q",
+                                                 "za9.q",
+                                                 "za10.q",
+                                                 "za11.q",
+                                                 "za12.q",
+                                                 "za13.q",
+                                                 "za14.q",
+                                                 "za15.q",
+                                                 "zt0",
+                                                 "vg"
 #endif
 };
 
@@ -446,11 +456,40 @@ static const char *const arm_shift_names[] = {NULL, "lsl", "lsr", "asr", "ror", 
 
 static const char *const arm_extend_names[] = {NULL, "uxtb", "uxth", "uxtw", "uxtx", "sxtb", "sxth", "sxtw", "sxtx"};
 
+#if USE_EXTRA_OPCODES
 _Static_assert(sizeof(arm_mnemonic_names) / sizeof(arm_mnemonic_names[0]) == CDISASM_ARM_NAME_COUNT, "ARM mnemonic table is incomplete");
 _Static_assert(sizeof(arm_register_names) / sizeof(arm_register_names[0]) == CDISASM_ARM_REG_COUNT, "ARM register table is incomplete");
+#else
+_Static_assert(sizeof(arm_mnemonic_names) / sizeof(arm_mnemonic_names[0]) == CDISASM_ARM_NAME_STLXP + 1u, "ARM base mnemonic table is incomplete");
+_Static_assert(sizeof(arm_register_names) / sizeof(arm_register_names[0]) == CDISASM_ARM_REG_CPM_IOACC_CTL_EL3 + 1u, "ARM base register table is incomplete");
+#endif
 _Static_assert(sizeof(arm_condition_names) / sizeof(arm_condition_names[0]) == CDISASM_ARM_CONDITION_NV + 1u, "ARM condition table is incomplete");
 _Static_assert(sizeof(arm_shift_names) / sizeof(arm_shift_names[0]) == CDISASM_ARM_SHIFT_MSL + 1u, "ARM shift table is incomplete");
 _Static_assert(sizeof(arm_extend_names) / sizeof(arm_extend_names[0]) == CDISASM_ARM_EXTEND_SXTX + 1u, "ARM extension table is incomplete");
+
+static const char *arm_mnemonic_name(cdisasm_arm_name_id name_id)
+{
+    if (name_id < sizeof(arm_mnemonic_names) / sizeof(arm_mnemonic_names[0])) {
+        return arm_mnemonic_names[name_id];
+    }
+#if !USE_EXTRA_OPCODES
+    /* Base A32 flag-setting forms have append-only IDs in the extended
+     * catalog. Keep their names without reserving all intervening slots. */
+    switch (name_id) {
+        case CDISASM_ARM_NAME_EORS: return "eors";
+        case CDISASM_ARM_NAME_RSBS: return "rsbs";
+        case CDISASM_ARM_NAME_ADCS: return "adcs";
+        case CDISASM_ARM_NAME_SBCS: return "sbcs";
+        case CDISASM_ARM_NAME_RSCS: return "rscs";
+        case CDISASM_ARM_NAME_ORRS: return "orrs";
+        case CDISASM_ARM_NAME_MOVS: return "movs";
+        case CDISASM_ARM_NAME_BICS: return "bics";
+        case CDISASM_ARM_NAME_MVNS: return "mvns";
+        default: break;
+    }
+#endif
+    return NULL;
+}
 
 static void arm_writer_putc(arm_text_writer *writer, char value)
 {
@@ -555,7 +594,7 @@ static int arm_bytes_are_zero(const void *data, size_t size)
 
 static int arm_valid_register_id(cdisasm_arm_reg_id reg)
 {
-    return reg < CDISASM_ARM_REG_COUNT && arm_register_names[reg] != NULL;
+    return reg < sizeof(arm_register_names) / sizeof(arm_register_names[0]) && arm_register_names[reg] != NULL;
 }
 
 static int arm_is_a32_register(cdisasm_arm_reg_id reg)
@@ -635,9 +674,9 @@ static int arm_valid_shift(cdisasm_arm_shift_type shift_type, uint8_t shift_amou
 
 static int arm_is_a32_shift_count_operand(const cdisasm_arm_instruction *instruction, const cdisasm_arm_operand *operand)
 {
-    return instruction->isa_id == CDISASM_ARM_ISA_A32 && instruction->form_id >= UINT16_C(188) &&
-           instruction->form_id <= UINT16_C(215) && instruction->form_id != UINT16_C(210) && instruction->form_id != UINT16_C(211) &&
-           instruction->operand_count != 0u && operand == &instruction->operand[instruction->operand_count - 1u];
+    return instruction->isa_id == CDISASM_ARM_ISA_A32 && instruction->form_id >= UINT16_C(188) && instruction->form_id <= UINT16_C(215) &&
+           instruction->form_id != UINT16_C(210) && instruction->form_id != UINT16_C(211) && instruction->operand_count != 0u &&
+           operand == &instruction->operand[instruction->operand_count - 1u];
 }
 
 static int arm_valid_scalar_register_size(cdisasm_arm_reg_id reg, uint8_t size)
@@ -960,9 +999,8 @@ static int arm_valid_register_operand(const cdisasm_arm_instruction *instruction
         return 0;
     }
     if (arm_is_a32_shift_count_operand(instruction, operand)) {
-        return operand->reg >= CDISASM_ARM_REG_R0 && operand->reg <= CDISASM_ARM_REG_R14 && operand->size == 4u &&
-               operand->access == CDISASM_OPERAND_ACCESS_READ && operand->shift_type >= CDISASM_ARM_SHIFT_LSL &&
-               operand->shift_type <= CDISASM_ARM_SHIFT_ROR && operand->shift_amount == 0u &&
+        return operand->reg >= CDISASM_ARM_REG_R0 && operand->reg <= CDISASM_ARM_REG_R14 && operand->size == 4u && operand->access == CDISASM_OPERAND_ACCESS_READ &&
+               operand->shift_type >= CDISASM_ARM_SHIFT_LSL && operand->shift_type <= CDISASM_ARM_SHIFT_ROR && operand->shift_amount == 0u &&
                operand->extend_type == CDISASM_ARM_EXTEND_NONE && operand->scale == 0u;
     }
     if (instruction->isa_id == CDISASM_ARM_ISA_A64 && instruction->form_id == UINT16_C(4922) && instruction->name_id == CDISASM_ARM_NAME_LDR &&
@@ -1691,9 +1729,9 @@ static int arm_valid_system_operand(const cdisasm_arm_instruction *instruction, 
                                 (instruction->raw_instruction >> 16 & UINT32_C(0xff)) >= UINT32_C(0x10) &&
                                 (instruction->raw_instruction >> 16 & UINT32_C(0xff)) <= UINT32_C(0x14);
             maximum = m_profile_mrs ? UINT64_C(0x14) : UINT64_C(0x1f);
-            valid_name = m_profile_mrs ? operand->imm == ((instruction->raw_instruction >> 16) & UINT32_C(0xff))
-                                       : instruction->name_id == CDISASM_ARM_NAME_MRS ? (operand->imm & UINT64_C(0x0f)) == 0u
-                                                                                       : (operand->imm & UINT64_C(0x0f)) != 0u;
+            valid_name = m_profile_mrs                                  ? operand->imm == ((instruction->raw_instruction >> 16) & UINT32_C(0xff))
+                         : instruction->name_id == CDISASM_ARM_NAME_MRS ? (operand->imm & UINT64_C(0x0f)) == 0u
+                                                                        : (operand->imm & UINT64_C(0x0f)) != 0u;
         } else {
             maximum = UINT64_C(0xffff);
             valid_name = instruction->isa_id == CDISASM_ARM_ISA_A64 && (instruction->name_id == CDISASM_ARM_NAME_MRS || instruction->name_id == CDISASM_ARM_NAME_MSR);
@@ -1727,6 +1765,7 @@ static int arm_valid_operand(const cdisasm_arm_instruction *instruction, const c
         case CDISASM_OPERAND_MEMORY: return arm_valid_memory_operand(instruction, operand);
         case CDISASM_ARM_OPERAND_REGISTER_LIST: return arm_valid_register_list_operand(instruction, operand);
         case CDISASM_ARM_OPERAND_REGISTER_PAIR: return arm_valid_register_pair_operand(instruction, operand);
+#if USE_EXTRA_OPCODES
         case CDISASM_ARM_OPERAND_SCALABLE_REGISTER: return arm_valid_scalable_operand(instruction, operand);
         case CDISASM_ARM_OPERAND_PREDICATE: return arm_valid_predicate_operand(instruction, operand);
         case CDISASM_ARM_OPERAND_SCALABLE_REGISTER_LIST: return arm_valid_scalable_list_operand(instruction, operand);
@@ -1738,6 +1777,7 @@ static int arm_valid_operand(const cdisasm_arm_instruction *instruction, const c
         case CDISASM_ARM_OPERAND_SYSTEM_OPERATION: return arm_valid_system_operand(instruction, operand);
         case CDISASM_ARM_OPERAND_PSTATE_FIELD: return arm_valid_pstate_field_operand(instruction, operand);
         case CDISASM_ARM_OPERAND_VECTOR_REGISTER_LIST: return arm_valid_vector_list_operand(instruction, operand);
+#endif
         default: return 0;
     }
 }
@@ -12909,15 +12949,22 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
                                        CDISASM_ARM_INSTRUCTION_FLAG_EXCLUSIVE | CDISASM_ARM_INSTRUCTION_FLAG_ATOMIC_PAIR;
 
     if (instruction == NULL || instruction->last_error_id != CDISASM_STATUS_OK || instruction->name_id == CDISASM_ARM_NAME_NONE ||
-        instruction->name_id >= CDISASM_ARM_NAME_COUNT || arm_mnemonic_names[instruction->name_id] == NULL || instruction->operand_count > CDISASM_ARM_MAX_OPERANDS ||
-        instruction->condition > CDISASM_ARM_CONDITION_NV || (instruction->opcode_groups & ~known_groups) != 0u ||
-        (instruction->instruction_flags & ~known_flags) != 0u) {
+        arm_mnemonic_name(instruction->name_id) == NULL || instruction->operand_count > CDISASM_ARM_MAX_OPERANDS || instruction->condition > CDISASM_ARM_CONDITION_NV ||
+        (instruction->opcode_groups & ~known_groups) != 0u || (instruction->instruction_flags & ~known_flags) != 0u) {
         return 0;
     }
+#if !USE_EXTRA_OPCODES
+    if ((instruction->instruction_flags &
+         (CDISASM_ARM_INSTRUCTION_FLAG_APPLE_PROPRIETARY | CDISASM_ARM_INSTRUCTION_FLAG_APPLE_AMX | CDISASM_ARM_INSTRUCTION_FLAG_APPLE_MUL53 |
+          CDISASM_ARM_INSTRUCTION_FLAG_APPLE_SYSTEM | CDISASM_ARM_INSTRUCTION_FLAG_SCALABLE_VECTOR | CDISASM_ARM_INSTRUCTION_FLAG_PREDICATED |
+          CDISASM_ARM_INSTRUCTION_FLAG_SME | CDISASM_ARM_INSTRUCTION_FLAG_STREAMING | CDISASM_ARM_INSTRUCTION_FLAG_MATRIX | CDISASM_ARM_INSTRUCTION_FLAG_MEMORY_TAGGING |
+          CDISASM_ARM_INSTRUCTION_FLAG_POINTER_AUTH | CDISASM_ARM_INSTRUCTION_FLAG_GENERATED_FALLBACK | CDISASM_ARM_INSTRUCTION_FLAG_OPERANDS_OPAQUE)) != 0u) {
+        return 0;
+    }
+#endif
     if (instruction->name_id == CDISASM_ARM_NAME_CDP || instruction->name_id == CDISASM_ARM_NAME_CDP2) {
-        uint32_t word = instruction->isa_id == CDISASM_ARM_ISA_T32
-                            ? ((instruction->raw_instruction & UINT32_C(0xffff)) << 16) | (instruction->raw_instruction >> 16)
-                            : instruction->raw_instruction;
+        uint32_t word = instruction->isa_id == CDISASM_ARM_ISA_T32 ? ((instruction->raw_instruction & UINT32_C(0xffff)) << 16) | (instruction->raw_instruction >> 16)
+                                                                   : instruction->raw_instruction;
         unsigned selectors = ((word >> 8) & 15u) | (((word >> 20) & 15u) << 4) | (((word >> 5) & 7u) << 8);
         unsigned fields[3] = {(word >> 12) & 15u, (word >> 16) & 15u, word & 15u};
         unsigned i;
@@ -12925,8 +12972,8 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
         if ((instruction->isa_id != CDISASM_ARM_ISA_A32 && instruction->isa_id != CDISASM_ARM_ISA_T32) || instruction->opcode_size != 4u ||
             (word & UINT32_C(0x0f000010)) != UINT32_C(0x0e000000) || ((word >> 8) & 15u) == 10u || ((word >> 8) & 15u) == 11u ||
             instruction->name_id != ((word >> 28) == 15u ? CDISASM_ARM_NAME_CDP2 : CDISASM_ARM_NAME_CDP) ||
-            instruction->condition != (instruction->isa_id == CDISASM_ARM_ISA_T32 || (word >> 28) == 15u ? CDISASM_ARM_CONDITION_AL
-                                                                                                         : (cdisasm_arm_condition)(word >> 28)) ||
+            instruction->condition !=
+                (instruction->isa_id == CDISASM_ARM_ISA_T32 || (word >> 28) == 15u ? CDISASM_ARM_CONDITION_AL : (cdisasm_arm_condition)(word >> 28)) ||
             instruction->opcode_groups != (instruction->condition == CDISASM_ARM_CONDITION_AL ? CDISASM_GROUP_NONE : CDISASM_GROUP_CONDITIONAL) ||
             instruction->instruction_flags != 0u || instruction->branch_target != 0u || instruction->operand_count != 4u ||
             instruction->operand[0].type != CDISASM_OPERAND_IMMEDIATE || instruction->operand[0].imm != selectors || instruction->operand[0].size != 2u ||
@@ -12936,18 +12983,17 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
         for (i = 0u; i < 3u; ++i) {
             const cdisasm_arm_operand *operand = &instruction->operand[i + 1u];
 
-            if (operand->type != CDISASM_OPERAND_IMMEDIATE || operand->imm != fields[i] || operand->size != 1u ||
-                operand->access != CDISASM_OPERAND_ACCESS_READ || !arm_valid_operand(instruction, operand)) {
+            if (operand->type != CDISASM_OPERAND_IMMEDIATE || operand->imm != fields[i] || operand->size != 1u || operand->access != CDISASM_OPERAND_ACCESS_READ ||
+                !arm_valid_operand(instruction, operand)) {
                 return 0;
             }
         }
         return arm_valid_operand(instruction, &instruction->operand[0]);
     }
-    if (instruction->name_id == CDISASM_ARM_NAME_MCR || instruction->name_id == CDISASM_ARM_NAME_MRC ||
-        instruction->name_id == CDISASM_ARM_NAME_MCRR || instruction->name_id == CDISASM_ARM_NAME_MRRC) {
-        uint32_t word = instruction->isa_id == CDISASM_ARM_ISA_T32
-                            ? ((instruction->raw_instruction & UINT32_C(0xffff)) << 16) | (instruction->raw_instruction >> 16)
-                            : instruction->raw_instruction;
+    if (instruction->name_id == CDISASM_ARM_NAME_MCR || instruction->name_id == CDISASM_ARM_NAME_MRC || instruction->name_id == CDISASM_ARM_NAME_MCRR ||
+        instruction->name_id == CDISASM_ARM_NAME_MRRC) {
+        uint32_t word = instruction->isa_id == CDISASM_ARM_ISA_T32 ? ((instruction->raw_instruction & UINT32_C(0xffff)) << 16) | (instruction->raw_instruction >> 16)
+                                                                   : instruction->raw_instruction;
         int long_form = instruction->name_id == CDISASM_ARM_NAME_MCRR || instruction->name_id == CDISASM_ARM_NAME_MRRC;
         int read_form = instruction->name_id == CDISASM_ARM_NAME_MRC || instruction->name_id == CDISASM_ARM_NAME_MRRC;
         uint64_t selectors = (word >> 8) & 15u;
@@ -12962,15 +13008,12 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
             selectors |= ((uint64_t)(word & 15u)) << 11;
             selectors |= ((uint64_t)((word >> 5) & 7u)) << 15;
         }
-        if ((instruction->isa_id != CDISASM_ARM_ISA_A32 && instruction->isa_id != CDISASM_ARM_ISA_T32) || instruction->opcode_size != 4u ||
-            ((word >> 8) & 14u) == 10u ||
+        if ((instruction->isa_id != CDISASM_ARM_ISA_A32 && instruction->isa_id != CDISASM_ARM_ISA_T32) || instruction->opcode_size != 4u || ((word >> 8) & 14u) == 10u ||
             (long_form ? (word & UINT32_C(0x0ff00000)) != (read_form ? UINT32_C(0x0c500000) : UINT32_C(0x0c400000))
                        : (word & UINT32_C(0x0f100010)) != (read_form ? UINT32_C(0x0e100010) : UINT32_C(0x0e000010))) ||
-            instruction->instruction_flags != 0u || instruction->branch_target != 0u ||
-            instruction->operand_count != (long_form ? 3u : 2u) ||
-            instruction->operand[0].type != CDISASM_OPERAND_IMMEDIATE || instruction->operand[0].imm != selectors ||
-            instruction->operand[0].size != 3u || instruction->operand[0].access != CDISASM_OPERAND_ACCESS_READ ||
-            (instruction->opcode_groups & CDISASM_GROUP_PRIVILEGED) == 0u) {
+            instruction->instruction_flags != 0u || instruction->branch_target != 0u || instruction->operand_count != (long_form ? 3u : 2u) ||
+            instruction->operand[0].type != CDISASM_OPERAND_IMMEDIATE || instruction->operand[0].imm != selectors || instruction->operand[0].size != 3u ||
+            instruction->operand[0].access != CDISASM_OPERAND_ACCESS_READ || (instruction->opcode_groups & CDISASM_GROUP_PRIVILEGED) == 0u) {
             return 0;
         }
         for (i = 1u; i < instruction->operand_count; ++i) {
@@ -12978,8 +13021,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
             unsigned raw_reg = i == 1u ? (word >> 12) & 15u : (word >> 16) & 15u;
 
             if (operand->type != CDISASM_OPERAND_REGISTER || operand->reg != CDISASM_ARM_REG_R0 + raw_reg || operand->size != 4u ||
-                operand->access != (read_form ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ) ||
-                !arm_valid_operand(instruction, operand)) {
+                operand->access != (read_form ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ) || !arm_valid_operand(instruction, operand)) {
                 return 0;
             }
         }
@@ -12997,6 +13039,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
             return 0;
         }
     }
+#if USE_EXTRA_OPCODES
     /* The FVDOT/BFVDOT indexed forms use encodings which overlap older SME
      * envelope validators.  Validate their complete structured shape once,
      * before those legacy schemas inspect the same raw word. */
@@ -13012,6 +13055,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
         }
         return 1;
     }
+#endif
     if (!arm_valid_a64_fmov_immediate_schema(instruction)) {
         return 0;
     }
@@ -13021,6 +13065,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_advsimd_sat_round_narrow_schema(instruction)) {
         return 0;
     }
+#if USE_EXTRA_OPCODES
     if (!arm_valid_sve2_gather_non_temporal_load_schema(instruction)) {
         return 0;
     }
@@ -13081,6 +13126,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_sve_replicate_block_load_schema(instruction)) {
         return 0;
     }
+#endif
     if ((instruction->isa_id == CDISASM_ARM_ISA_A64 && (instruction->raw_instruction & UINT32_C(0xff20f400)) == UINT32_C(0x7e008400)) ||
         instruction->form_id == UINT16_C(5771) || instruction->form_id == UINT16_C(5772)) {
         return arm_valid_advsimd_scalar_sqrdml_accumulate_schema(instruction);
@@ -13235,6 +13281,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_t32_wide_mov_register_shift_schema(instruction)) {
         return 0;
     }
+#if USE_EXTRA_OPCODES
     if (!arm_valid_sve_contiguous_load_schema(instruction)) {
         return 0;
     }
@@ -13262,9 +13309,11 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_sve2p1_multi_contiguous_schema(instruction)) {
         return 0;
     }
+#endif
     if (!arm_valid_t32_wide_cps_schema(instruction)) {
         return 0;
     }
+#if USE_EXTRA_OPCODES
     if (!arm_valid_sme_fmopa_schema(instruction)) {
         return 0;
     }
@@ -13376,6 +13425,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_sve_predicated_bfscale_schema(instruction)) {
         return 0;
     }
+#endif
     if (!arm_valid_a64_lsui_pair_schema(instruction)) {
         return 0;
     }
@@ -13403,6 +13453,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_a64_add_sub_pointer_schema(instruction)) {
         return 0;
     }
+#if USE_EXTRA_OPCODES
     if (!arm_valid_sme2_multi4x4_int_misc_schema(instruction)) {
         return 0;
     }
@@ -13475,6 +13526,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_sme2p1_zero_range_schema(instruction)) {
         return 0;
     }
+#endif
     if (!arm_valid_crc32_schema(instruction)) {
         return 0;
     }
@@ -13490,9 +13542,11 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_pauth_branch_schema(instruction)) {
         return 0;
     }
+#if USE_EXTRA_OPCODES
     if (!arm_valid_sve_element_count_schema(instruction)) {
         return 0;
     }
+#endif
     if (!arm_valid_sve_widening_fp_mla_indexed_schema(instruction)) return 0;
     if (!arm_valid_sve_fp8_widening_fp_mla_indexed_schema(instruction)) return 0;
     if (!arm_valid_sve_fp8_widening_schema(instruction)) return 0;
@@ -13500,6 +13554,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_sve_fp8_fmmla_schema(instruction)) return 0;
     if (!arm_valid_sve_fmmla_schema(instruction)) return 0;
     if (!arm_valid_sve_widening_fp_mla_schema(instruction)) return 0;
+#if USE_EXTRA_OPCODES
     if (!arm_valid_sve_saturating_count_schema(instruction)) {
         return 0;
     }
@@ -13521,6 +13576,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_sve_bitperm_schema(instruction)) {
         return 0;
     }
+#endif
     if (!arm_valid_fixed_crypto_schema(instruction)) {
         return 0;
     }
@@ -13590,6 +13646,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_advsimd_high_narrow_schema(instruction)) {
         return 0;
     }
+#if USE_EXTRA_OPCODES
     if (!arm_valid_sve_unpredicated_logical_schema(instruction)) {
         return 0;
     }
@@ -13635,6 +13692,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_sve_predicated_pairwise_schema(instruction)) {
         return 0;
     }
+#endif
     if (!arm_valid_advsimd_compare_schema(instruction)) {
         return 0;
     }
@@ -13704,6 +13762,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_advsimd_narrow_widen_move_schema(instruction)) {
         return 0;
     }
+#if USE_EXTRA_OPCODES
     if (!arm_valid_sve_predicated_saturating_schema(instruction)) {
         return 0;
     }
@@ -13764,6 +13823,7 @@ static int arm_valid_instruction(const cdisasm_arm_instruction *instruction)
     if (!arm_valid_za_transfer_schema(instruction)) {
         return 0;
     }
+#endif
     return 1;
 }
 
@@ -13847,21 +13907,18 @@ static int arm_is_fp16_scalar_memory(const cdisasm_arm_instruction *instruction)
            instruction->operand[1].type == CDISASM_OPERAND_MEMORY;
 }
 
-static int arm_t32_wide_add_sub_fields(const cdisasm_arm_instruction *instruction,
-                                      unsigned *rn, unsigned *rd, unsigned *immediate, int *subtract)
+static int arm_t32_wide_add_sub_fields(const cdisasm_arm_instruction *instruction, unsigned *rn, unsigned *rd, unsigned *immediate, int *subtract)
 {
     uint16_t first;
     uint16_t second;
 
     if (instruction->isa_id != CDISASM_ARM_ISA_T32 || instruction->opcode_size != 4u ||
-        (instruction->name_id != CDISASM_ARM_NAME_ADD && instruction->name_id != CDISASM_ARM_NAME_SUB &&
-         instruction->name_id != CDISASM_ARM_NAME_ADR)) {
+        (instruction->name_id != CDISASM_ARM_NAME_ADD && instruction->name_id != CDISASM_ARM_NAME_SUB && instruction->name_id != CDISASM_ARM_NAME_ADR)) {
         return 0;
     }
     first = (uint16_t)instruction->raw_instruction;
     second = (uint16_t)(instruction->raw_instruction >> 16);
-    if (((first & UINT16_C(0xfbf0)) != UINT16_C(0xf200) && (first & UINT16_C(0xfbf0)) != UINT16_C(0xf2a0)) ||
-        (second & UINT16_C(0x8000)) != 0u) {
+    if (((first & UINT16_C(0xfbf0)) != UINT16_C(0xf200) && (first & UINT16_C(0xfbf0)) != UINT16_C(0xf2a0)) || (second & UINT16_C(0x8000)) != 0u) {
         return 0;
     }
     *rn = first & 15u;
@@ -13871,8 +13928,7 @@ static int arm_t32_wide_add_sub_fields(const cdisasm_arm_instruction *instructio
     return 1;
 }
 
-static const char *arm_a64_bitfield_extract_alias(const cdisasm_arm_instruction *instruction,
-                                                    unsigned *lsb, unsigned *width)
+static const char *arm_a64_bitfield_extract_alias(const cdisasm_arm_instruction *instruction, unsigned *lsb, unsigned *width)
 {
     uint32_t word = instruction->raw_instruction;
     unsigned register_width;
@@ -13913,12 +13969,9 @@ static int arm_a32_pop_single_alias(const cdisasm_arm_instruction *instruction)
 {
     uint32_t word = instruction->raw_instruction;
 
-    return instruction->isa_id == CDISASM_ARM_ISA_A32 && instruction->opcode_size == 4u &&
-           instruction->name_id == CDISASM_ARM_NAME_LDR && instruction->operand_count == 2u &&
-           (word & UINT32_C(0x0fff0fff)) == UINT32_C(0x049d0004) &&
-           instruction->operand[0].type == CDISASM_OPERAND_REGISTER &&
-           instruction->operand[0].reg == CDISASM_ARM_REG_R0 + ((word >> 12) & 15u) &&
-           instruction->operand[1].type == CDISASM_OPERAND_MEMORY &&
+    return instruction->isa_id == CDISASM_ARM_ISA_A32 && instruction->opcode_size == 4u && instruction->name_id == CDISASM_ARM_NAME_LDR &&
+           instruction->operand_count == 2u && (word & UINT32_C(0x0fff0fff)) == UINT32_C(0x049d0004) && instruction->operand[0].type == CDISASM_OPERAND_REGISTER &&
+           instruction->operand[0].reg == CDISASM_ARM_REG_R0 + ((word >> 12) & 15u) && instruction->operand[1].type == CDISASM_OPERAND_MEMORY &&
            instruction->operand[1].base_reg == CDISASM_ARM_REG_R13;
 }
 
@@ -13941,10 +13994,10 @@ static void arm_format_mnemonic(arm_text_writer *writer, const cdisasm_arm_instr
     } else if (arm_t32_wide_add_sub_fields(instruction, &wide_rn, &wide_rd, &wide_immediate, &wide_subtract)) {
         arm_writer_puts_mnemonic(writer, wide_subtract ? "subw" : "addw", uppercase);
     } else {
-        arm_writer_puts_mnemonic(writer, arm_mnemonic_names[instruction->name_id], uppercase);
+        arm_writer_puts_mnemonic(writer, arm_mnemonic_name(instruction->name_id), uppercase);
     }
-    if ((instruction->name_id == CDISASM_ARM_NAME_MCR || instruction->name_id == CDISASM_ARM_NAME_MRC ||
-         instruction->name_id == CDISASM_ARM_NAME_MCRR || instruction->name_id == CDISASM_ARM_NAME_MRRC) &&
+    if ((instruction->name_id == CDISASM_ARM_NAME_MCR || instruction->name_id == CDISASM_ARM_NAME_MRC || instruction->name_id == CDISASM_ARM_NAME_MCRR ||
+         instruction->name_id == CDISASM_ARM_NAME_MRRC) &&
         (instruction->isa_id == CDISASM_ARM_ISA_A32 || instruction->isa_id == CDISASM_ARM_ISA_T32) &&
         (instruction->isa_id == CDISASM_ARM_ISA_T32 ? (instruction->raw_instruction & UINT32_C(0xf000)) == UINT32_C(0xf000)
                                                     : (instruction->raw_instruction >> 28) == 15u)) {
@@ -13952,9 +14005,8 @@ static void arm_format_mnemonic(arm_text_writer *writer, const cdisasm_arm_instr
     }
     if ((instruction->name_id == CDISASM_ARM_NAME_LDC || instruction->name_id == CDISASM_ARM_NAME_STC) &&
         (instruction->isa_id == CDISASM_ARM_ISA_A32 || instruction->isa_id == CDISASM_ARM_ISA_T32)) {
-        uint32_t word = instruction->isa_id == CDISASM_ARM_ISA_T32
-                            ? ((instruction->raw_instruction & UINT32_C(0xffff)) << 16) | (instruction->raw_instruction >> 16)
-                            : instruction->raw_instruction;
+        uint32_t word = instruction->isa_id == CDISASM_ARM_ISA_T32 ? ((instruction->raw_instruction & UINT32_C(0xffff)) << 16) | (instruction->raw_instruction >> 16)
+                                                                   : instruction->raw_instruction;
 
         if ((word & UINT32_C(0x00400000)) != 0u) {
             arm_writer_putc_mnemonic(writer, 'l', uppercase);
@@ -15039,8 +15091,8 @@ static void arm_format_system_register(arm_text_writer *writer, const cdisasm_ar
     uint64_t encoding = operand->imm;
 
     if (instruction->isa_id == CDISASM_ARM_ISA_T32 && instruction->name_id == CDISASM_ARM_NAME_MRS &&
-        (instruction->raw_instruction & UINT32_C(0x0000ffff)) == UINT32_C(0xf3ef) &&
-        ((instruction->raw_instruction >> 16) & UINT32_C(0xf000)) == UINT32_C(0x8000) && encoding >= UINT64_C(0x10) && encoding <= UINT64_C(0x14)) {
+        (instruction->raw_instruction & UINT32_C(0x0000ffff)) == UINT32_C(0xf3ef) && ((instruction->raw_instruction >> 16) & UINT32_C(0xf000)) == UINT32_C(0x8000) &&
+        encoding >= UINT64_C(0x10) && encoding <= UINT64_C(0x14)) {
         static const char *const m_profile_names[] = {"primask", "basepri", "basepri_max", "faultmask", "control"};
 
         arm_writer_puts(writer, m_profile_names[encoding - UINT64_C(0x10)]);
@@ -15173,8 +15225,8 @@ size_t CDISASM_CALL cdisasm_arm_format(const cdisasm_arm_instruction *instructio
         arm_writer_finish(&writer);
         return writer.length;
     }
-    if (instruction->name_id == CDISASM_ARM_NAME_MCR || instruction->name_id == CDISASM_ARM_NAME_MRC ||
-        instruction->name_id == CDISASM_ARM_NAME_MCRR || instruction->name_id == CDISASM_ARM_NAME_MRRC) {
+    if (instruction->name_id == CDISASM_ARM_NAME_MCR || instruction->name_id == CDISASM_ARM_NAME_MRC || instruction->name_id == CDISASM_ARM_NAME_MCRR ||
+        instruction->name_id == CDISASM_ARM_NAME_MRRC) {
         uint64_t selectors = instruction->operand[0].imm;
         int long_form = instruction->name_id == CDISASM_ARM_NAME_MCRR || instruction->name_id == CDISASM_ARM_NAME_MRRC;
 
@@ -15230,8 +15282,8 @@ size_t CDISASM_CALL cdisasm_arm_format(const cdisasm_arm_instruction *instructio
         unsigned wide_immediate;
         int wide_subtract;
 
-        if (instruction->name_id == CDISASM_ARM_NAME_ADR &&
-            arm_t32_wide_add_sub_fields(instruction, &wide_rn, &wide_rd, &wide_immediate, &wide_subtract) && wide_rn == 15u) {
+        if (instruction->name_id == CDISASM_ARM_NAME_ADR && arm_t32_wide_add_sub_fields(instruction, &wide_rn, &wide_rd, &wide_immediate, &wide_subtract) &&
+            wide_rn == 15u) {
             arm_writer_putc(&writer, ' ');
             arm_writer_puts(&writer, arm_register_names[CDISASM_ARM_REG_R0 + wide_rd]);
             arm_writer_puts(&writer, ", pc, #");

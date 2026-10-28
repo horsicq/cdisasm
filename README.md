@@ -54,6 +54,7 @@ three backends. For example:
 | --- | --- | --- | --- | --- |
 | MIPS base instructions only | `OFF` | `OFF` | `ON` | `OFF` |
 | MIPS with all implemented instructions | `OFF` | `OFF` | `ON` | `ON` |
+| ARM and x86 with base instructions | `ON` | `ON` | `OFF` | `OFF` |
 | All architectures with base instructions | `ON` | `ON` | `ON` | `OFF` |
 | All architectures with all implemented instructions | `ON` | `ON` | `ON` | `ON` |
 

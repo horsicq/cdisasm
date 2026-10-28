@@ -2,6 +2,8 @@
 
 #include <stddef.h>
 
+#if USE_EXTRA_OPCODES
+
 typedef uint8_t arm_apple_operand_form;
 enum {
     ARM_APPLE_FORM_NONE = 0,
@@ -213,3 +215,15 @@ cdisasm_status cdisasm_arm_decode_a64_apple(uint32_t word, cdisasm_arm_instructi
 #undef APPLE_MUL53_CAPS
 #undef APPLE_SYS_CAPS
 #undef APPLE_A7_SYSREG_CAPS
+
+#else
+
+cdisasm_status cdisasm_arm_decode_a64_apple(uint32_t word, cdisasm_arm_instruction *instruction, cdisasm_arm_requirements *required_capabilities)
+{
+    (void)word;
+    (void)instruction;
+    (void)required_capabilities;
+    return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+}
+
+#endif

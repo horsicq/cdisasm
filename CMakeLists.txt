@@ -797,6 +797,12 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
     endif()
 
     if(USE_ARCH_X86)
+        add_executable(cdisasm_x86_base_tests tests/test_x86_base.c)
+        target_compile_features(cdisasm_x86_base_tests PRIVATE c_std_11)
+        target_link_libraries(cdisasm_x86_base_tests PRIVATE cdisasm)
+        add_test(NAME cdisasm_x86_base_tests COMMAND cdisasm_x86_base_tests)
+        set_tests_properties(cdisasm_x86_base_tests PROPERTIES LABELS "base;x86")
+
         add_executable(cdisasm_x86_flag_tests tests/test_x86_flags.c)
         target_compile_features(cdisasm_x86_flag_tests PRIVATE c_std_11)
         target_link_libraries(cdisasm_x86_flag_tests PRIVATE cdisasm)

@@ -1213,197 +1213,6 @@ static const char *const mnemonic_names[] = {
 #define CDISASM_X86_ICLASS_MNEMONIC(value) value,
 #include "x86_iclass_mnemonics.inc"
 #undef CDISASM_X86_ICLASS_MNEMONIC
-#else
-#define CDISASM_X86_FORMAT_NULL4 NULL, NULL, NULL, NULL
-#define CDISASM_X86_FORMAT_NULL8 CDISASM_X86_FORMAT_NULL4, CDISASM_X86_FORMAT_NULL4
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL4,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL4,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL4,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL4,
-    CDISASM_X86_FORMAT_NULL4,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL4,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL8,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    CDISASM_X86_FORMAT_NULL8,
-    CDISASM_X86_FORMAT_NULL4,
-#undef CDISASM_X86_FORMAT_NULL8
-#undef CDISASM_X86_FORMAT_NULL4
-#define CDISASM_X86_ICLASS_MNEMONIC(value) NULL,
-#include "x86_iclass_mnemonics.inc"
-#undef CDISASM_X86_ICLASS_MNEMONIC
 #endif
 };
 
@@ -1427,17 +1236,25 @@ static const char *const register_names[] = {
     "r28d",  "r29d",  "r30d",  "r31d",  "r16",   "r17",   "r18",   "r19",   "r20",   "r21",   "r22",   "r23",   "r24",   "r25",   "r26",   "r27",   "r28",   "r29",
     "r30",   "r31",   "bsr0"};
 
+#if USE_EXTRA_OPCODES
 _Static_assert(sizeof(mnemonic_names) / sizeof(mnemonic_names[0]) == CDISASM_X86_NAME_COUNT, "x86 mnemonic table is incomplete");
+#else
+/* Keep only the original mnemonic block in compact builds. Append-only base
+ * names are handled by mnemonic_name(), so the optional catalog does not
+ * need thousands of NULL pointer slots just to preserve public name IDs. */
+_Static_assert(sizeof(mnemonic_names) / sizeof(mnemonic_names[0]) == CDISASM_X86_NAME_VADDPS, "x86 base mnemonic table is incomplete");
+#endif
 _Static_assert(sizeof(register_names) / sizeof(register_names[0]) == CDISASM_X86_REG_COUNT, "x86 register table is incomplete");
 
 static const char *mnemonic_name(cdisasm_x86_name_id name_id)
 {
+#if USE_EXTRA_OPCODES
     /* The generated catalog splits EVEX map-1 opcode C5 for descriptor
      * identity, but Intel and AT&T syntax retain the architectural spelling. */
     if (name_id == CDISASM_X86_NAME_VPEXTRW_C5) {
         return "vpextrw";
     }
-#if !USE_EXTRA_OPCODES
+#else
     /* These legacy base instructions gained append-only IDs alongside the
      * generated catalog, but their hand-written decoders remain available in
      * the compact build.  Keep their spellings available there as well. */
@@ -1452,7 +1269,7 @@ static const char *mnemonic_name(cdisasm_x86_name_id name_id)
         default: break;
     }
 #endif
-    return mnemonic_names[name_id];
+    return name_id < sizeof(mnemonic_names) / sizeof(mnemonic_names[0]) ? mnemonic_names[name_id] : NULL;
 }
 
 static void writer_putc(text_writer *writer, char value)
