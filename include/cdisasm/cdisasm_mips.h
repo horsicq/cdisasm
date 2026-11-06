@@ -81,8 +81,41 @@ typedef cdisasm_cpu_id cdisasm_mips_cpu_id;
 #define CDISASM_MIPS_CPU_XLR (CDISASM_CPU_GROUP_MIPS | UINT32_C(33))
 #define CDISASM_MIPS_CPU_XLS (CDISASM_CPU_GROUP_MIPS | UINT32_C(34))
 #define CDISASM_MIPS_CPU_XLP (CDISASM_CPU_GROUP_MIPS | UINT32_C(35))
+/* Append-only processor profiles. Optional implementation units use distinct
+ * profiles; a processor name does not silently enable an optional FPU. */
+#define CDISASM_MIPS_CPU_R2000 (CDISASM_CPU_GROUP_MIPS | UINT32_C(36))
+#define CDISASM_MIPS_CPU_R4300 (CDISASM_CPU_GROUP_MIPS | UINT32_C(37))
+#define CDISASM_MIPS_CPU_R4400 (CDISASM_CPU_GROUP_MIPS | UINT32_C(38))
+#define CDISASM_MIPS_CPU_R4600 (CDISASM_CPU_GROUP_MIPS | UINT32_C(39))
+#define CDISASM_MIPS_CPU_R5000 (CDISASM_CPU_GROUP_MIPS | UINT32_C(40))
+#define CDISASM_MIPS_CPU_R8000 (CDISASM_CPU_GROUP_MIPS | UINT32_C(41))
+#define CDISASM_MIPS_CPU_R10000 (CDISASM_CPU_GROUP_MIPS | UINT32_C(42))
+#define CDISASM_MIPS_CPU_MICROAPTIV (CDISASM_CPU_GROUP_MIPS | UINT32_C(43))
+#define CDISASM_MIPS_CPU_INTERAPTIV (CDISASM_CPU_GROUP_MIPS | UINT32_C(44))
+#define CDISASM_MIPS_CPU_INTERAPTIV_FPU (CDISASM_CPU_GROUP_MIPS | UINT32_C(45))
+#define CDISASM_MIPS_CPU_PROAPTIV (CDISASM_CPU_GROUP_MIPS | UINT32_C(46))
+#define CDISASM_MIPS_CPU_PROAPTIV_FPU (CDISASM_CPU_GROUP_MIPS | UINT32_C(47))
+#define CDISASM_MIPS_CPU_M14K (CDISASM_CPU_GROUP_MIPS | UINT32_C(48))
+#define CDISASM_MIPS_CPU_M5100 (CDISASM_CPU_GROUP_MIPS | UINT32_C(49))
+#define CDISASM_MIPS_CPU_M5100_FPU (CDISASM_CPU_GROUP_MIPS | UINT32_C(50))
+#define CDISASM_MIPS_CPU_M5100_DSP (CDISASM_CPU_GROUP_MIPS | UINT32_C(51))
+#define CDISASM_MIPS_CPU_M5100_FPU_DSP (CDISASM_CPU_GROUP_MIPS | UINT32_C(52))
+#define CDISASM_MIPS_CPU_I7200 (CDISASM_CPU_GROUP_MIPS | UINT32_C(53))
+#define CDISASM_MIPS_CPU_OCTEON2 (CDISASM_CPU_GROUP_MIPS | UINT32_C(54))
+#define CDISASM_MIPS_CPU_OCTEON3 (CDISASM_CPU_GROUP_MIPS | UINT32_C(55))
+#define CDISASM_MIPS_CPU_JZ4750 (CDISASM_CPU_GROUP_MIPS | UINT32_C(56))
+#define CDISASM_MIPS_CPU_JZ4760 (CDISASM_CPU_GROUP_MIPS | UINT32_C(57))
+#define CDISASM_MIPS_CPU_JZ4770 (CDISASM_CPU_GROUP_MIPS | UINT32_C(58))
+#define CDISASM_MIPS_CPU_JZ4775 (CDISASM_CPU_GROUP_MIPS | UINT32_C(59))
+#define CDISASM_MIPS_CPU_JZ4780 (CDISASM_CPU_GROUP_MIPS | UINT32_C(60))
+#define CDISASM_MIPS_CPU_X1000 (CDISASM_CPU_GROUP_MIPS | UINT32_C(61))
+#define CDISASM_MIPS_CPU_M200 (CDISASM_CPU_GROUP_MIPS | UINT32_C(62))
+#define CDISASM_MIPS_CPU_VR4300 CDISASM_MIPS_CPU_R4300
 #define CDISASM_MIPS_CPU_FIRST CDISASM_MIPS_CPU_R3000
-#define CDISASM_MIPS_CPU_LAST CDISASM_MIPS_CPU_XLP
+#define CDISASM_MIPS_CPU_INTERAPTIV_MR2 (CDISASM_CPU_GROUP_MIPS | UINT32_C(63))
+#define CDISASM_MIPS_CPU_INTERAPTIV_MR2_FPU (CDISASM_CPU_GROUP_MIPS | UINT32_C(64))
+#define CDISASM_MIPS_CPU_I7200_DSP (CDISASM_CPU_GROUP_MIPS | UINT32_C(65))
+#define CDISASM_MIPS_CPU_LAST CDISASM_MIPS_CPU_I7200_DSP
 
 typedef cdisasm_decode_flags cdisasm_mips_decode_flags;
 typedef uint32_t cdisasm_mips_decode_bit_id;
@@ -325,8 +358,18 @@ typedef uint64_t cdisasm_mips_family_mask;
 #define CDISASM_MIPS_FAMILY_MASK_XLR (UINT64_C(1) << 38)
 #define CDISASM_MIPS_FAMILY_XLP UINT16_C(40)
 #define CDISASM_MIPS_FAMILY_MASK_XLP (UINT64_C(1) << 39)
-#define CDISASM_MIPS_FAMILY_LAST CDISASM_MIPS_FAMILY_XLP
-#define CDISASM_MIPS_FAMILY_MASK_ALL UINT64_C(0xffffffffff)
+/* V3-only implementation-specific interAptiv MR2 forms. The descriptor's
+ * word0 requirement is zero; V3 retains word1 bit1 in decode/replay policy. */
+#define CDISASM_MIPS_FAMILY_INTERAPTIV_MR2 UINT16_C(41)
+#define CDISASM_MIPS_FAMILY_MASK_INTERAPTIV_MR2 (UINT64_C(1) << 40)
+/* V3-only Cavium generation capabilities; full requirements are queried
+ * through cdisasm_mips_family_decode_flags_v3. */
+#define CDISASM_MIPS_FAMILY_CNMIPS2 UINT16_C(42)
+#define CDISASM_MIPS_FAMILY_MASK_CNMIPS2 (UINT64_C(1) << 41)
+#define CDISASM_MIPS_FAMILY_CNMIPS3 UINT16_C(43)
+#define CDISASM_MIPS_FAMILY_MASK_CNMIPS3 (UINT64_C(1) << 42)
+#define CDISASM_MIPS_FAMILY_LAST CDISASM_MIPS_FAMILY_CNMIPS3
+#define CDISASM_MIPS_FAMILY_MASK_ALL UINT64_C(0x7ffffffffff)
 
 typedef struct cdisasm_mips_family_descriptor {
     cdisasm_mips_family_id family_id;
@@ -477,11 +520,11 @@ typedef struct cdisasm_mips_register_effect {
     uint64_t selector;
 } cdisasm_mips_register_effect;
 
-/* Specific gaps tracked by the targeted MXU3/MXU3.1 register-effect census and
- * the Allegrex LV.Q source-defined option (form40032: IMPLICIT_EFFECTS).
- * These are knowledge limits, not additional reads or writes. Zero means none
- * of these tracked gaps; it does not certify complete effects, even for MXU3.
- * Other implicit controls and physical bank relationships remain unaudited. */
+/* Source-bound gaps tracked for MXU3/MXU3.1, the Allegrex LV.Q option,
+ * nanoMIPS SAVEF/RESTOREF, LoongASX, XLR messaging, and XLP CRC/UR/messaging.
+ * These flags describe unresolved operand, control or alias contracts; they
+ * do not add guessed reads or writes. Zero means no listed gap was found,
+ * not that all architectural effects of the instruction are certified. */
 typedef uint32_t cdisasm_mips_effect_limitations;
 #define CDISASM_MIPS_EFFECT_LIMITATION_EXPLICIT_OPERANDS UINT32_C(1)
 #define CDISASM_MIPS_EFFECT_LIMITATION_IMPLICIT_EFFECTS UINT32_C(2)
@@ -622,11 +665,11 @@ CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_with_context(const cd
 /* Returns total required effect records; capacity zero is a size query.
  * A valid instruction with no register effects returns zero as well. */
 CDISASM_MIPS_API size_t CDISASM_CALL cdisasm_mips_register_effects(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
-/* Strictly validates the instruction, then reports the targeted MXU3 gaps:
- * 40 unknown scatter operand contracts, 26 FP/6 NNA implicit state forms and
- * physical aliases of VSR or VW16..31. Allegrex LV.Q option form40032 reports
- * unknown implicit option effects. INVALID denotes NULL/failed/forged
- * instructions. Existing register_effects output remains the known subset. */
+/* Strictly validates the instruction, then reports audited operand/effect gaps
+ * for MXU3/MXU3.1, Allegrex LV.Q options, nanoMIPS SAVEF/RESTOREF, LoongASX,
+ * XLR messaging and XLP CRC/UR/messaging. INVALID denotes NULL/failed/forged
+ * instructions. register_effects returns the known subset; a zero limitation
+ * mask certifies neither complete architectural effects nor opcode coverage. */
 CDISASM_MIPS_API cdisasm_mips_effect_limitations CDISASM_CALL cdisasm_mips_register_effect_limitations(const cdisasm_mips_instruction *instruction);
 /* Immutable catalog pointers live for the lifetime of the library. get uses a
  * zero-based catalog position; inventory_index is the stable source identity.

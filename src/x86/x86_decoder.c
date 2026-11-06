@@ -1307,7 +1307,7 @@ static int add_immediate_operand(x86_decoder *decoder, unsigned int encoded_bits
     return add_immediate_value(decoder, encoded_bits, semantic_value, signed_text ? CDISASM_OPERAND_FLAG_SIGNED : 0);
 }
 
-static int add_relative_operand(x86_decoder *decoder, unsigned int encoded_bits)
+static int add_relative_operand_with_target_bits(x86_decoder *decoder, unsigned int encoded_bits, unsigned int target_bits)
 {
     uint64_t encoded;
     int64_t displacement;
@@ -1319,6 +1319,11 @@ static int add_relative_operand(x86_decoder *decoder, unsigned int encoded_bits)
     }
     displacement = sign_extend(encoded, encoded_bits);
     target = decoder->address + decoder->position + (uint64_t)displacement;
+    if (target_bits == 16u) {
+        target = (uint16_t)target;
+    } else if (target_bits == 32u) {
+        target = (uint32_t)target;
+    }
     decoder->branch_target = target;
     metadata.type = CDISASM_OPERAND_IMMEDIATE;
     metadata.size = (uint8_t)(encoded_bits / 8u);
@@ -1326,6 +1331,14 @@ static int add_relative_operand(x86_decoder *decoder, unsigned int encoded_bits)
     metadata.address = (uint64_t)displacement;
     metadata.imm = target;
     return add_typed_operand(decoder, &metadata);
+}
+
+static int add_relative_operand(x86_decoder *decoder, unsigned int encoded_bits)
+{
+    /* Displacement width and target width are independent: legacy rel8
+     * branches also honor the effective operand-size IP/EIP selection.
+     * Long-mode branches always update RIP, even with a 66 prefix. */
+    return add_relative_operand_with_target_bits(decoder, encoded_bits, decoder->mode == CDISASM_MODE_64 ? 64u : decoder->operand_bits);
 }
 
 static int parse_prefixes(x86_decoder *decoder)
@@ -1802,10 +1815,18 @@ static int decode_imul_immediate(x86_decoder *decoder, uint8_t opcode)
            add_immediate_operand(decoder, immediate_bits, opcode == 0x6b || decoder->operand_bits == 64);
 }
 
+static unsigned int stack_operand_bits(const x86_decoder *decoder)
+{
+    /* Stack operations default to 64 bits in long mode. Use the effective
+     * operand width so a live REX.W overrides 66; parse_prefixes already
+     * handles a later legacy prefix cancelling REX. */
+    return decoder->mode == CDISASM_MODE_64 ? (decoder->operand_bits == 16u ? 16u : 64u) : decoder->operand_bits;
+}
+
 static int decode_push_pop_register(x86_decoder *decoder, uint8_t opcode)
 {
     unsigned int register_index = (opcode & 7u) + ((decoder->rex & 1u) ? 8u : 0u);
-    unsigned int bits = decoder->mode == CDISASM_MODE_64 ? (decoder->operand_override ? 16u : 64u) : decoder->operand_bits;
+    unsigned int bits = stack_operand_bits(decoder);
 
     decoder->name_id = opcode < 0x58 ? CDISASM_X86_NAME_PUSH : CDISASM_X86_NAME_POP;
     return add_register_operand(decoder, register_index, bits);
@@ -3410,18 +3431,11 @@ static int decode_mov_rm_immediate(x86_decoder *decoder, uint8_t opcode)
          * for both effective 32- and 64-bit operand sizes.  Consequently an
          * effective REX.W takes precedence over an earlier 66 prefix, while a
          * legacy prefix after REX cancels that REX in the prefix parser. */
-        if (!add_relative_operand(decoder, decoder->operand_bits == 64u ? 32u : decoder->operand_bits)) {
+        /* Unlike ordinary legacy branches, XBEGIN computes a 32-bit EIP
+         * fallback even when its displacement has effective rel16 size. */
+        if (!add_relative_operand_with_target_bits(decoder, decoder->operand_bits == 64u ? 32u : decoder->operand_bits,
+                                                  decoder->mode == CDISASM_MODE_64 ? 64u : 32u)) {
             return 0;
-        }
-        /* Outside 64-bit mode, Intel defines the fallback as a 32-bit EIP
-         * computation even for the rel16 form.  Therefore rel16 must not
-         * truncate at 16 bits, but either form must wrap at the EIP boundary
-         * rather than leaking a 33-bit target through the public metadata. */
-        if (decoder->mode != CDISASM_MODE_64) {
-            const uint64_t target = (uint32_t)decoder->branch_target;
-
-            decoder->branch_target = target;
-            decoder->operand[decoder->operand_count - 1u].imm = target;
         }
 #if !USE_EXTRA_OPCODES
         return decoder_fail(decoder, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
@@ -3489,7 +3503,7 @@ static int decode_group5(x86_decoder *decoder)
         case 5: return decoder_fail(decoder, CDISASM_STATUS_UNSUPPORTED_INSTRUCTION);
         case 6:
             decoder->name_id = CDISASM_X86_NAME_PUSH;
-            bits = decoder->mode == CDISASM_MODE_64 ? (decoder->operand_override ? 16u : 64u) : decoder->operand_bits;
+            bits = stack_operand_bits(decoder);
             break;
         default: return decoder_fail(decoder, CDISASM_STATUS_INVALID_INSTRUCTION);
     }
@@ -13564,7 +13578,7 @@ static int decode_primary(x86_decoder *decoder, uint8_t opcode)
             return add_rm_operand(decoder, &modrm, 16, 1) && add_register_operand(decoder, modrm.reg, 16);
         }
         case X86_DECODE_FORM_PUSH_IMMEDIATE:
-            bits = decoder->mode == CDISASM_MODE_64 ? (decoder->operand_override ? 16u : 64u) : decoder->operand_bits;
+            bits = stack_operand_bits(decoder);
             decoder->name_id = descriptor->name_id;
             decoder_require_caps(decoder, X86_CAP_80186);
             return descriptor->argument == 8 ? add_immediate_operand(decoder, 8, 1) : add_immediate_operand(decoder, bits == 64 ? 32u : bits, bits == 64);
@@ -13616,7 +13630,7 @@ static int decode_primary(x86_decoder *decoder, uint8_t opcode)
                 return decode_xop(decoder);
             }
 
-            bits = decoder->mode == CDISASM_MODE_64 ? (decoder->operand_override ? 16u : 64u) : decoder->operand_bits;
+            bits = stack_operand_bits(decoder);
             if (!decode_modrm(decoder, &modrm)) {
                 return 0;
             }
@@ -13659,7 +13673,7 @@ static int decode_primary(x86_decoder *decoder, uint8_t opcode)
             decoder->form_id = descriptor->form == X86_DECODE_FORM_FAR_CALL ? UINT16_C(427) : UINT16_C(1441);
             return add_immediate_operand(decoder, decoder->operand_bits, 0) && add_immediate_operand(decoder, 16u, 0);
         case X86_DECODE_FORM_FLAGS_STACK:
-            bits = decoder->mode == CDISASM_MODE_64 ? (decoder->operand_override ? 16u : 64u) : decoder->operand_bits;
+            bits = stack_operand_bits(decoder);
             decoder->name_id = descriptor->argument == 0 ? (bits == 16   ? CDISASM_X86_NAME_PUSHF
                                                             : bits == 32 ? CDISASM_X86_NAME_PUSHFD
                                                                          : CDISASM_X86_NAME_PUSHFQ)

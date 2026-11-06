@@ -6,11 +6,23 @@
 /* V3 keeps complete bytes and the unchanged numeric operand representation,
  * but stores all eight requirement words. V1/V2 layouts and APIs are unchanged.
  * Word1 bit0 opts into uncertain Allegrex source views when the library was
- * built with USE_MIPS_ALLEGREX_UNVERIFIED. Other bits in words1..7 are invalid.
+ * built with USE_MIPS_ALLEGREX_UNVERIFIED. Word1 bit1 selects the processor-
+ * specific interAptiv MR2 forms. Word1 bits2/3 select Cavium Octeon II/III.
+ * Other bits in words1..7 are invalid.
  * V1/V2 reject all nonzero upper words, including this V3-only selection. */
 #define CDISASM_MIPS_DECODE_BIT_ALLEGREX_UNVERIFIED UINT32_C(64)
 #define CDISASM_MIPS_DECODE_WORD_ALLEGREX_UNVERIFIED UINT32_C(1)
 #define CDISASM_MIPS_DECODE_FLAG_ALLEGREX_UNVERIFIED UINT64_C(1)
+#define CDISASM_MIPS_DECODE_BIT_INTERAPTIV_MR2 UINT32_C(65)
+#define CDISASM_MIPS_DECODE_WORD_INTERAPTIV_MR2 UINT32_C(1)
+#define CDISASM_MIPS_DECODE_FLAG_INTERAPTIV_MR2 UINT64_C(2)
+#define CDISASM_MIPS_DECODE_BIT_CNMIPS2 UINT32_C(66)
+#define CDISASM_MIPS_DECODE_WORD_CNMIPS2 UINT32_C(1)
+#define CDISASM_MIPS_DECODE_FLAG_CNMIPS2 UINT64_C(4)
+#define CDISASM_MIPS_DECODE_BIT_CNMIPS3 UINT32_C(67)
+#define CDISASM_MIPS_DECODE_WORD_CNMIPS3 UINT32_C(1)
+#define CDISASM_MIPS_DECODE_FLAG_CNMIPS3 UINT64_C(8)
+#define CDISASM_MIPS_DECODE_FLAG_KNOWN_MASK_1 UINT64_C(15)
 #define CDISASM_MIPS_V3_STRUCTURE_VERSION UINT32_C(1)
 #define CDISASM_MIPS_V3_MAX_INSTRUCTION_SIZE CDISASM_MIPS_V2_MAX_INSTRUCTION_SIZE
 #define CDISASM_MIPS_INSTRUCTION_V3_SIZE 320u
@@ -54,6 +66,12 @@ _Static_assert(sizeof(cdisasm_mips_decode_context_v3) == CDISASM_MIPS_DECODE_CON
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Complete family requirements across every flag word. The legacy descriptor
+ * retains its unchanged word0 projection. Invalid arguments clear the result.
+ * Requirements describe the family independently of this build's capabilities. */
+CDISASM_MIPS_API cdisasm_status CDISASM_CALL cdisasm_mips_family_decode_flags_v3(cdisasm_mips_family_id family_id, cdisasm_mips_decode_flags *flags);
+CDISASM_MIPS_API cdisasm_mips_family_mask CDISASM_CALL cdisasm_mips_family_mask_from_flags_v3(const cdisasm_mips_decode_flags *flags);
 
 CDISASM_MIPS_API cdisasm_status CDISASM_CALL cdisasm_mips_cpu_decode_flag_mask_v3(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode, cdisasm_mips_decode_flags *flags);
 CDISASM_MIPS_API cdisasm_status CDISASM_CALL cdisasm_mips_cpu_decode_context_v3(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode, cdisasm_mips_revision revision, cdisasm_mips_encoding encoding, cdisasm_mips_decode_context_v3 *context);

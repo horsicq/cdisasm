@@ -175,3 +175,68 @@ uint64_t cdisasm_mips_mips16e2_required_flags(cdisasm_mips_form_id form)
 #endif
     return 0;
 }
+
+/* MR2 is selected only by the V3 processor policy. Ordinary MIPS16e2 and
+ * legacy replay never enter this path. Numeric facts are MIPS-authored. */
+int cdisasm_mips_interaptiv_mr2_decode(uint32_t raw, unsigned encoding, cdisasm_mips_instruction *i)
+{
+#if USE_EXTRA_OPCODES && USE_MIPS_INTERAPTIV_MR2
+    static const struct { uint32_t mask, value; uint16_t name, form; uint8_t kind, encoding; } forms[] = {
+#include "generated/mips_interaptiv_mr2_forms.inc"
+    };
+    size_t n;
+    for (n = 0; n < sizeof(forms)/sizeof(forms[0]); ++n) {
+        unsigned selector, xs, j, frame;
+        uint32_t args = 0, statics = 0;
+        cdisasm_mips_operand *o;
+        if (encoding != forms[n].encoding || (raw & forms[n].mask) != forms[n].value) continue;
+        if (encoding == 1u && !USE_MIPS_MIPS16E2) return 0;
+        i->raw_instruction = raw;
+        i->name_id = forms[n].name;
+        i->form_id = forms[n].form;
+        if (forms[n].kind == 0u) {
+            e2_register(i, CDISASM_MIPS_REG_GPR0+e2_gpr((raw >> 8) & 7u), 4u, CDISASM_OPERAND_ACCESS_READ, 0);
+            e2_register(i, CDISASM_MIPS_REG_GPR0+e2_gpr((raw >> 5) & 7u), 4u, CDISASM_OPERAND_ACCESS_READ, 0);
+            e2_immediate(i, ((raw >> 16) & 31u)*16u, 2u, 0);
+            e2_immediate(i, (raw & 3u)+1u, 1u, 0);
+            /* The MIPS-authored compiler block-copy contract establishes both
+             * ranges. They are implicit in the four-operand assembly syntax. */
+            e2_memory(i, e2_gpr((raw >> 8) & 7u), ((raw >> 16) & 31u)*16u,
+                ((raw & 3u)+1u)*4u, CDISASM_OPERAND_ACCESS_WRITE);
+            i->operand[i->operand_count-1u].flags |= CDISASM_OPERAND_FLAG_IMPLICIT;
+            e2_memory(i, e2_gpr((raw >> 5) & 7u), ((raw >> 16) & 31u)*16u,
+                ((raw & 3u)+1u)*4u, CDISASM_OPERAND_ACCESS_READ);
+            i->operand[i->operand_count-1u].flags |= CDISASM_OPERAND_FLAG_IMPLICIT;
+            /* The compiler models a block transfer and conservative clobbers
+             * r12-r15. Exact per-count scratch effects require the manual. */
+        } else {
+            unsigned nargs, nstatics;
+            int save = forms[n].kind == 1u;
+            selector = (raw >> 15) & 15u;
+            if (selector == 15u) return 0;
+            nargs = selector == 14u ? 4u : selector == 11u ? 0u : selector >> 2;
+            nstatics = selector == 11u ? 4u : selector == 14u ? 0u : selector & 3u;
+            xs = (raw >> 23) & 7u;
+            frame = ((((raw >> 19) & 15u) << 4) | ((raw >> 6) & 15u))*8u;
+            for (j = 0; j < nargs; ++j) args |= UINT32_C(1) << (4u+j);
+            for (j = 0; j < nstatics; ++j) statics |= UINT32_C(1) << (7u-j);
+            for (j = 0; j < xs; ++j) statics |= UINT32_C(1) << (j == 6u ? 30u : 18u+j);
+            if (raw & 0x1000u) statics |= UINT32_C(1) << 31;
+            if (raw & 0x800u) statics |= UINT32_C(1) << 16;
+            if (raw & 0x400u) statics |= UINT32_C(1) << 17;
+            o = &i->operand[i->operand_count++]; o->type = CDISASM_OPERAND_REGISTER; o->size = 4u;
+            o->detail.flags = CDISASM_MIPS_OPERAND_DETAIL_REGISTER_LIST; o->imm = args;
+            o->access = save ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_NONE;
+            e2_immediate(i, frame, 2u, 0);
+            o = &i->operand[i->operand_count++]; o->type = CDISASM_OPERAND_REGISTER; o->size = 4u;
+            o->detail.flags = CDISASM_MIPS_OPERAND_DETAIL_REGISTER_LIST; o->imm = statics;
+            o->access = save ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE;
+            e2_register(i, CDISASM_MIPS_REG_GPR29, 4u, CDISASM_OPERAND_ACCESS_READ_WRITE, 1);
+        }
+        return 1;
+    }
+#else
+    (void)raw; (void)encoding; (void)i;
+#endif
+    return 0;
+}

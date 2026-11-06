@@ -5518,7 +5518,7 @@ static void arm_modern_decode_sve(arm_modern_form form, uint32_t word, cdisasm_a
             int wide = (word & UINT32_C(0x00400000)) != 0u;
             unsigned selector = ((word >> 12) & 1u) * 2u + ((word >> 10) & 1u);
             unsigned indexed_register = (word >> 16) & (wide ? 15u : 7u);
-            unsigned lane = ((word >> 11) & 1u) | (wide ? 0u : (((word >> 19) & 1u) << 1));
+            unsigned lane = ((word >> 11) & 1u) | (((word >> (wide ? 20u : 19u)) & (wide ? 1u : 3u)) << 1);
             uint8_t result_element_size = wide ? UINT8_C(8) : UINT8_C(4);
             uint8_t source_element_size = wide ? UINT8_C(4) : UINT8_C(2);
 
@@ -5568,7 +5568,7 @@ static void arm_modern_decode_sve(arm_modern_form form, uint32_t word, cdisasm_a
             uint32_t operation = word & UINT32_C(0x0000b400);
             int wide = (word & UINT32_C(0x00400000)) != 0u;
             unsigned indexed_register = (word >> 16) & (wide ? 15u : 7u);
-            unsigned lane = ((word >> 11) & 1u) | (wide ? 0u : (((word >> 19) & 1u) << 1));
+            unsigned lane = ((word >> 11) & 1u) | (((word >> (wide ? 20u : 19u)) & (wide ? 1u : 3u)) << 1);
             uint8_t result_element_size = wide ? UINT8_C(8) : UINT8_C(4);
             uint8_t source_element_size = wide ? UINT8_C(4) : UINT8_C(2);
 
@@ -6147,7 +6147,7 @@ static void arm_modern_decode_sve(arm_modern_form form, uint32_t word, cdisasm_a
             uint32_t operation = word & UINT32_C(0x0000f400);
             int wide = (word & UINT32_C(0x00400000)) != 0u;
             unsigned indexed_register = (word >> 16) & (wide ? 15u : 7u);
-            unsigned lane = ((word >> 11) & 1u) | (wide ? 0u : (((word >> 19) & 1u) << 1));
+            unsigned lane = ((word >> 11) & 1u) | (((word >> (wide ? 20u : 19u)) & (wide ? 1u : 3u)) << 1);
             uint8_t result_element_size = wide ? UINT8_C(8) : UINT8_C(4);
             uint8_t source_element_size = wide ? UINT8_C(4) : UINT8_C(2);
 
@@ -8003,7 +8003,7 @@ static void arm_modern_decode_sve(arm_modern_form form, uint32_t word, cdisasm_a
             indexed_source = arm_modern_append_zreg(instruction, (word >> 16) & 7u, 2u, CDISASM_OPERAND_ACCESS_READ);
             if (indexed_source) {
                 indexed_source->flags = CDISASM_ARM_OPERAND_FLAG_HAS_LANE;
-                indexed_source->imm = (((word >> 19) & 1u) << 1) | ((word >> 11) & 1u);
+                indexed_source->imm = (((word >> 19) & 3u) << 1) | ((word >> 11) & 1u);
             }
             return;
         }
@@ -8158,8 +8158,9 @@ static void arm_modern_decode_sve(arm_modern_form form, uint32_t word, cdisasm_a
             cdisasm_arm_requirements_set_legacy(required_capabilities, CDISASM_ARM_CAP_V8 | CDISASM_ARM_REQUIRE_SVE_OR_SME);
             arm_modern_append_zreg(instruction, zd, element_size, CDISASM_OPERAND_ACCESS_READ_WRITE);
             arm_modern_append_predicate(instruction, pg, element_size, CDISASM_ARM_OPERAND_FLAG_PREDICATE_MERGE, CDISASM_OPERAND_ACCESS_READ);
-            arm_modern_append_zreg(instruction, operation < 4u ? zn : zm, element_size, CDISASM_OPERAND_ACCESS_READ);
-            arm_modern_append_zreg(instruction, operation < 4u ? zm : zn, element_size, CDISASM_OPERAND_ACCESS_READ);
+            /* Bits 9:5 precede bits 20:16 in both accumulator and multiplicand forms. */
+            arm_modern_append_zreg(instruction, zn, element_size, CDISASM_OPERAND_ACCESS_READ);
+            arm_modern_append_zreg(instruction, zm, element_size, CDISASM_OPERAND_ACCESS_READ);
             return;
         }
         case ARM_MODERN_SVE_PREDICATED_BF16_MLA:

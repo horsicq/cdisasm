@@ -1,7 +1,7 @@
 # MIPS family switches retain stable public family ordinals. A disabled parent
 # disables its children. Requested options remain available in the CMake cache.
 set(_cdisasm_mips_families
-    FPU DSP DSPR2 MT MSA VZ EVA XPA DSPR3 MIPS3D MDMX SMARTMIPS MCU CRC GINV COP2 COP3 PAIRED_SINGLE CNMIPS CNMIPSP LOONGSON ALLEGREX R5900 MXU MIPS16E2 LOONGSON2E LOONGSON2F LOONGSON_EXT LOONGSON_EXT2 LOONGSON_CAM DSP64 MXU2 MXU3 LOONGSIMD R5900_VU0 R5900_VU1 MXU3_1 LOONGASX XLR XLP
+    FPU DSP DSPR2 MT MSA VZ EVA XPA DSPR3 MIPS3D MDMX SMARTMIPS MCU CRC GINV COP2 COP3 PAIRED_SINGLE CNMIPS CNMIPSP LOONGSON ALLEGREX R5900 MXU MIPS16E2 LOONGSON2E LOONGSON2F LOONGSON_EXT LOONGSON_EXT2 LOONGSON_CAM DSP64 MXU2 MXU3 LOONGSIMD R5900_VU0 R5900_VU1 MXU3_1 LOONGASX XLR XLP INTERAPTIV_MR2 CNMIPS2 CNMIPS3
 )
 foreach(_family IN LISTS _cdisasm_mips_families)
     option(USE_MIPS_${_family} "Build the MIPS ${_family} family" ON)
@@ -17,6 +17,8 @@ set(_cdisasm_mips_parents_MIPS3D FPU)
 set(_cdisasm_mips_parents_MDMX FPU)
 set(_cdisasm_mips_parents_PAIRED_SINGLE FPU)
 set(_cdisasm_mips_parents_CNMIPSP CNMIPS)
+set(_cdisasm_mips_parents_CNMIPS2 CNMIPS)
+set(_cdisasm_mips_parents_CNMIPS3 CNMIPS CNMIPS2)
 set(_cdisasm_mips_parents_LOONGSON2E LOONGSON)
 set(_cdisasm_mips_parents_LOONGSON2F LOONGSON)
 set(_cdisasm_mips_parents_LOONGSON_EXT LOONGSON)
@@ -28,7 +30,7 @@ set(_cdisasm_mips_parents_R5900_VU0 R5900)
 set(_cdisasm_mips_parents_R5900_VU1 R5900)
 set(_cdisasm_mips_parents_MXU3_1 MXU3)
 set(_cdisasm_mips_parents_LOONGASX FPU LOONGSON)
-foreach(_pass RANGE 1 40)
+foreach(_pass RANGE 1 43)
     foreach(_family IN LISTS _cdisasm_mips_families)
         foreach(_parent IN LISTS _cdisasm_mips_parents_${_family})
             if(NOT CDISASM_EFFECTIVE_USE_MIPS_${_parent})

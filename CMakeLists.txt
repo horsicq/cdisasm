@@ -307,6 +307,7 @@ if(USE_ARCH_MIPS)
         src/mips/mips_decoder.c
         src/mips/mips_generated_decoder.c
         src/mips/mips_effects.c
+        src/mips/mips_octeon_decoder.c
         src/mips/mips_compact_decoder.c
         src/mips/mips_micro64_arithmetic_decoder.c
         src/mips/mips_micro64_r6_decoder.c
@@ -407,6 +408,10 @@ if(CDISASM_VERIFY_GENERATED)
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_nano.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_nano_fpu.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_nano64.py" --check
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_octeon.py" --check
             COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_allegrex.py" --check
             COMMAND
@@ -559,6 +564,15 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
                 COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_nano_fpu.py" --check)
             set_tests_properties(cdisasm_mips_nano_fpu_codegen_freshness_tests
                 PROPERTIES LABELS "codegen;coverage;generated;mips")
+            foreach(_cdisasm_new_generator IN ITEMS nano64 octeon)
+                add_test(NAME cdisasm_mips_${_cdisasm_new_generator}_codegen_freshness_tests
+                    COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_mips_${_cdisasm_new_generator}.py" --check)
+                set_tests_properties(cdisasm_mips_${_cdisasm_new_generator}_codegen_freshness_tests
+                    PROPERTIES LABELS "codegen;coverage;generated;mips")
+            endforeach()
+            add_test(NAME cdisasm_mips_nano64_facts_tests
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_nano64_facts.py")
+            set_tests_properties(cdisasm_mips_nano64_facts_tests PROPERTIES LABELS "codegen;coverage;generated;mips")
             add_test(NAME cdisasm_mips_nano_fpu_facts_tests
                 COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_nano_fpu_facts.py")
             set_tests_properties(cdisasm_mips_nano_fpu_facts_tests
@@ -567,9 +581,13 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
                 COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_catalog_validation.py")
             add_test(NAME cdisasm_mips_fp_compare_validation_tests
                 COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_fp_compare_validation.py")
+            add_test(NAME cdisasm_mips_generation_validation_tests
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_generation_validation.py")
+            add_test(NAME cdisasm_validation_command_tests
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_validation_command.py")
             add_test(NAME cdisasm_mips_append_ids_tests
                 COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mips_append_ids.py")
-            set_tests_properties(cdisasm_mips_catalog_validation_tests cdisasm_mips_fp_compare_validation_tests cdisasm_mips_append_ids_tests
+            set_tests_properties(cdisasm_mips_catalog_validation_tests cdisasm_mips_fp_compare_validation_tests cdisasm_mips_generation_validation_tests cdisasm_mips_append_ids_tests
                 PROPERTIES LABELS "codegen;coverage;generated;mips")
             add_test(NAME cdisasm_mips_fpu_control_facts_tests
                 COMMAND "${Python3_EXECUTABLE}" -B
@@ -6254,11 +6272,21 @@ if(CDISASM_BUILD_FUZZERS)
 endif()
 
 if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_MIPS)
+    if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
+        add_executable(cdisasm_mips_random_probe tools/validation/mips_random_probe.c)
+        target_compile_features(cdisasm_mips_random_probe PRIVATE c_std_11)
+        target_link_libraries(cdisasm_mips_random_probe PRIVATE cdisasm)
+    endif()
+    add_executable(cdisasm_mips_interaptiv_mr2_tests tests/test_mips_interaptiv_mr2.c)
+    target_compile_features(cdisasm_mips_interaptiv_mr2_tests PRIVATE c_std_11)
+    target_link_libraries(cdisasm_mips_interaptiv_mr2_tests PRIVATE cdisasm)
+    add_test(NAME cdisasm_mips_interaptiv_mr2_tests COMMAND cdisasm_mips_interaptiv_mr2_tests)
+
     add_executable(cdisasm_mips_v3_tests tests/test_mips_v3.c)
     target_compile_features(cdisasm_mips_v3_tests PRIVATE c_std_11)
     target_link_libraries(cdisasm_mips_v3_tests PRIVATE cdisasm)
     add_test(NAME cdisasm_mips_v3_tests COMMAND cdisasm_mips_v3_tests)
-    foreach(_cdisasm_mips_test IN ITEMS decode context families standard_complete extensions_complete compact mips16e2 nano v2 allegrex allegrex_unverified allegrex_lvq_option allegrex_pattern_decode patterns r5900 manual_extensions mxu mxu_vector mxu_context loongsimd vu system_domains llvm_bindings xlr xlp paired_atomic micro_paired micro_supplement micro64_arithmetic micro64_cop micro64_memory micro64_r6 micro64_fp fpu_control fp_compare_domains build_families nano_fpu)
+    foreach(_cdisasm_mips_test IN ITEMS decode context profiles families octeon v3_features nano64 nano_lists standard_complete extensions_complete compact mips16e2 nano v2 allegrex allegrex_unverified allegrex_lvq_option allegrex_pattern_decode patterns r5900 manual_extensions mxu mxu_vector mxu_context loongsimd vu system_domains llvm_bindings xlr xlp paired_atomic micro_paired micro_supplement micro64_arithmetic micro64_cop micro64_memory micro64_r6 micro64_fp fpu_control fp_compare_domains build_families nano_fpu)
         add_executable(cdisasm_mips_${_cdisasm_mips_test}_tests
             tests/test_mips_${_cdisasm_mips_test}.c)
         target_compile_features(cdisasm_mips_${_cdisasm_mips_test}_tests PRIVATE c_std_11)

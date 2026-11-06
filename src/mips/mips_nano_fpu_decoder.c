@@ -35,7 +35,7 @@ static void nano_fp_memory(cdisasm_mips_instruction *i,unsigned base,unsigned in
         if(scale) {o->detail.flags=CDISASM_MIPS_OPERAND_DETAIL_INDEX_SCALED;o->detail.index_shift=(uint8_t)scale;}
     } else {
         o->imm=(uint64_t)displacement;o->flags=CDISASM_MIPS_OPERAND_FLAG_SIGNED|CDISASM_MIPS_OPERAND_FLAG_HAS_DISPLACEMENT;
-        if(!base) {o->address=(uint32_t)displacement;o->flags|=CDISASM_MIPS_OPERAND_FLAG_HAS_ADDRESS|CDISASM_MIPS_OPERAND_FLAG_ABSOLUTE;}
+        if(!base) {o->address=i->mode==CDISASM_MIPS_MODE_64 ? (uint64_t)displacement:(uint32_t)displacement;o->flags|=CDISASM_MIPS_OPERAND_FLAG_HAS_ADDRESS|CDISASM_MIPS_OPERAND_FLAG_ABSOLUTE;}
     }
 }
 #endif
@@ -43,7 +43,7 @@ static void nano_fp_memory(cdisasm_mips_instruction *i,unsigned base,unsigned in
 uint64_t cdisasm_mips_nano_fpu_required_flags(cdisasm_mips_form_id form)
 {
 #if USE_EXTRA_OPCODES
-    if(form>=36000u && form<36136u)return CDISASM_MIPS_DECODE_FLAG_FPU;
+    if(form>=36000u && form<36144u)return CDISASM_MIPS_DECODE_FLAG_FPU;
 #else
     (void)form;
 #endif
@@ -72,7 +72,10 @@ cdisasm_status cdisasm_mips_nano_fpu(uint32_t raw,uint64_t address,cdisasm_mips_
     for(n=0;n<sizeof(nano_fpu_forms)/sizeof(nano_fpu_forms[0]);++n) {
         const nano_fpu_form *f=&nano_fpu_forms[n];
         if((raw&f->mask)!=f->value)continue;
-        if(mode!=CDISASM_MIPS_MODE_32 || revision!=CDISASM_MIPS_REVISION_32R6)return CDISASM_STATUS_INVALID_INSTRUCTION;
+        if(f->kind==8u) {
+            if(mode!=CDISASM_MIPS_MODE_64 || revision!=CDISASM_MIPS_REVISION_64R6)return CDISASM_STATUS_INVALID_INSTRUCTION;
+        } else if(!((mode==CDISASM_MIPS_MODE_32 && revision==CDISASM_MIPS_REVISION_32R6) ||
+                    (mode==CDISASM_MIPS_MODE_64 && revision==CDISASM_MIPS_REVISION_64R6)))return CDISASM_STATUS_INVALID_INSTRUCTION;
         if(!features || !(features->bitmap[0]&CDISASM_MIPS_DECODE_FLAG_FPU))return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
         if(features->bitmap[0]&CDISASM_MIPS_DECODE_FLAG_FPR32)return CDISASM_STATUS_INVALID_INSTRUCTION;
         if(!i)return CDISASM_STATUS_INVALID_ARGUMENT;
@@ -86,8 +89,21 @@ cdisasm_status cdisasm_mips_nano_fpu(uint32_t raw,uint64_t address,cdisasm_mips_
         } else if(f->kind==1u) {
             nano_fp_reg(i,CDISASM_MIPS_REG_FPR0,ft,f->destination_size,f->destination_access);
             nano_fp_reg(i,CDISASM_MIPS_REG_FPR0,fs,f->source_size,CDISASM_OPERAND_ACCESS_READ);
+        } else if(f->kind==9u) {
+            /* The primary assembler proves these explicit fields only.
+             * Its FP_S view is 32 bits. Stack/memory/preservation effects
+             * remain unknown and are reported by the limitations API. */
+            cdisasm_mips_operand *frame=&i->operand[i->operand_count++],*list;
+            unsigned count=((raw>>16)&15u)+1u;
+            frame->type=CDISASM_OPERAND_IMMEDIATE;frame->size=4u;frame->imm=((raw>>3)&511u)<<3;
+            nano_fp_reg(i,CDISASM_MIPS_REG_FPR0,0u,4u,f->destination_access);
+            list=&i->operand[1];list->detail.flags=CDISASM_MIPS_OPERAND_DETAIL_REGISTER_LIST;
+            list->imm=(UINT64_C(1)<<count)-1u;
+        } else if(f->kind==8u) {
+            nano_fp_reg(i,CDISASM_MIPS_REG_GPR0,ft,8u,f->store ? CDISASM_OPERAND_ACCESS_READ:CDISASM_OPERAND_ACCESS_WRITE);
+            nano_fp_reg(i,CDISASM_MIPS_REG_FPR0,fs,8u,f->store ? CDISASM_OPERAND_ACCESS_WRITE:CDISASM_OPERAND_ACCESS_READ);
         } else if(f->kind==2u || f->kind==3u) {
-            nano_fp_reg(i,CDISASM_MIPS_REG_GPR0,ft,4u,f->store ? CDISASM_OPERAND_ACCESS_READ:CDISASM_OPERAND_ACCESS_WRITE);
+            nano_fp_reg(i,CDISASM_MIPS_REG_GPR0,ft,!f->store && mode==CDISASM_MIPS_MODE_64 ? 8u:4u,f->store ? CDISASM_OPERAND_ACCESS_READ:CDISASM_OPERAND_ACCESS_WRITE);
             nano_fp_reg(i,f->kind==3u ? CDISASM_MIPS_REG_FCR0:CDISASM_MIPS_REG_FPR0,fs,
                 f->high ? 8u:4u,f->store ? (f->high ? CDISASM_OPERAND_ACCESS_READ_WRITE:CDISASM_OPERAND_ACCESS_WRITE):CDISASM_OPERAND_ACCESS_READ);
             if(f->high)i->operand[1].detail.flags=CDISASM_MIPS_OPERAND_DETAIL_HIGH_HALF;
@@ -106,15 +122,9 @@ cdisasm_status cdisasm_mips_nano_fpu(uint32_t raw,uint64_t address,cdisasm_mips_
         }
         return CDISASM_STATUS_OK;
     }
-    /* The author disassembler names SAVEF/RESTOREF, but the corresponding
-     * execution decoder reserves this pool and supplies no resource contract. */
+    /* The broader author-disassembler pool permits noncanonical fields that
+     * the primary assembler does not allocate. Do not guess their contracts. */
     if((raw&UINT32_C(0xfc10f006))==UINT32_C(0x80103000))return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
-    switch(raw&UINT32_C(0xfc0003ff)) {
-        case UINT32_C(0xa0000020):case UINT32_C(0xa0000220):
-        case UINT32_C(0xa0000060):case UINT32_C(0xa0000260):
-            return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
-        default:break;
-    }
     /* Ownership fences prevent fallback; they do not turn every unallocated
      * CP1 word into a recognized-but-unimplemented instruction. */
     if(raw>>26==40u)return CDISASM_STATUS_INVALID_INSTRUCTION;

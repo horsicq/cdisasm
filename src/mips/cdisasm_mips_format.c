@@ -93,6 +93,10 @@ static void append_register(mips_text_writer *writer, cdisasm_mips_reg_id reg)
         const unsigned encoded = (unsigned)(reg - CDISASM_MIPS_REG_NANO_CP0_FIRST);
         append_number(writer, "$%u, %u", encoded / 32u, encoded % 32u);
     }
+    else if (reg >= CDISASM_MIPS_REG_NANO_GUEST_CP0_FIRST && reg <= CDISASM_MIPS_REG_NANO_GUEST_CP0_LAST) {
+        const unsigned encoded = (unsigned)(reg - CDISASM_MIPS_REG_NANO_GUEST_CP0_FIRST);
+        append_number(writer, "$%u, %u", encoded / 32u, encoded % 32u);
+    }
     else if (reg >= CDISASM_MIPS_REG_MXU2_VR_FIRST && reg <= CDISASM_MIPS_REG_MXU2_VR_LAST)
         append_number(writer, "$vr%u", (unsigned)(reg - CDISASM_MIPS_REG_MXU2_VR_FIRST));
     else if (reg >= CDISASM_MIPS_REG_MXU3_VR_FIRST && reg <= CDISASM_MIPS_REG_MXU3_VR_LAST)
@@ -215,7 +219,7 @@ static size_t render_instruction(const cdisasm_mips_instruction *instruction, ui
                     append_number(&writer, "$%" PRIu64, operand->imm);
                 else if ((operand->flags & (CDISASM_MIPS_OPERAND_FLAG_RELATIVE | CDISASM_MIPS_OPERAND_FLAG_ABSOLUTE)) != 0) append_number(&writer, "0x%" PRIx64, operand->imm);
                 else if ((operand->flags & CDISASM_MIPS_OPERAND_FLAG_SIGNED) != 0) append_signed(&writer, operand->imm);
-                else if (decimal_control(instruction->name_id)) append_number(&writer, "%" PRIu64, operand->imm);
+                else if ((instruction->form_id >= 55050u && instruction->form_id <= 55053u) || decimal_control(instruction->name_id)) append_number(&writer, "%" PRIu64, operand->imm);
                 else append_number(&writer, "0x%" PRIx64, operand->imm);
                 break;
             case CDISASM_OPERAND_MEMORY:
@@ -368,4 +372,11 @@ size_t CDISASM_CALL cdisasm_mips_format_vu(const cdisasm_mips_vu_instruction *in
     append_text(&writer, lower, lower_size);
     finish_text(&writer);
     return writer.failed ? 0 : writer.length;
+}
+
+size_t cdisasm_mips_v3_format_numeric(const cdisasm_mips_instruction *instruction,
+    uint32_t flags, char *buffer, size_t buffer_size)
+{
+    if ((buffer_size != 0 && buffer == NULL) || (flags & ~CDISASM_FORMAT_KNOWN_FLAGS_MASK) != 0) return 0;
+    return render_instruction(instruction, flags, buffer, buffer_size);
 }

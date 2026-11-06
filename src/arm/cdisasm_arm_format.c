@@ -12054,7 +12054,7 @@ static int arm_valid_sve_widening_fp_mla_indexed_schema(const cdisasm_arm_instru
     int fc = i->isa_id == CDISASM_ARM_ISA_A64 && i->form_id >= 3014 && i->form_id <= 3021;
     unsigned bf = (w >> 22) & 1u, sub = (w >> 13) & 1u, top = (w >> 10) & 1u, index = (top << 2) | (sub << 1) | bf, zd = w & 31u, zn = (w >> 5) & 31u,
              zm = (w >> 16) & 7u;
-    uint64_t lane = (((w >> 19) & 1u) << 1) | ((w >> 11) & 1u);
+    uint64_t lane = (((w >> 19) & 3u) << 1) | ((w >> 11) & 1u);
     if (!raw && !fc) return 1;
     if (!raw || !fc) return 0;
     return i->form_id == forms[index] && i->name_id == names[index] && i->opcode_size == 4 && i->condition == CDISASM_ARM_CONDITION_AL &&
@@ -14219,6 +14219,13 @@ static int arm_immediate_shift_is_displayed(const cdisasm_arm_instruction *instr
 
 static uint64_t arm_immediate_display_value(const cdisasm_arm_instruction *instruction, const cdisasm_arm_operand *operand)
 {
+    if (instruction->isa_id == CDISASM_ARM_ISA_A32 && arm_immediate_shift_is_displayed(instruction, operand)) {
+        /* The ABI stores the expanded value. Recover imm8 for explicit ROR
+         * syntax, retaining the encoding's shifter-carry behavior. */
+        uint32_t value = (uint32_t)operand->imm;
+        unsigned rotation = operand->shift_amount & 31u;
+        return rotation == 0u ? value : (value << rotation) | (value >> (32u - rotation));
+    }
     if (arm_immediate_shift_is_displayed(instruction, operand) && (operand->shift_type == CDISASM_ARM_SHIFT_LSL || operand->shift_type == CDISASM_ARM_SHIFT_MSL)) {
         return operand->imm >> operand->shift_amount;
     }
@@ -14314,8 +14321,14 @@ static void arm_format_immediate(arm_text_writer *writer, const cdisasm_arm_inst
                                                     "pstl1keep", "pstl1strm", "pstl2keep", "pstl2strm", "pstl3keep", "pstl3strm", NULL, NULL,
                                                     NULL,        NULL,        NULL,        NULL,        NULL,        NULL,        NULL, NULL};
 
-        if (prfop_names[value] != NULL) {
-            arm_writer_puts(writer, prfop_names[value]);
+        /* SVE has a four-bit load/store hint; scalar PRFM additionally
+         * has the instruction-prefetch class in its five-bit hint. */
+        unsigned hint = (unsigned)value;
+        if (instruction->name_id != CDISASM_ARM_NAME_PRFM && hint >= 8u && hint < 16u) {
+            hint += 8u;
+        }
+        if (prfop_names[hint] != NULL) {
+            arm_writer_puts(writer, prfop_names[hint]);
             return;
         }
     }
@@ -14640,6 +14653,8 @@ static void arm_format_scalable_register(arm_text_writer *writer, const cdisasm_
              (instruction->name_id == CDISASM_ARM_NAME_MLA || instruction->name_id == CDISASM_ARM_NAME_MLS)) ||
             (instruction->form_id >= UINT16_C(2728) && instruction->form_id <= UINT16_C(2733) &&
              (instruction->name_id == CDISASM_ARM_NAME_SQRDMLAH || instruction->name_id == CDISASM_ARM_NAME_SQRDMLSH)) ||
+            (instruction->form_id >= UINT16_C(2736) && instruction->form_id <= UINT16_C(2743)) ||
+            (instruction->form_id >= UINT16_C(2750) && instruction->form_id <= UINT16_C(2777)) ||
             (instruction->form_id == UINT16_C(2734) && instruction->name_id == CDISASM_ARM_NAME_USDOT) ||
             (instruction->form_id == UINT16_C(2735) && instruction->name_id == CDISASM_ARM_NAME_SUDOT) ||
             ((instruction->form_id == UINT16_C(3010) && instruction->name_id == CDISASM_ARM_NAME_FDOT) ||

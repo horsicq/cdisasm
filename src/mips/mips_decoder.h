@@ -116,4 +116,21 @@ size_t cdisasm_mips_allegrex_register_name(const cdisasm_mips_operand *operand, 
 size_t cdisasm_mips_allegrex_unverified_format(const cdisasm_mips_instruction *instruction, uint32_t flags, char *buffer, size_t capacity);
 #endif
 
+/* Octeon II/III V3 extension; input address is retained on successful lowering.
+ * Ownership is available even when its feature tables are disabled. */
+cdisasm_status cdisasm_mips_octeon_decode(uint32_t raw, cdisasm_mips_mode mode,
+    cdisasm_mips_revision revision, unsigned generation, cdisasm_mips_instruction *instruction);
+int cdisasm_mips_octeon_owns(uint32_t raw, unsigned generation);
+unsigned cdisasm_mips_octeon_form_generation(cdisasm_mips_form_id form);
+size_t cdisasm_mips_octeon_effects(const cdisasm_mips_instruction *instruction,
+    cdisasm_mips_register_effect *effects, size_t capacity);
+cdisasm_mips_effect_limitations cdisasm_mips_octeon_effect_limitations(cdisasm_mips_form_id form);
+
+cdisasm_mips_effect_limitations cdisasm_mips_nano_effect_limitations(const cdisasm_mips_instruction *instruction);
+
+/* Private V3 helpers; callers must first perform complete canonical replay. */
+int cdisasm_mips_interaptiv_mr2_decode(uint32_t raw, unsigned encoding, cdisasm_mips_instruction *instruction);
+size_t cdisasm_mips_v3_effects_numeric(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
+size_t cdisasm_mips_v3_format_numeric(const cdisasm_mips_instruction *instruction, uint32_t flags, char *buffer, size_t buffer_size);
+
 #endif

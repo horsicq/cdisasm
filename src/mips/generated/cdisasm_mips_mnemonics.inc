@@ -4375,6 +4375,36 @@ static const char *const mips_mnemonics[CDISASM_MIPS_NAME_COUNT] = {
     "sdc1xs", /* 3467: SDC1XS */
     "savef", /* 3468: SAVEF */
     "restoref", /* 3469: RESTOREF */
+    "copyw", /* 3470: COPYW */
+    "ucopyw", /* 3471: UCOPYW */
+    "qmac.00", /* 3472: QMAC_00 */
+    "qmac.01", /* 3473: QMAC_01 */
+    "qmac.02", /* 3474: QMAC_02 */
+    "qmac.03", /* 3475: QMAC_03 */
+    "qmacs.00", /* 3476: QMACS_00 */
+    "qmacs.01", /* 3477: QMACS_01 */
+    "qmacs.02", /* 3478: QMACS_02 */
+    "qmacs.03", /* 3479: QMACS_03 */
+    "lwux", /* 3480: LWUX */
+    "laa", /* 3481: LAA */
+    "laad", /* 3482: LAAD */
+    "lawd", /* 3483: LAWD */
+    "lai", /* 3484: LAI */
+    "laid", /* 3485: LAID */
+    "ladd", /* 3486: LADD */
+    "las", /* 3487: LAS */
+    "lasd", /* 3488: LASD */
+    "lac", /* 3489: LAC */
+    "lacd", /* 3490: LACD */
+    "zcb", /* 3491: ZCB */
+    "zcbt", /* 3492: ZCBT */
+    "dlui", /* 3493: DLUI */
+    "extd", /* 3494: EXTD */
+    "extd32", /* 3495: EXTD32 */
+    "ldxs", /* 3496: LDXS */
+    "lwuxs", /* 3497: LWUXS */
+    "sdx", /* 3498: SDX */
+    "sdxs", /* 3499: SDXS */
 #else
     NULL, /* 1285: ADDIU_B32 */
     NULL, /* 1286: ADDIU_32 */
@@ -6561,5 +6591,35 @@ static const char *const mips_mnemonics[CDISASM_MIPS_NAME_COUNT] = {
     NULL, /* 3467: SDC1XS */
     NULL, /* 3468: SAVEF */
     NULL, /* 3469: RESTOREF */
+    NULL, /* 3470: COPYW */
+    NULL, /* 3471: UCOPYW */
+    NULL, /* 3472: QMAC_00 */
+    NULL, /* 3473: QMAC_01 */
+    NULL, /* 3474: QMAC_02 */
+    NULL, /* 3475: QMAC_03 */
+    NULL, /* 3476: QMACS_00 */
+    NULL, /* 3477: QMACS_01 */
+    NULL, /* 3478: QMACS_02 */
+    NULL, /* 3479: QMACS_03 */
+    NULL, /* 3480: LWUX */
+    NULL, /* 3481: LAA */
+    NULL, /* 3482: LAAD */
+    NULL, /* 3483: LAWD */
+    NULL, /* 3484: LAI */
+    NULL, /* 3485: LAID */
+    NULL, /* 3486: LADD */
+    NULL, /* 3487: LAS */
+    NULL, /* 3488: LASD */
+    NULL, /* 3489: LAC */
+    NULL, /* 3490: LACD */
+    NULL, /* 3491: ZCB */
+    NULL, /* 3492: ZCBT */
+    NULL, /* 3493: DLUI */
+    NULL, /* 3494: EXTD */
+    NULL, /* 3495: EXTD32 */
+    NULL, /* 3496: LDXS */
+    NULL, /* 3497: LWUXS */
+    NULL, /* 3498: SDX */
+    NULL, /* 3499: SDXS */
 #endif
 };

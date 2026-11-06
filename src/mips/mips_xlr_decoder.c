@@ -116,7 +116,13 @@ size_t cdisasm_mips_xlr_effects(const cdisasm_mips_instruction *i, cdisasm_mips_
                 EFFECT(CDISASM_MIPS_REG_COP2(i->form_id == 65009u ? 0 : 1,n),
                     i->form_id == 65009u ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_READ_WRITE, 8);
         }
-        EFFECT(CDISASM_MIPS_REG_COP2(2,0), i->form_id == 65011u ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_READ_WRITE, 4);
+        if (i->form_id != 65011u)
+            EFFECT(CDISASM_MIPS_REG_COP2(2,0), CDISASM_OPERAND_ACCESS_READ_WRITE, 4);
+        /* 2007PM r3.10 pp140/448-450: a send can update the sticky error
+         * status. Preserve unrelated fields. MSGWAIT observes receive-bucket
+         * occupancy; the manual establishes no fixed MsgStatus access. */
+        if (i->form_id == 65009u)
+            EFFECT(CDISASM_MIPS_REG_COP2(2,1), CDISASM_OPERAND_ACCESS_READ_WRITE, 4);
         EFFECT(CDISASM_MIPS_REG_XLR_FMN_BANK, i->form_id == 65011u ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_READ_WRITE, 0);
     }
 #undef EFFECT

@@ -169,6 +169,28 @@ static cdisasm_mips_effect_limitations effect_limitations(const cdisasm_mips_ins
     /* Source models agree on LV.Q's encoded option and explicit load operands,
      * but establish neither its hardware legality nor hidden option effects. */
     if (instruction->form_id == 40032u) return CDISASM_MIPS_EFFECT_LIMITATION_IMPLICIT_EFFECTS;
+    if (instruction->form_id >= 35000u && instruction->form_id < 38000u) {
+        cdisasm_mips_effect_limitations nano = cdisasm_mips_nano_effect_limitations(instruction);
+        if (nano != 0) return nano;
+    }
+    /* nanoMIPS SAVEF/RESTOREF have source-defined explicit frame/list syntax;
+     * implicit stack, memory and preservation contracts remain unavailable. */
+    if (instruction->form_id == 36142u || instruction->form_id == 36143u)
+        return CDISASM_MIPS_EFFECT_LIMITATION_IMPLICIT_EFFECTS;
+    /* Primary kernel macros establish these five ASX syntax contracts, but
+     * not hidden controls or complete physical FPR/MSA/vector aliases. */
+    if (instruction->form_id == 60000u || instruction->form_id == 60001u ||
+        instruction->form_id == 60003u || instruction->form_id == 60004u || instruction->form_id == 60005u)
+        return CDISASM_MIPS_EFFECT_LIMITATION_IMPLICIT_EFFECTS | CDISASM_MIPS_EFFECT_LIMITATION_REGISTER_ALIASES;
+    /* The vendor descriptions retain conservative FMN bank dependencies;
+     * queue/status/exception state is not a complete implicit-effect model. */
+    if ((instruction->form_id >= 65009u && instruction->form_id <= 65011u) ||
+        (instruction->form_id >= 65034u && instruction->form_id <= 65037u))
+        return CDISASM_MIPS_EFFECT_LIMITATION_IMPLICIT_EFFECTS;
+    /* XLP pinfo establishes explicit GPR directions only. CRC lane widths
+     * and the encoded UR parameter's resource meaning remain unresolved. */
+    if (instruction->form_id >= 65029u && instruction->form_id <= 65032u)
+        return CDISASM_MIPS_EFFECT_LIMITATION_EXPLICIT_OPERANDS | CDISASM_MIPS_EFFECT_LIMITATION_IMPLICIT_EFFECTS;
     return cdisasm_mips_mxu_vector_effect_limitations(instruction);
 }
 
@@ -209,4 +231,11 @@ size_t CDISASM_CALL cdisasm_mips_register_effects_vu(const cdisasm_mips_vu_instr
     if (capacity > count) capacity = count;
     if (capacity != 0) memcpy(effects, combined, capacity * sizeof(*effects));
     return count;
+}
+
+size_t cdisasm_mips_v3_effects_numeric(const cdisasm_mips_instruction *instruction,
+    cdisasm_mips_register_effect *effects, size_t capacity)
+{
+    if (capacity != 0 && effects == NULL) return 0;
+    return effects_numeric(instruction, effects, capacity);
 }
