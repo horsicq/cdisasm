@@ -328,4 +328,28 @@
 #define USE_MIPS_XLP ((CDISASM_MIPS_BUILD_FAMILY_MASK >> 39u) & 1u)
 #endif
 
+#if defined(USE_MIPS_INTERAPTIV_MR2)
+#if USE_MIPS_INTERAPTIV_MR2 != ((CDISASM_MIPS_BUILD_FAMILY_MASK >> 40u) & 1u)
+#error "USE_MIPS_INTERAPTIV_MR2 conflicts with the configured cdisasm library"
+#endif
+#else
+#define USE_MIPS_INTERAPTIV_MR2 ((CDISASM_MIPS_BUILD_FAMILY_MASK >> 40u) & 1u)
+#endif
+
+#if defined(USE_MIPS_CNMIPS2)
+#if USE_MIPS_CNMIPS2 != ((CDISASM_MIPS_BUILD_FAMILY_MASK >> 41u) & 1u)
+#error "USE_MIPS_CNMIPS2 conflicts with the configured cdisasm library"
+#endif
+#else
+#define USE_MIPS_CNMIPS2 ((CDISASM_MIPS_BUILD_FAMILY_MASK >> 41u) & 1u)
+#endif
+
+#if defined(USE_MIPS_CNMIPS3)
+#if USE_MIPS_CNMIPS3 != ((CDISASM_MIPS_BUILD_FAMILY_MASK >> 42u) & 1u)
+#error "USE_MIPS_CNMIPS3 conflicts with the configured cdisasm library"
+#endif
+#else
+#define USE_MIPS_CNMIPS3 ((CDISASM_MIPS_BUILD_FAMILY_MASK >> 42u) & 1u)
+#endif
+
 #endif
