@@ -89,6 +89,7 @@ endif()
 option(USE_ARCH_X86 "Build the x86 decoder" ON)
 option(USE_ARCH_ARM "Build the ARM decoder" ON)
 option(USE_ARCH_MIPS "Build the MIPS decoder" ON)
+option(USE_ARCH_M68K "Build the Motorola 68000-family decoder" ON)
 option(USE_DISASM_FORMAT "Build instruction formatting into cdisasm" ON)
 option(USE_EXTRA_OPCODES "Build extended opcode coverage into cdisasm" ON)
 option(USE_MIPS_ALLEGREX_UNVERIFIED "Build opt-in Allegrex source syntax with unknown physical effects" OFF)
@@ -154,6 +155,7 @@ foreach(_cdisasm_boolean IN ITEMS
         USE_ARCH_X86
         USE_ARCH_ARM
         USE_ARCH_MIPS
+        USE_ARCH_M68K
         USE_DISASM_FORMAT
         USE_EXTRA_OPCODES
         USE_MIPS_ALLEGREX_UNVERIFIED
@@ -172,7 +174,8 @@ set(CDISASM_EFFECTIVE_USE_DISASM_FORMAT OFF)
 if(CDISASM_NORMALIZED_USE_DISASM_FORMAT
         AND (CDISASM_NORMALIZED_USE_ARCH_X86
             OR CDISASM_NORMALIZED_USE_ARCH_ARM
-            OR CDISASM_NORMALIZED_USE_ARCH_MIPS))
+            OR CDISASM_NORMALIZED_USE_ARCH_MIPS
+            OR CDISASM_NORMALIZED_USE_ARCH_M68K))
     set(CDISASM_EFFECTIVE_USE_DISASM_FORMAT ON)
 endif()
 
@@ -213,6 +216,7 @@ file(MAKE_DIRECTORY "${_cdisasm_generated_include_dir}/cdisasm")
 set(CDISASM_CONFIG_USE_ARCH_X86 ${CDISASM_NORMALIZED_USE_ARCH_X86})
 set(CDISASM_CONFIG_USE_ARCH_ARM ${CDISASM_NORMALIZED_USE_ARCH_ARM})
 set(CDISASM_CONFIG_USE_ARCH_MIPS ${CDISASM_NORMALIZED_USE_ARCH_MIPS})
+set(CDISASM_CONFIG_USE_ARCH_M68K ${CDISASM_NORMALIZED_USE_ARCH_M68K})
 set(CDISASM_CONFIG_USE_DISASM_FORMAT
     ${CDISASM_EFFECTIVE_USE_DISASM_FORMAT})
 set(CDISASM_CONFIG_USE_EXTRA_OPCODES
@@ -225,6 +229,7 @@ configure_file(
 unset(CDISASM_CONFIG_USE_ARCH_X86)
 unset(CDISASM_CONFIG_USE_ARCH_ARM)
 unset(CDISASM_CONFIG_USE_ARCH_MIPS)
+unset(CDISASM_CONFIG_USE_ARCH_M68K)
 unset(CDISASM_CONFIG_USE_DISASM_FORMAT)
 unset(CDISASM_CONFIG_USE_EXTRA_OPCODES)
 unset(CDISASM_CONFIG_USE_MIPS_ALLEGREX_UNVERIFIED)
@@ -329,7 +334,13 @@ if(USE_ARCH_MIPS)
         src/mips/mips_vu_decoder.c
         src/mips/mips_extra_decoder.c)
 endif()
+if(USE_ARCH_M68K)
+    list(APPEND _cdisasm_sources src/m68k/cdisasm_m68k.c)
+endif()
 if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
+    if(USE_ARCH_M68K)
+        list(APPEND _cdisasm_sources src/m68k/cdisasm_m68k_format.c)
+    endif()
     if(USE_ARCH_X86)
         list(APPEND _cdisasm_sources src/x86/cdisasm_format.c)
     endif()
@@ -449,6 +460,14 @@ if(CDISASM_VERIFY_GENERATED)
             VERBATIM)
     endif()
 
+    if(USE_ARCH_M68K)
+        add_custom_command(TARGET cdisasm_check_generated POST_BUILD
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_m68k.py" --check
+            COMMENT "Checking the generated M68K form table"
+            VERBATIM)
+    endif()
+
     if(NOT "${CDISASM_ARM_AARCHMRS_ROOT}" STREQUAL "")
         add_custom_target(
             cdisasm_check_arm_catalog
@@ -484,6 +503,12 @@ if(USE_ARCH_MIPS)
     add_library(cdisasm_mips INTERFACE)
     add_library(cdisasm::cdisasm_mips ALIAS cdisasm_mips)
     target_link_libraries(cdisasm_mips INTERFACE cdisasm)
+endif()
+
+if(USE_ARCH_M68K)
+    add_library(cdisasm_m68k INTERFACE)
+    add_library(cdisasm::cdisasm_m68k ALIAS cdisasm_m68k)
+    target_link_libraries(cdisasm_m68k INTERFACE cdisasm)
 endif()
 
 if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
@@ -6271,6 +6296,56 @@ if(CDISASM_BUILD_FUZZERS)
     unset(_cdisasm_fuzz_link_sanitizers)
 endif()
 
+if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_M68K AND CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
+    add_executable(cdisasm_m68k_tests tests/test_m68k.c)
+    target_compile_features(cdisasm_m68k_tests PRIVATE c_std_11)
+    target_link_libraries(cdisasm_m68k_tests PRIVATE cdisasm)
+    add_test(NAME cdisasm_m68k_tests COMMAND cdisasm_m68k_tests)
+    set_tests_properties(cdisasm_m68k_tests PROPERTIES LABELS "m68k")
+    add_executable(cdisasm_m68k_sweep tools/validation/m68k_sweep.c)
+    target_compile_features(cdisasm_m68k_sweep PRIVATE c_std_11)
+    target_link_libraries(cdisasm_m68k_sweep PRIVATE cdisasm)
+    # Differential check against Capstone (python3-capstone) when an
+    # interpreter that has it is found (CDISASM_CAPSTONE_PYTHON overrides).
+    set(CDISASM_CAPSTONE_PYTHON "" CACHE FILEPATH "Python interpreter with the capstone module (M68K oracle test)")
+    set(_cdisasm_capstone_python "${CDISASM_CAPSTONE_PYTHON}")
+    if(NOT _cdisasm_capstone_python)
+        find_package(Python3 QUIET COMPONENTS Interpreter)
+        foreach(_cdisasm_candidate IN ITEMS "${Python3_EXECUTABLE}" /usr/bin/python3)
+            if(_cdisasm_candidate AND EXISTS "${_cdisasm_candidate}" AND NOT _cdisasm_capstone_python)
+                execute_process(
+                    COMMAND "${_cdisasm_candidate}" -c "import capstone; capstone.CS_ARCH_M68K"
+                    RESULT_VARIABLE _cdisasm_capstone_missing OUTPUT_QUIET ERROR_QUIET)
+                if(_cdisasm_capstone_missing EQUAL 0)
+                    set(_cdisasm_capstone_python "${_cdisasm_candidate}")
+                endif()
+            endif()
+        endforeach()
+        unset(_cdisasm_candidate)
+        unset(_cdisasm_capstone_missing)
+    endif()
+    if(_cdisasm_capstone_python)
+        add_test(NAME cdisasm_m68k_capstone_differential
+            COMMAND "${_cdisasm_capstone_python}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/validation/m68k_capstone_diff.py"
+                --sweep "$<TARGET_FILE:cdisasm_m68k_sweep>" --strict --examples 0)
+        set_tests_properties(cdisasm_m68k_capstone_differential PROPERTIES LABELS "m68k;oracle")
+    endif()
+    unset(_cdisasm_capstone_python)
+    # ColdFire differential check against GNU objdump (binutils-m68k-linux-gnu)
+    # when one is found (CDISASM_M68K_OBJDUMP overrides).
+    find_program(CDISASM_M68K_OBJDUMP NAMES m68k-linux-gnu-objdump m68k-elf-objdump
+        DOC "GNU objdump for m68k (ColdFire oracle test)")
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(CDISASM_M68K_OBJDUMP AND Python3_EXECUTABLE)
+        add_test(NAME cdisasm_m68k_gnu_differential
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/validation/m68k_gnu_diff.py"
+                --sweep "$<TARGET_FILE:cdisasm_m68k_sweep>" --objdump "${CDISASM_M68K_OBJDUMP}" --strict --examples 0)
+        set_tests_properties(cdisasm_m68k_gnu_differential PROPERTIES LABELS "m68k;oracle" TIMEOUT 1200)
+    endif()
+endif()
+
 if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_MIPS)
     if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
         add_executable(cdisasm_mips_random_probe tools/validation/mips_random_probe.c)
@@ -6354,6 +6429,10 @@ if(USE_ARCH_MIPS)
         include/cdisasm/cdisasm_mips_v3.h
         include/cdisasm/cdisasm_mips_build.h
         include/cdisasm/cdisasm_mips_ids.h)
+endif()
+if(USE_ARCH_M68K)
+    list(APPEND _cdisasm_install_targets cdisasm_m68k)
+    list(APPEND _cdisasm_public_headers include/cdisasm/cdisasm_m68k.h)
 endif()
 if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
     list(APPEND _cdisasm_install_targets cdisasm_format)

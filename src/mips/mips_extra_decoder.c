@@ -103,7 +103,7 @@ static uint32_t extra_field(uint32_t w, unsigned lsb, unsigned width)
     return width == 0u ? 0u : (w >> lsb) & ((UINT32_C(1) << width) - 1u);
 }
 static cdisasm_status extra_generated(uint32_t w, cdisasm_mips_revision rev,
-                                      const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *i)
+                                      const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *i, int dsp_only)
 {
     size_t n;
     unsigned a;
@@ -112,6 +112,7 @@ static cdisasm_status extra_generated(uint32_t w, cdisasm_mips_revision rev,
         const mips_extension_form *f = &mips_extension_forms[n];
         int msa = f->feature_bit == CDISASM_MIPS_DECODE_BIT_MSA;
         if ((w & f->mask) != f->value) continue;
+        if (dsp_only && msa) continue;
         if (msa) {
             const uint64_t physical_msa = CDISASM_MIPS_DECODE_FLAG_MSA | CDISASM_MIPS_DECODE_FLAG_LOONGSIMD;
             const int loongson_msa = extra_feature(features, CDISASM_MIPS_DECODE_BIT_LOONGSIMD) ||
@@ -461,13 +462,17 @@ cdisasm_status cdisasm_mips_decode_extra(uint32_t raw, uint64_t address, cdisasm
 {
     cdisasm_status status;
     (void)address;
+    /* DSP Module3 forms retained at Release6 take precedence over overlapping
+     * Release6 base encodings. MSA forms do not: Release6 promotes LSA/DLSA
+     * to the base ISA, so the base form must win whether or not DSPr3 is
+     * selected, or replay/formatting of the decoded result diverges. */
     if (extra_r6(revision) && extra_feature(features,CDISASM_MIPS_DECODE_BIT_DSPR3)) {
-        status = extra_generated(raw, revision, features, instruction);
+        status = extra_generated(raw, revision, features, instruction, 1);
         if (status != CDISASM_STATUS_UNSUPPORTED_INSTRUCTION) return status;
     }
     status = extra_release6(raw, mode, revision, instruction);
     if (status != CDISASM_STATUS_UNSUPPORTED_INSTRUCTION) return status;
-    status = extra_generated(raw, revision, features, instruction);
+    status = extra_generated(raw, revision, features, instruction, 0);
     if (status != CDISASM_STATUS_UNSUPPORTED_INSTRUCTION) return status;
     status = extra_mt(raw, revision, features, instruction);
     if (status != CDISASM_STATUS_UNSUPPORTED_INSTRUCTION) return status;

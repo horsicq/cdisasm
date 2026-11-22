@@ -19,4 +19,8 @@
 #include "cdisasm_mips_v3.h"
 #endif
 
+#if USE_ARCH_M68K
+#include "cdisasm_m68k.h"
+#endif
+
 #endif

@@ -172,6 +172,12 @@ static cdisasm_status compact_lower(uint32_t raw,const compact_form *f,cdisasm_m
         i->instruction_flags|=CDISASM_MIPS_INSTRUCTION_FLAG_READS_FCSR|CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_FCSR;
     if(f->name==CDISASM_MIPS_NAME_LWU && mode!=CDISASM_MIPS_MODE_64)
         return CDISASM_STATUS_INVALID_INSTRUCTION;
+    /* R6 RDHWR selectors (bits13:11) exist only for PerfCtr, hardware
+     * register 4, as in the standard encoding (MD00087 rev6.05 pp389-391).
+     * The imported compiler record leaves the selector unconstrained. */
+    if(f->name==CDISASM_MIPS_NAME_RDHWR && f->encoding==2u && (f->mask&UINT32_C(0x3800))==0u &&
+       ((raw>>11)&7u)!=0u && ((raw>>16)&31u)!=4u)
+        return CDISASM_STATUS_INVALID_INSTRUCTION;
     for(n=0;n<f->count;++n) {
         const compact_operand *d=&f->operand[n];
         cdisasm_mips_operand *o=&i->operand[i->operand_count++];
@@ -185,7 +191,9 @@ static cdisasm_status compact_lower(uint32_t raw,const compact_form *f,cdisasm_m
             else if(d->kind==3u) o->reg=(uint16_t)(CDISASM_MIPS_REG_GPR0+value);
             else if(d->kind==4u) o->reg=(uint16_t)(CDISASM_MIPS_REG_GPR0+compact_gpr(value,d->aux));
             else if(d->kind==5u) {
-                if((d->aux&1u) && (value&1u)) return CDISASM_STATUS_INVALID_INSTRUCTION;
+                /* fmt.D register pairs require an even register only when FR=0. */
+                if((d->aux&1u) && (value&1u) && (i->instruction_flags&CDISASM_MIPS_INSTRUCTION_FLAG_FPR32))
+                    return CDISASM_STATUS_INVALID_INSTRUCTION;
                 o->reg=(uint16_t)(CDISASM_MIPS_REG_FPR0+value);
                 if(d->aux&2u)o->detail.flags=CDISASM_MIPS_OPERAND_DETAIL_HIGH_HALF;
             } else if(d->kind==6u) o->reg=(uint16_t)(CDISASM_MIPS_REG_FCC0+value);
@@ -314,6 +322,13 @@ static cdisasm_status compact_lower(uint32_t raw,const compact_form *f,cdisasm_m
         i->instruction_flags&=~CDISASM_MIPS_INSTRUCTION_FLAG_LINK;
         i->opcode_groups&=~CDISASM_GROUP_CALL;
         if(i->operand[1].reg==CDISASM_MIPS_REG_GPR31)i->opcode_groups|=CDISASM_GROUP_RETURN;
+    }
+    /* Match the standard RDHWR representation: a zero selector (and the
+     * selector-less pre-R6 record) has no selector operand. */
+    if(f->name==CDISASM_MIPS_NAME_RDHWR && i->operand_count==3u &&
+       i->operand[2].type==CDISASM_OPERAND_IMMEDIATE && i->operand[2].imm==0u) {
+        memset(&i->operand[2],0,sizeof(i->operand[2]));
+        i->operand_count=2u;
     }
     return CDISASM_STATUS_OK;
 }

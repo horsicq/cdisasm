@@ -3,11 +3,11 @@
   "inputs": {
     "src/mips/generated/mips_compact_facts.json": "6dfc3ed6736d7b33fec54f66da6d0f093613ca1a83c7934bd9d53d25b95ce458",
     "tools/data/mips/llvm_instruction_inventory.json": "38079435500412a495b99f52c0efb58d1df9c60d32f8b8cfe3e9f9b9e0c9f623",
-    "tools/isa_codegen/generate_mips_compact.py": "7c7cd2be324b596a6d5fd77d2884d2f24190fe89d34360a90f646f1d3c3bb158"
+    "tools/isa_codegen/generate_mips_compact.py": "0d91877f275bcdd2e373971d0d5ebac1f13d1a7d640bb56ab307959d76386d94"
   },
   "micromips": 746,
   "mips16": 69,
-  "output_sha256": "30730902dbae0f17af5b88f1880e863a3a73f66b8caf939fea172af82ae5c8d9",
+  "output_sha256": "6f1d1b9dd1e9ef2c03293ea654ea7c3eb4a1b4b686bab51f8ef6911dc5395f8b",
   "primary_corrections": {
     "boundary": "Original LLVM inventory is preserved; manufacturer numeric corrections apply to authored native recipes only.",
     "micromips": {
