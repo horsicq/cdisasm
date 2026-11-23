@@ -70,7 +70,7 @@ it (ctest `cdisasm_m68k_gnu_differential` when an m68k objdump is found;
 ## PowerPC
 
 PowerPC (`USE_ARCH_PPC`, enabled by default; `cdisasm_ppc.h`) uses a
-manual-transcribed catalog of **1,671 forms, 50 reversible aliases and 30
+manual-transcribed catalog of **1,995 forms, 442 reversible aliases and 40
 profiles**. The public `cdisasm_ppc_forms()` and alias/field queries provide
 the same encoding descriptions to xxasm. Generated runtime tables live under
 `src/ppc/generated/`; ordinary builds and installed consumers need no Python,
@@ -83,13 +83,15 @@ opcode catalogs or external assembler. CMake consumers can request the
 | `7400`, `7410`, `7450`, `7455` (`g4` = `7450`) | Original AltiVec/VMX and profile-specific scalar/cache/TLB forms |
 | `750cl`, `gekko`, `broadway` | Paired-single arithmetic and all eight quantized transfer forms; Broadway is the Gekko-compatible subset |
 | `ppc64`, `970`, `power4` through `power10` | Scalar 64-bit and explicit generation inventories; 970 includes VMX, POWER6 VMX/DFP, POWER7 VSX, POWER8 crypto/HTM, POWER9 ISA 3.0 and POWER10 prefixed/MMA forms |
-| `403`, `405`, `440`, `460`, `e500v1`, `e500v2` | Explicit PPC4xx/Book-E inventories and e500 SPE; 403 means 403GA and 460 means the audited 440-core subset |
-| `vle` | 107 VLE forms (58 short, 49 word) and 84 shared classic opcode-31 forms |
-| `a2`, `a2qpx` | Partial Book-E64 core; `a2qpx` adds scalar FP and 118 canonical QPX forms |
+| `403`, `405`, `440`, `460`, `476` | Explicit PPC4xx/Book-E inventories; 403 is the 403GA baseline, 460 retains the audited 440-core subset, and 476 adds its FP/DCR/cache forms |
+| `e500v1`, `e500v2` | SPE and embedded scalar FP, including e500v2's four extended-GPR64 conversions |
+| `e500mc`, `e5500`, `e6500` | Conventional scalar FPU and embedded hypervisor/cache/TLB/messaging facilities; e5500/e6500 support 64-bit execution, e6500 adds AltiVec; none has SPE |
+| `vle`, `e200z0`, `e200z0h`, `e200z3`, `e200z4`, `e200z6`, `e200z7` | Explicit VLE with nine SCI8 immediate families, core-specific system/context forms, and applicable SPE/EFPU; z0/z0h are VLE-only |
+| `a2`, `a2qpx` | Book-E64 subset with ERAT, guest/hypervisor, messaging, cache/TLB and coprocessor forms; `a2qpx` adds scalar FP and 118 canonical QPX forms plus logical aliases |
 
 CPU identity, execution width, byte order and enabled facilities are separate.
-`mode` is 32 or 64 (zero selects 32); classic/embedded/VLE profiles support
-32 only, while server and A2 profiles support both. Doubleword operations on
+`mode` is 32 or 64 (zero selects 32); server, A2, e5500 and e6500 profiles
+support both, while the remaining profiles support 32 only. Doubleword operations on
 64-bit processors remain available in mode 32; effective addresses use the
 selected width. Generic `ppc64` is a scalar baseline without VMX/VSX. Zero
 decode flags mean BE; `CDISASM_PPC_DECODE_LITTLE_ENDIAN` selects LE buffer
@@ -109,28 +111,34 @@ would discard controls is not printed. Prefixed instructions preserve two
 ordered words, including in LE buffers; truncation, invalid combinations and
 prohibited 64-byte-boundary crossings are rejected atomically.
 
-Retained validation covers all **30,537 form/profile/mode/endian pairs**:
-32 samples each give **977,184 comparisons per oracle**. Capstone 5.0.7 has
-836,367 equal and 140,817 classified outcomes; LLVM 21.1.8 has 928,617 equal
-and 48,567 classified; GNU 2.47.50.20261021 has 955,682 equal and 21,502
-classified. Each has **zero unexplained differences**. Development scripts
-`ppc_capstone_diff.py`, `ppc_llvm_diff.py` and `ppc_gnu_diff.py` use typed
-semantics and a versioned, manual-backed KNOWN list; oracle acceptance does
-not establish CPU legality. Form/profile coverage, reserved-bit negatives,
-truncation tests, opcode-space robustness sweeps and exact xxasm round trips
-supplement these comparisons. These checks validate encodings and formatting,
-not hardware execution or floating-point numerical results.
+Development validation enumerates each form/profile/mode/endian/encoding
+combination, including classic and VLE streams on dual-mode e200 cores.
+`ppc_capstone_diff.py`, `ppc_llvm_diff.py` and `ppc_gnu_diff.py` compare typed
+semantics and require a versioned, manual-backed KNOWN classification for
+any oracle disagreement. Oracle acceptance does not establish CPU legality.
+Form coverage, reserved-bit negatives, truncation tests, opcode-space sweeps
+and exact xxasm round trips supplement these comparisons. The VLE hand suite
+exercises all 30,720 SCI8 encodings. These checks validate encodings and
+formatting, not hardware execution or floating-point numerical results.
 
 Profile names describe the enumerated subset, not complete processor support.
-Remaining server gaps include masked prefixed MMA, paired-VSR and prefixed
-scalar-VSX transfers, selected POWER10 vector/DFP forms, POWER6 paired-FPR
-transfers, 970 segment bridge forms, nonzero BH hints, additional system/TLB
-controls and noncanonical `pnop` suffixes. VLE omits nine SCI8 immediate
-families and exact e200 processor inventories. A2 omits ERAT, guest/hypervisor,
-messaging and additional TLB/cache/coprocessor forms; QPX simplified logical
-aliases remain unavailable. Further profile-specific symbolic SPR names need
-an audit. e500mc/e5500/e6500, Xenon VMX128, Cell SPU and complete original
-POWER/POWER2 are outside this backend's advertised scope.
+Server support includes all 29 masked prefixed MMA forms, paired-VSR and
+prefixed scalar-VSX transfers, POWER10 vector insertion/extraction and DFP
+quadword conversions, POWER6 paired-FPR transfers, 970 segment bridges,
+nonzero BH hints and noncanonical `pnop` suffixes. Additional server system
+controls and profile-specific SPR aliases are enumerated in the catalog.
+POWER6 private-extension `mffgpr`/`mftgpr`, a complete implementation-specific
+SPR audit and full ISA 3.1C errata reconciliation remain evidence gaps.
+The e200z7 profile includes 23 later EFPU2 forms from the e200z760 manual,
+but its SPE2.1 integer/complex arithmetic and additional addressing forms
+remain incomplete. Optional e200 APUs, per-SoC variants and complete SPR
+inventories remain partial. Later 403GCX MMU variants and 460 auxiliary units
+still need a primary encoding audit; those existing baselines are unchanged.
+A2 `wchkall` awaits resolution of a manual/oracle opcode disagreement;
+`dnh`/`rfdi` and additional implementation-specific SPR names remain gaps.
+Xenon VMX128 and Cell SPU lack an independent oracle, and a separate original
+POWER/POWER2 dialect lacks an inspected primary encoding inventory. See
+[PowerPC details](docs/ppc.md) for profile and syntax boundaries.
 
 ## Build
 

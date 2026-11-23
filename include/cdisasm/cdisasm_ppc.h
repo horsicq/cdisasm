@@ -2,7 +2,8 @@
 #define CDISASM_CDISASM_PPC_H
 
 /* Classic PowerPC, with ABI storage reserved for two ordered instruction words.
- * CPU and semantic IDs are append-only; form IDs are build-local table indices.
+ * CPU, semantic and form IDs are append-only. Form IDs retain the 12.16.0
+ * table indices; new forms append without changing existing indices.
  * mode is execution width 32 or 64 (0 selects 32). Doubleword operations
  * remain available in 32-bit mode on 64-bit processors; address width changes.
  * Byte order is a buffer property: zero flags means BE, not host byte order.
@@ -45,7 +46,17 @@ typedef cdisasm_cpu_id cdisasm_ppc_cpu_id;
 #define CDISASM_PPC_CPU_VLE (CDISASM_CPU_GROUP_PPC | 27u)
 #define CDISASM_PPC_CPU_A2 (CDISASM_CPU_GROUP_PPC | 28u)
 #define CDISASM_PPC_CPU_A2QPX (CDISASM_CPU_GROUP_PPC | 29u)
-#define CDISASM_PPC_CPU_COUNT 30u
+#define CDISASM_PPC_CPU_E500MC (CDISASM_CPU_GROUP_PPC | 30u)
+#define CDISASM_PPC_CPU_E5500 (CDISASM_CPU_GROUP_PPC | 31u)
+#define CDISASM_PPC_CPU_E6500 (CDISASM_CPU_GROUP_PPC | 32u)
+#define CDISASM_PPC_CPU_476 (CDISASM_CPU_GROUP_PPC | 33u)
+#define CDISASM_PPC_CPU_E200Z0 (CDISASM_CPU_GROUP_PPC | 34u)
+#define CDISASM_PPC_CPU_E200Z0H (CDISASM_CPU_GROUP_PPC | 35u)
+#define CDISASM_PPC_CPU_E200Z3 (CDISASM_CPU_GROUP_PPC | 36u)
+#define CDISASM_PPC_CPU_E200Z4 (CDISASM_CPU_GROUP_PPC | 37u)
+#define CDISASM_PPC_CPU_E200Z6 (CDISASM_CPU_GROUP_PPC | 38u)
+#define CDISASM_PPC_CPU_E200Z7 (CDISASM_CPU_GROUP_PPC | 39u)
+#define CDISASM_PPC_CPU_COUNT 40u
 #define CDISASM_PPC_MODE_32 32u
 #define CDISASM_PPC_MODE_64 64u
 #define CDISASM_PPC_MODE_MASK_32 1u
@@ -144,11 +155,17 @@ typedef struct cdisasm_ppc_field {
 } cdisasm_ppc_field;
 typedef struct cdisasm_ppc_form_operand {
     uint8_t kind, access, flags, width;
-    uint8_t scale, size, field_count, reserved; /* size=0: dynamic/unspecified (e.g. PS GQR/W) */
+    uint8_t scale, size, field_count, recipe; /* CDISASM_PPC_RECIPE_*; VSR scale=1: pair index * 2 */
     /* Ordinary: field[0]=value. MEM: displacement,base. MEMX: base,index.
      * MEMX is one normalized operand, printed as two comma-separated GPRs. */
     cdisasm_ppc_field field[3];
 } cdisasm_ppc_form_operand;
+/* SCI8 width is the encoded 11-bit F:SCL:UI8 field; its value is expanded
+ * to 32 bits (VLEPEM Rev.0 Table 3-2). SIGNED selects signed presentation.
+ * Decoded IMM disp retains the raw field for exact reassembly; an optional
+ * final SCL operand preserves redundant encodings of zero and all ones. */
+#define CDISASM_PPC_RECIPE_IDENTITY 0u
+#define CDISASM_PPC_RECIPE_SCI8 1u
 #define CDISASM_PPC_CONSTRAINT_EQ 0u
 #define CDISASM_PPC_CONSTRAINT_NE 1u
 #define CDISASM_PPC_CONSTRAINT_LT 2u
@@ -160,6 +177,7 @@ typedef struct cdisasm_ppc_form_operand {
 #define CDISASM_PPC_CONSTRAINT_CLEAR 10u /* (a & b) == 0 */
 #define CDISASM_PPC_CONSTRAINT_ONEHOT 12u /* exactly one set bit in a */
 #define CDISASM_PPC_CONSTRAINT_ROUND 13u /* R=a or RMC=b is 0/3 */
+#define CDISASM_PPC_CONSTRAINT_VALUES 14u /* a < 64 and bit a of b is set */
 #define CDISASM_PPC_CONSTRAINT_MMA 11u /* VSR b cannot alias accumulator a */
 #define CDISASM_PPC_CONSTRAINT_ZEROIF 9u /* b nonzero requires a zero */
 #define CDISASM_PPC_CONSTRAINT_NONZERO 8u /* at least one of a,b nonzero */
@@ -172,9 +190,13 @@ typedef struct cdisasm_ppc_constraint {
 typedef struct cdisasm_ppc_form {
     uint64_t features, excluded;
     uint32_t mask[2], match[2];
-    uint32_t name_id, profile_mask;
+    uint32_t name_id, profile_mask; /* profile ordinals 0..31 */
     uint8_t mode_mask, word_count, flags, operand_count;
-    uint8_t constraint_count, encoding, reserved[2]; /* VLE16 uses low 16 bits of words[0]. */
+    uint8_t constraint_count, encoding;
+    /* Formerly reserved: bits 32..39 and 40..47 of the profile mask.
+     * Use cdisasm_ppc_form_available() to query the complete selection.
+     * VLE16 uses low 16 bits of words[0]. Structure layout is unchanged. */
+    uint8_t profile_mask_high[2];
     cdisasm_ppc_field rc, oe, aa, lk;
     cdisasm_ppc_form_operand operand[CDISASM_PPC_MAX_OPERANDS];
     cdisasm_ppc_constraint constraint[4];
@@ -184,9 +206,9 @@ typedef struct cdisasm_ppc_form {
 typedef struct cdisasm_ppc_operand {
     uint8_t type, access, flags, width;
     uint8_t scale, size, reg, base;
-    uint8_t index, has_index, zero_base, reserved;
+    uint8_t index, has_index, zero_base, recipe; /* CDISASM_PPC_RECIPE_* */
     int64_t value; /* sign extended where SIGNED; numeric SPR/TBR otherwise */
-    int64_t disp;  /* scaled byte displacement */
+    int64_t disp;  /* scaled byte displacement; SCI8 raw F:SCL:UI8 */
     uint64_t target; /* branch target, modulo execution address width */
 } cdisasm_ppc_operand;
 typedef struct cdisasm_ppc_instruction {
@@ -224,6 +246,15 @@ typedef struct cdisasm_ppc_instruction {
  * extldi,extrdi,insrdi,clrlsldi (0..10). */
 #define CDISASM_PPC_ALIAS_ROTATE64 15u
 #define CDISASM_PPC_ALIAS_PREFIXLI 16u /* param0 pli, param1 pla; paddi D,0,I,param */
+#define CDISASM_PPC_ALIAS_BREGCOND 17u /* param BO*32+condition; optional CR field and BH */
+#define CDISASM_PPC_ALIAS_BREGTEST 18u /* param BO; CR bit and optional BH */
+#define CDISASM_PPC_ALIAS_BREGCOUNT 19u /* param BO; BI=0 and optional BH */
+#define CDISASM_PPC_ALIAS_CONST 20u /* no source operands; fixed first immediate; optional second zero */
+#define CDISASM_PPC_ALIAS_MEMIMM 21u /* indexed memory plus fixed final immediate param */
+#define CDISASM_PPC_ALIAS_CONSTPAIR 22u /* no source operands; fixed L=param&7, SC=param>>3 */
+#define CDISASM_PPC_ALIAS_MEMHINT 23u /* accepted indexed memory,TH; param0:TH0..7, param1:TH0/8..15 */
+#define CDISASM_PPC_ALIAS_QPXLOGICAL 24u /* QPX truth table; param0/15 unary,5/10 binary,others ternary */
+#define CDISASM_PPC_ALIAS_TLBILX 25u /* fixed T: param0/1 omit zero RA/RB, param3 retains RA/RB */
 typedef struct cdisasm_ppc_alias {
     const char *name;
     uint32_t base_name_id;

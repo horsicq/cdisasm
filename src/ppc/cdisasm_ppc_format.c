@@ -45,7 +45,13 @@ static void ppc_operand(ppc_text *t, const cdisasm_ppc_operand *op)
         ppc_reg(t, "r", op->base, op->zero_base); ppc_put(t, ","); ppc_reg(t, "r", op->index, 0); break;
     case CDISASM_PPC_OP_BRANCH: ppc_put(t, "0x%llx", (unsigned long long)op->target); break;
     case CDISASM_PPC_OP_IMM: case CDISASM_PPC_OP_SPR: case CDISASM_PPC_OP_TBR:
-        ppc_put(t, "%lld", (long long)op->value); break;
+        ppc_put(t, "%lld", (long long)op->value);
+        /* All SCI8 encodings are exact: only zero/all-ones have duplicate
+         * byte placements. Preserve nonzero SCL in an optional operand. */
+        if (op->recipe == CDISASM_PPC_RECIPE_SCI8 && (op->disp & 0x300) &&
+            ((uint32_t)op->value == 0 || (uint32_t)op->value == UINT32_MAX))
+            ppc_put(t, ",%u", (unsigned)(op->disp >> 8) & 3u);
+        break;
     default: t->ok = 0; break;
     }
 }
@@ -54,14 +60,37 @@ static int ppc_alias_match(const cdisasm_ppc_alias *a, const cdisasm_ppc_instruc
     const cdisasm_ppc_operand *p = in->operand;
     if (!a->preferred || a->base_name_id != in->name_id) return 0;
     switch (a->kind) {
+    case CDISASM_PPC_ALIAS_TLBILX:
+        /* EREF Rev.1 Table6-18: suppress only encoded zero addresses. */
+        return in->operand_count == 2 && p[1].type == CDISASM_PPC_OP_MEMX &&
+            p[0].value == a->param && (a->param == 3 || (!p[1].base && !p[1].index));
+    case CDISASM_PPC_ALIAS_QPXLOGICAL:
+        /* QPX Architecture (May 9 2012), section4.9 p42. Keep the base
+         * spelling whenever a shorthand would discard an encoded source. */
+        if (in->operand_count != 4 || p[3].value != a->param) return 0;
+        if (a->param == 0 || a->param == 15)
+            return p[0].value == p[1].value && p[1].value == p[2].value;
+        if (a->param == 5 || a->param == 10) return p[1].value == p[2].value;
+        return 1;
+    case CDISASM_PPC_ALIAS_MEMIMM:
+        return in->operand_count == 2 && p[0].type == CDISASM_PPC_OP_MEMX && p[1].value == a->param;
+    case CDISASM_PPC_ALIAS_CONSTPAIR:
+        return in->operand_count == 2 && p[0].value == (a->param & 7u) && p[1].value == (a->param >> 3);
+    case CDISASM_PPC_ALIAS_CONST:
+        return (in->operand_count == 1 || in->operand_count == 2) && p[0].value == a->param &&
+            (in->operand_count == 1 || p[1].value == 0);
     case CDISASM_PPC_ALIAS_LI: return in->operand_count == 3 && p[1].value == 0;
     case CDISASM_PPC_ALIAS_DUP: case CDISASM_PPC_ALIAS_CRDUP:
         return in->operand_count == 3 && p[1].value == p[2].value;
     case CDISASM_PPC_ALIAS_CRSET:
         return in->operand_count == 3 && p[0].value == p[1].value && p[1].value == p[2].value;
-    case CDISASM_PPC_ALIAS_SPR_FROM: case CDISASM_PPC_ALIAS_TBR_FROM:
+    case CDISASM_PPC_ALIAS_SPR_FROM:
+        return in->operand_count == 2 && p[1].value == a->param &&
+            cdisasm_ppc_spr_from_name(in->cpu_id,a->name+2,0) == (int32_t)a->param;
+    case CDISASM_PPC_ALIAS_TBR_FROM:
         return in->operand_count == 2 && p[1].value == a->param;
-    case CDISASM_PPC_ALIAS_SPR_TO: return in->operand_count == 2 && p[0].value == a->param;
+    case CDISASM_PPC_ALIAS_SPR_TO: return in->operand_count == 2 && p[0].value == a->param &&
+        cdisasm_ppc_spr_from_name(in->cpu_id,a->name+2,1) == (int32_t)a->param;
     case CDISASM_PPC_ALIAS_ROTATE:
         if (in->operand_count != 5) return 0;
         switch (a->param) {
@@ -86,7 +115,11 @@ static int ppc_alias_match(const cdisasm_ppc_alias *a, const cdisasm_ppc_instruc
     case CDISASM_PPC_ALIAS_BCOND:
         return in->operand_count == 3 && in->bo == a->param / 32u && (in->bi & 3u) == (a->param & 3u);
     case CDISASM_PPC_ALIAS_BCOUNT: return in->operand_count == 3 && in->bo == a->param && in->bi == 0;
-    case CDISASM_PPC_ALIAS_BREG: return in->operand_count == 2 && in->bo == 20 && in->bi == 0 && !in->bh;
+    case CDISASM_PPC_ALIAS_BREG: return in->operand_count == 3 && in->bo == 20 && in->bi == 0;
+    case CDISASM_PPC_ALIAS_BREGCOND:
+        return in->operand_count == 3 && in->bo == a->param / 32u && (in->bi & 3u) == (a->param & 3u);
+    case CDISASM_PPC_ALIAS_BREGTEST: return in->operand_count == 3 && in->bo == a->param;
+    case CDISASM_PPC_ALIAS_BREGCOUNT: return in->operand_count == 3 && in->bo == a->param && in->bi == 0;
     case CDISASM_PPC_ALIAS_BTEST: return in->operand_count == 3 && in->bo == a->param;
     case CDISASM_PPC_ALIAS_NOP:
         return in->operand_count == (a->param == 2 ? 2 : 3) && !p[0].value && !p[1].value && (a->param == 2 || !p[2].value);
@@ -104,6 +137,17 @@ static void ppc_alias_operands(ppc_text *t, const cdisasm_ppc_alias *a, const cd
 {
     const cdisasm_ppc_operand *p = in->operand;
     switch (a->kind) {
+    case CDISASM_PPC_ALIAS_TLBILX:
+        if (a->param == 3) { ppc_put(t, " "); ppc_operand(t, &p[1]); }
+        break;
+    case CDISASM_PPC_ALIAS_QPXLOGICAL:
+        ppc_put(t, " "); ppc_operand(t, &p[0]);
+        if (a->param == 0 || a->param == 15) break;
+        ppc_put(t, ","); ppc_operand(t, &p[1]);
+        if (a->param == 5 || a->param == 10) break;
+        ppc_put(t, ","); ppc_operand(t, &p[2]); break;
+    case CDISASM_PPC_ALIAS_MEMIMM:
+        ppc_put(t, " "); ppc_operand(t, &p[0]); break;
     case CDISASM_PPC_ALIAS_LI:
         ppc_put(t, " "); ppc_operand(t, &p[0]); ppc_put(t, ","); ppc_operand(t, &p[2]); break;
     case CDISASM_PPC_ALIAS_DUP: case CDISASM_PPC_ALIAS_CRDUP:
@@ -127,6 +171,17 @@ static void ppc_alias_operands(ppc_text *t, const cdisasm_ppc_alias *a, const cd
         ppc_put(t, " ");
         if (in->bi >= 4) { ppc_reg(t, "cr", in->bi / 4u, 0); ppc_put(t, ","); }
         ppc_operand(t, &p[2]); break;
+    case CDISASM_PPC_ALIAS_BREGCOND:
+        if (in->bi >= 4 || in->bh) { ppc_put(t, " "); ppc_reg(t,"cr",in->bi/4u,0); }
+        if (in->bh) ppc_put(t,",%u",in->bh);
+        break;
+    case CDISASM_PPC_ALIAS_BREGTEST:
+        ppc_put(t," "); ppc_operand(t,&p[1]);
+        if (in->bh) ppc_put(t,",%u",in->bh);
+        break;
+    case CDISASM_PPC_ALIAS_BREG: case CDISASM_PPC_ALIAS_BREGCOUNT:
+        if (in->bh) ppc_put(t," %u",in->bh);
+        break;
     case CDISASM_PPC_ALIAS_BCOUNT: ppc_put(t, " "); ppc_operand(t, &p[2]); break;
     case CDISASM_PPC_ALIAS_BTEST:
         ppc_put(t, " "); ppc_operand(t, &p[1]); ppc_put(t, ","); ppc_operand(t, &p[2]); break;
@@ -161,9 +216,17 @@ size_t CDISASM_CALL cdisasm_ppc_format(const cdisasm_ppc_instruction *in, uint32
             if (ppc_alias_match(&aliases[i], in)) { chosen = &aliases[i]; name = chosen->name; break; }
     }
     t.out = text; t.capacity = capacity; t.length = 0; t.ok = 1; t.named = (options & CDISASM_PPC_FORMAT_REGISTER_NAMES) != 0;
-    ppc_put(&t, "%s", name); ppc_suffix(&t, in, name);
+    {
+        size_t length = strlen(name);
+        char hint = length && (name[length-1] == '+' || name[length-1] == '-') ? name[--length] : 0;
+        ppc_put(&t,"%.*s",(int)length,name); ppc_suffix(&t,in,name);
+        if (hint) ppc_put(&t,"%c",hint);
+    }
     if (chosen) ppc_alias_operands(&t, chosen, in);
-    else for (i = 0; i < in->operand_count; ++i) { ppc_put(&t, i ? "," : " "); ppc_operand(&t, &in->operand[i]); }
+    else for (i = 0; i < in->operand_count; ++i) {
+        if (!strcmp(name,"pnop") && !in->operand[0].value) break;
+        if (!strcmp(name,"sync") && !in->operand[0].value && !in->operand[1].value) break;
+        ppc_put(&t, i ? "," : " "); ppc_operand(&t, &in->operand[i]); }
     if (!t.ok) { text[0] = 0; return 0; }
     return t.length;
 }
