@@ -7,7 +7,7 @@
 
 #if !USE_DISASM_FORMAT
 #error "cdisasm formatting is disabled in this build"
-#elif !USE_ARCH_X86 && !USE_ARCH_ARM && !USE_ARCH_MIPS
+#elif !USE_ARCH_X86 && !USE_ARCH_ARM && !USE_ARCH_MIPS && !USE_ARCH_M68K && !USE_ARCH_PPC
 #error "cdisasm formatting requires an enabled architecture"
 #endif
 
@@ -22,6 +22,14 @@
 #if USE_DISASM_FORMAT && USE_ARCH_MIPS
 #include "cdisasm_mips.h"
 #include "cdisasm_mips_v2.h"
+#endif
+
+#if USE_DISASM_FORMAT && USE_ARCH_M68K
+#include "cdisasm_m68k.h"
+#endif
+
+#if USE_DISASM_FORMAT && USE_ARCH_PPC
+#include "cdisasm_ppc.h"
 #endif
 
 /* Formatter exports are owned by the same cdisasm library as decoder exports. */

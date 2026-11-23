@@ -43,6 +43,7 @@ typedef uint32_t cdisasm_cpu_id;
 #define CDISASM_CPU_GROUP_ARM UINT32_C(0x00020000)
 #define CDISASM_CPU_GROUP_MIPS UINT32_C(0x00030000)
 #define CDISASM_CPU_GROUP_M68K UINT32_C(0x00040000)
+#define CDISASM_CPU_GROUP_PPC UINT32_C(0x00050000)
 #define CDISASM_CPU_GROUP_OF(cpu_id) ((uint32_t)(cpu_id) & CDISASM_CPU_GROUP_MASK)
 #define CDISASM_CPU_ORDINAL_OF(cpu_id) ((uint32_t)(cpu_id) & CDISASM_CPU_ORDINAL_MASK)
 
@@ -213,9 +214,10 @@ CDISASM_API cdisasm_status CDISASM_CALL cdisasm_cpu_decode_flag_mask(cdisasm_cpu
 /**
  * Decodes one instruction by dispatching on the architecture group in cpu_id.
  *
- * mode and instruction are architecture-specific. instruction must point to a
- * cdisasm_x86_instruction for an x86 CPU ID or a cdisasm_arm_instruction for
- * an ARM CPU ID. An unknown or disabled architecture returns zero without
+ * mode and instruction are architecture-specific. instruction must point to
+ * the corresponding cdisasm_x86_instruction, cdisasm_arm_instruction,
+ * cdisasm_mips_instruction, cdisasm_m68k_instruction or cdisasm_ppc_instruction.
+ * An unknown or disabled architecture returns zero without
  * accessing or modifying the result buffer. The selected architecture decoder
  * validates every bitmap in flags without narrowing it. Passing NULL selects
  * the architecture's base/default decoding policy.

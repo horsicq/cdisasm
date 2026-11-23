@@ -90,6 +90,7 @@ option(USE_ARCH_X86 "Build the x86 decoder" ON)
 option(USE_ARCH_ARM "Build the ARM decoder" ON)
 option(USE_ARCH_MIPS "Build the MIPS decoder" ON)
 option(USE_ARCH_M68K "Build the Motorola 68000-family decoder" ON)
+option(USE_ARCH_PPC "Build the PowerPC decoder" ON)
 option(USE_DISASM_FORMAT "Build instruction formatting into cdisasm" ON)
 option(USE_EXTRA_OPCODES "Build extended opcode coverage into cdisasm" ON)
 option(USE_MIPS_ALLEGREX_UNVERIFIED "Build opt-in Allegrex source syntax with unknown physical effects" OFF)
@@ -156,6 +157,7 @@ foreach(_cdisasm_boolean IN ITEMS
         USE_ARCH_ARM
         USE_ARCH_MIPS
         USE_ARCH_M68K
+        USE_ARCH_PPC
         USE_DISASM_FORMAT
         USE_EXTRA_OPCODES
         USE_MIPS_ALLEGREX_UNVERIFIED
@@ -175,7 +177,8 @@ if(CDISASM_NORMALIZED_USE_DISASM_FORMAT
         AND (CDISASM_NORMALIZED_USE_ARCH_X86
             OR CDISASM_NORMALIZED_USE_ARCH_ARM
             OR CDISASM_NORMALIZED_USE_ARCH_MIPS
-            OR CDISASM_NORMALIZED_USE_ARCH_M68K))
+            OR CDISASM_NORMALIZED_USE_ARCH_M68K
+            OR CDISASM_NORMALIZED_USE_ARCH_PPC))
     set(CDISASM_EFFECTIVE_USE_DISASM_FORMAT ON)
 endif()
 
@@ -217,6 +220,7 @@ set(CDISASM_CONFIG_USE_ARCH_X86 ${CDISASM_NORMALIZED_USE_ARCH_X86})
 set(CDISASM_CONFIG_USE_ARCH_ARM ${CDISASM_NORMALIZED_USE_ARCH_ARM})
 set(CDISASM_CONFIG_USE_ARCH_MIPS ${CDISASM_NORMALIZED_USE_ARCH_MIPS})
 set(CDISASM_CONFIG_USE_ARCH_M68K ${CDISASM_NORMALIZED_USE_ARCH_M68K})
+set(CDISASM_CONFIG_USE_ARCH_PPC ${CDISASM_NORMALIZED_USE_ARCH_PPC})
 set(CDISASM_CONFIG_USE_DISASM_FORMAT
     ${CDISASM_EFFECTIVE_USE_DISASM_FORMAT})
 set(CDISASM_CONFIG_USE_EXTRA_OPCODES
@@ -230,6 +234,7 @@ unset(CDISASM_CONFIG_USE_ARCH_X86)
 unset(CDISASM_CONFIG_USE_ARCH_ARM)
 unset(CDISASM_CONFIG_USE_ARCH_MIPS)
 unset(CDISASM_CONFIG_USE_ARCH_M68K)
+unset(CDISASM_CONFIG_USE_ARCH_PPC)
 unset(CDISASM_CONFIG_USE_DISASM_FORMAT)
 unset(CDISASM_CONFIG_USE_EXTRA_OPCODES)
 unset(CDISASM_CONFIG_USE_MIPS_ALLEGREX_UNVERIFIED)
@@ -337,7 +342,13 @@ endif()
 if(USE_ARCH_M68K)
     list(APPEND _cdisasm_sources src/m68k/cdisasm_m68k.c)
 endif()
+if(USE_ARCH_PPC)
+    list(APPEND _cdisasm_sources src/ppc/cdisasm_ppc.c)
+endif()
 if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
+    if(USE_ARCH_PPC)
+        list(APPEND _cdisasm_sources src/ppc/cdisasm_ppc_format.c)
+    endif()
     if(USE_ARCH_M68K)
         list(APPEND _cdisasm_sources src/m68k/cdisasm_m68k_format.c)
     endif()
@@ -460,6 +471,14 @@ if(CDISASM_VERIFY_GENERATED)
             VERBATIM)
     endif()
 
+    if(USE_ARCH_PPC)
+        add_custom_command(TARGET cdisasm_check_generated POST_BUILD
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_ppc.py" --check
+            COMMENT "Checking the generated PowerPC descriptor tables"
+            VERBATIM)
+    endif()
+
     if(USE_ARCH_M68K)
         add_custom_command(TARGET cdisasm_check_generated POST_BUILD
             COMMAND "${Python3_EXECUTABLE}" -B
@@ -503,6 +522,12 @@ if(USE_ARCH_MIPS)
     add_library(cdisasm_mips INTERFACE)
     add_library(cdisasm::cdisasm_mips ALIAS cdisasm_mips)
     target_link_libraries(cdisasm_mips INTERFACE cdisasm)
+endif()
+
+if(USE_ARCH_PPC)
+    add_library(cdisasm_ppc INTERFACE)
+    add_library(cdisasm::cdisasm_ppc ALIAS cdisasm_ppc)
+    target_link_libraries(cdisasm_ppc INTERFACE cdisasm)
 endif()
 
 if(USE_ARCH_M68K)
@@ -6296,6 +6321,120 @@ if(CDISASM_BUILD_FUZZERS)
     unset(_cdisasm_fuzz_link_sanitizers)
 endif()
 
+if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_PPC)
+    add_executable(cdisasm_ppc_tests tests/test_ppc.c)
+    target_compile_features(cdisasm_ppc_tests PRIVATE c_std_11)
+    target_link_libraries(cdisasm_ppc_tests PRIVATE cdisasm)
+    add_test(NAME cdisasm_ppc_tests COMMAND cdisasm_ppc_tests)
+    set_tests_properties(cdisasm_ppc_tests PROPERTIES LABELS "ppc")
+    add_executable(cdisasm_ppc_extension_tests tests/test_ppc_extensions.c)
+    target_compile_features(cdisasm_ppc_extension_tests PRIVATE c_std_11)
+    target_link_libraries(cdisasm_ppc_extension_tests PRIVATE cdisasm)
+    add_test(NAME cdisasm_ppc_extension_tests COMMAND cdisasm_ppc_extension_tests)
+    set_tests_properties(cdisasm_ppc_extension_tests PROPERTIES LABELS "ppc")
+    add_executable(cdisasm_ppc_server_tests tests/test_ppc_server.c)
+    target_compile_features(cdisasm_ppc_server_tests PRIVATE c_std_11)
+    target_link_libraries(cdisasm_ppc_server_tests PRIVATE cdisasm)
+    add_test(NAME cdisasm_ppc_server_tests COMMAND cdisasm_ppc_server_tests)
+    set_tests_properties(cdisasm_ppc_server_tests PROPERTIES LABELS "ppc")
+    foreach(_ppc_suite IN ITEMS embedded vle qpx)
+        add_executable(cdisasm_ppc_${_ppc_suite}_tests tests/test_ppc_${_ppc_suite}.c)
+        target_compile_features(cdisasm_ppc_${_ppc_suite}_tests PRIVATE c_std_11)
+        target_link_libraries(cdisasm_ppc_${_ppc_suite}_tests PRIVATE cdisasm)
+        add_test(NAME cdisasm_ppc_${_ppc_suite}_tests COMMAND cdisasm_ppc_${_ppc_suite}_tests)
+        set_tests_properties(cdisasm_ppc_${_ppc_suite}_tests PROPERTIES LABELS "ppc")
+    endforeach()
+    if(_cdisasm_has_tools)
+        find_package(Python3 QUIET COMPONENTS Interpreter)
+        if(Python3_EXECUTABLE)
+            # PPC freshness is independent of the deferred MIPS evidence refresh.
+            add_test(NAME cdisasm_ppc_generated
+                COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_ppc.py" --check)
+            set_tests_properties(cdisasm_ppc_generated PROPERTIES LABELS "ppc;generated")
+        endif()
+        if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
+            add_executable(cdisasm_ppc_sweep tools/validation/ppc_sweep.c)
+            target_compile_features(cdisasm_ppc_sweep PRIVATE c_std_11)
+            target_link_libraries(cdisasm_ppc_sweep PRIVATE cdisasm)
+            foreach(_ppc_profile IN ITEMS ppc32 601 603 604 750 7400 7410 7450 7455 750cl gekko broadway 403 405 440 460 e500v1 e500v2)
+                foreach(_ppc_endian IN ITEMS be le)
+                    set(_ppc_order)
+                    if(_ppc_endian STREQUAL "le")
+                        set(_ppc_order --le)
+                    endif()
+                    add_test(NAME cdisasm_ppc_forms_${_ppc_profile}_${_ppc_endian}
+                        COMMAND cdisasm_ppc_sweep ${_ppc_profile} ${_ppc_order} --forms --samples 32)
+                    set_tests_properties(cdisasm_ppc_forms_${_ppc_profile}_${_ppc_endian} PROPERTIES LABELS "ppc;catalog")
+                endforeach()
+            endforeach()
+            add_test(NAME cdisasm_ppc_forms_vle_be COMMAND cdisasm_ppc_sweep vle --vle --forms --samples 32)
+            set_tests_properties(cdisasm_ppc_forms_vle_be PROPERTIES LABELS "ppc;catalog")
+            foreach(_ppc_profile IN ITEMS ppc64 970 power4 power5 power6 power7 power8 power9 power10 a2 a2qpx)
+                foreach(_ppc_mode IN ITEMS 32 64)
+                    foreach(_ppc_endian IN ITEMS be le)
+                        set(_ppc_order)
+                        if(_ppc_endian STREQUAL "le")
+                            set(_ppc_order --le)
+                        endif()
+                        add_test(NAME cdisasm_ppc_forms_${_ppc_profile}_${_ppc_mode}_${_ppc_endian}
+                            COMMAND cdisasm_ppc_sweep ${_ppc_profile} --mode ${_ppc_mode} ${_ppc_order} --forms --samples 32)
+                        set_tests_properties(cdisasm_ppc_forms_${_ppc_profile}_${_ppc_mode}_${_ppc_endian} PROPERTIES LABELS "ppc;catalog")
+                    endforeach()
+                endforeach()
+            endforeach()
+            set(CDISASM_PPC_CAPSTONE_PYTHON "" CACHE FILEPATH "Python interpreter with Capstone PPC")
+            set(_ppc_capstone_python "${CDISASM_PPC_CAPSTONE_PYTHON}")
+            foreach(_candidate IN ITEMS "${Python3_EXECUTABLE}" /usr/bin/python3)
+                if(NOT _ppc_capstone_python AND _candidate AND EXISTS "${_candidate}")
+                    execute_process(COMMAND "${_candidate}" -c "import capstone; capstone.CS_ARCH_PPC"
+                        RESULT_VARIABLE _missing OUTPUT_QUIET ERROR_QUIET)
+                    if(_missing EQUAL 0)
+                        set(_ppc_capstone_python "${_candidate}")
+                    endif()
+                endif()
+            endforeach()
+            if(_ppc_capstone_python)
+                add_test(NAME cdisasm_ppc_capstone_differential
+                    COMMAND "${_ppc_capstone_python}" -B
+                        "${CMAKE_CURRENT_SOURCE_DIR}/tools/validation/ppc_capstone_diff.py"
+                        --sweep "$<TARGET_FILE:cdisasm_ppc_sweep>" --strict --examples 0)
+                set_tests_properties(cdisasm_ppc_capstone_differential PROPERTIES LABELS "ppc;oracle" TIMEOUT 1200)
+            endif()
+            find_program(CDISASM_PPC_LLVM_MC NAMES llvm-mc-21 llvm-mc DOC "LLVM MC PowerPC oracle")
+            find_program(CDISASM_PPC_OBJDUMP NAMES powerpc-linux-gnu-objdump powerpc64-linux-gnu-objdump
+                DOC "GNU objdump PowerPC oracle")
+            if(CDISASM_PPC_LLVM_MC AND Python3_EXECUTABLE)
+                add_test(NAME cdisasm_ppc_llvm_differential
+                    COMMAND "${Python3_EXECUTABLE}" -B
+                        "${CMAKE_CURRENT_SOURCE_DIR}/tools/validation/ppc_llvm_diff.py"
+                        --sweep "$<TARGET_FILE:cdisasm_ppc_sweep>" --llvm-mc "${CDISASM_PPC_LLVM_MC}" --strict --examples 0)
+                set_tests_properties(cdisasm_ppc_llvm_differential PROPERTIES LABELS "ppc;oracle" TIMEOUT 1200)
+            endif()
+            if(CDISASM_PPC_OBJDUMP AND Python3_EXECUTABLE)
+                add_test(NAME cdisasm_ppc_gnu_differential
+                    COMMAND "${Python3_EXECUTABLE}" -B
+                        "${CMAKE_CURRENT_SOURCE_DIR}/tools/validation/ppc_gnu_diff.py"
+                        --sweep "$<TARGET_FILE:cdisasm_ppc_sweep>" --objdump "${CDISASM_PPC_OBJDUMP}" --strict --examples 0)
+                set_tests_properties(cdisasm_ppc_gnu_differential PROPERTIES LABELS "ppc;oracle" TIMEOUT 1200)
+            endif()
+            unset(_ppc_capstone_python)
+            unset(_candidate)
+            unset(_missing)
+        endif()
+    endif()
+endif()
+if(_cdisasm_has_tests AND BUILD_TESTING AND CDISASM_BUILD_PACKAGE_TESTS AND NOT CMAKE_CROSSCOMPILING)
+    add_test(NAME cdisasm_ppc_package_matrix
+        COMMAND "${CMAKE_COMMAND}"
+            "-DSOURCE_DIR:PATH=${CMAKE_CURRENT_SOURCE_DIR}"
+            "-DWORK_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/ppc-package-tests"
+            "-DGENERATOR:STRING=${CMAKE_GENERATOR}"
+            "-DPLATFORM:STRING=${CMAKE_GENERATOR_PLATFORM}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/test_ppc_package.cmake")
+    set_tests_properties(cdisasm_ppc_package_matrix PROPERTIES LABELS "ppc;package;install" RUN_SERIAL TRUE TIMEOUT 1200)
+endif()
+
 if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_M68K AND CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
     add_executable(cdisasm_m68k_tests tests/test_m68k.c)
     target_compile_features(cdisasm_m68k_tests PRIVATE c_std_11)
@@ -6429,6 +6568,10 @@ if(USE_ARCH_MIPS)
         include/cdisasm/cdisasm_mips_v3.h
         include/cdisasm/cdisasm_mips_build.h
         include/cdisasm/cdisasm_mips_ids.h)
+endif()
+if(USE_ARCH_PPC)
+    list(APPEND _cdisasm_install_targets cdisasm_ppc)
+    list(APPEND _cdisasm_public_headers include/cdisasm/cdisasm_ppc.h)
 endif()
 if(USE_ARCH_M68K)
     list(APPEND _cdisasm_install_targets cdisasm_m68k)
