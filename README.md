@@ -76,6 +76,8 @@ the same encoding descriptions to xxasm. Generated runtime tables live under
 `src/ppc/generated/`; ordinary builds and installed consumers need no Python,
 opcode catalogs or external assembler. CMake consumers can request the
 `cdisasm_ppc` component and link `cdisasm::cdisasm_ppc`.
+Version 12.17.0 adds 324 forms, 392 aliases and ten profiles to the initial
+PPC release, preserving the earlier form IDs and CPU ordinals.
 
 | Profiles | Implemented scope |
 | --- | --- |
@@ -117,9 +119,18 @@ combination, including classic and VLE streams on dual-mode e200 cores.
 semantics and require a versioned, manual-backed KNOWN classification for
 any oracle disagreement. Oracle acceptance does not establish CPU legality.
 Form coverage, reserved-bit negatives, truncation tests, opcode-space sweeps
-and exact xxasm round trips supplement these comparisons. The VLE hand suite
-exercises all 30,720 SCI8 encodings. These checks validate encodings and
-formatting, not hardware execution or floating-point numerical results.
+and exact xxasm round trips supplement these comparisons. Retained gap-round
+validation covers **40,987 form/profile/mode/endian/encoding pairs** in 107
+configurations and **491,844 exact xxasm round trips**. Each strict disassembly
+oracle checked 163,948 cases: GNU had 160,376 equal / 3,572 KNOWN, LLVM
+149,984 / 13,964, and Capstone 125,794 / 38,154, all with zero unexplained
+outcomes. The VLE hand suite exercises 30,720 selected SCI8 encodings.
+Independent external evidence covers 40,963 pairs; 24 samples remain explicitly
+unverified (18 nonzero `ehpriv` operations, three `e_dnh` and three `se_dnh`).
+The strict assembly generator still fails that completeness requirement;
+successful catalog round trips do not replace independent evidence.
+These checks validate encodings and formatting, not hardware execution or
+floating-point numerical results.
 
 Profile names describe the enumerated subset, not complete processor support.
 Server support includes all 29 masked prefixed MMA forms, paired-VSR and
@@ -127,18 +138,29 @@ prefixed scalar-VSX transfers, POWER10 vector insertion/extraction and DFP
 quadword conversions, POWER6 paired-FPR transfers, 970 segment bridges,
 nonzero BH hints and noncanonical `pnop` suffixes. Additional server system
 controls and profile-specific SPR aliases are enumerated in the catalog.
-POWER6 private-extension `mffgpr`/`mftgpr`, a complete implementation-specific
-SPR audit and full ISA 3.1C errata reconciliation remain evidence gaps.
-The e200z7 profile includes 23 later EFPU2 forms from the e200z760 manual,
-but its SPE2.1 integer/complex arithmetic and additional addressing forms
-remain incomplete. Optional e200 APUs, per-SoC variants and complete SPR
-inventories remain partial. Later 403GCX MMU variants and 460 auxiliary units
-still need a primary encoding audit; those existing baselines are unchanged.
-A2 `wchkall` awaits resolution of a manual/oracle opcode disagreement;
-`dnh`/`rfdi` and additional implementation-specific SPR names remain gaps.
-Xenon VMX128 and Cell SPU lack an independent oracle, and a separate original
-POWER/POWER2 dialect lacks an inspected primary encoding inventory. See
-[PowerPC details](docs/ppc.md) for profile and syntax boundaries.
+The remaining scope and evidence gaps are:
+
+- POWER6 raw-mode `mffgpr`/`mftgpr` need a primary encoding source. Full ISA
+  3.1C errata reconciliation remains incomplete; `lxvkq UIM=0` stays reserved
+  under the inspected manual. Earlier server `tlbie` retains its released
+  32/64-bit decoding policy despite the documented undefined SF=0 execution.
+- Implementation-specific SPR names need further processor-by-processor
+  audits; numeric selectors remain available.
+- Later 403GCX MMU variants and the 460 auxiliary/conventional-FPU inventory
+  still need a primary encoding audit; their existing baselines are unchanged.
+- e200z7 includes 23 later EFPU2 forms, but full SPE2.1 integer/complex and
+  combined-vector/addressing inventories, optional e200 APUs, per-SoC variants,
+  complete e200/476 SPR lists and later embedded sync E variants remain partial.
+- A2 `wchkall` awaits a deciding original-A2 manual page or erratum for its
+  opcode disagreement. Additional A2 debug availability (including `dnh` and
+  `rfdi`), `wclr` extended aliases and unaudited SPR names remain gaps.
+- Original POWER/POWER2 lacks an audited primary instruction inventory.
+  Xenon VMX128 and Cell SPU lack an independent oracle; SPU requires a separate
+  architecture backend.
+- The 24 external assembly evidence gaps above remain visible in the strict
+  completeness result.
+
+See [PowerPC details](docs/ppc.md) for profile and syntax boundaries.
 
 ## Build
 
