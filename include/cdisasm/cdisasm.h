@@ -22,6 +22,9 @@
 #if USE_ARCH_PPC
 #include "cdisasm_ppc.h"
 #endif
+#if USE_ARCH_SPU
+#include "cdisasm_spu.h"
+#endif
 
 #if USE_ARCH_M68K
 #include "cdisasm_m68k.h"

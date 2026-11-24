@@ -2,6 +2,84 @@
 
 #include <string.h>
 
+/* Hand-authored Linux platform policy, not a processor/PVR lookup table.
+ * Power ELFv2 ABI v1.5 (2020-12-01), section 4.1.2.3 pp120-121 defines
+ * AT_PLATFORM as the possibly virtualized platform and supplies the HWCAP
+ * bit assignments used here. Linux platform spelling is cross-checked in
+ * the job18 source manifest; no kernel table or implementation is imported.
+ * These are advisory finite catalog identities, not execution permission. */
+cdisasm_cpu_id cdisasm_internal_classify_ppc_cpu(const cdisasm_internal_ppc_cpu_snapshot *snapshot)
+{
+#if USE_ARCH_PPC
+    static const struct {
+        const char *platform;
+        cdisasm_cpu_id cpu;
+        uint32_t required_hwcap;
+        uint32_t required_hwcap2;
+    } profiles[] = {
+        /* Common: 32/64-bit processor, FPU and MMU. Generation indicators
+         * are NOT cumulative in Linux auxv (notably POWER5 versus POWER4).
+         * POWER6 adds VMX/DFP; POWER7 adds VSX/ISA2.06 and DSCR.
+         * ISA2.06 makes isel mandatory; Linux does not set HAS_ISEL for P7. */
+        {"power4",  CDISASM_PPC_CPU_POWER4,  UINT32_C(0xcc080000), 0},
+        {"power5",  CDISASM_PPC_CPU_POWER5,  UINT32_C(0xcc040000), 0},
+        {"power5+", CDISASM_PPC_CPU_POWER5,  UINT32_C(0xcc020000), 0},
+        {"power6",  CDISASM_PPC_CPU_POWER6,  UINT32_C(0xdc001400), 0},
+        {"power6x", CDISASM_PPC_CPU_POWER6,  UINT32_C(0xdc001600), 0},
+        {"power7",  CDISASM_PPC_CPU_POWER7,  UINT32_C(0xdc000580), UINT32_C(0x20000000)},
+        {"power7+", CDISASM_PPC_CPU_POWER7,  UINT32_C(0xdc000580), UINT32_C(0x20000000)},
+        /* ISA2.07 + VMX crypto + TM + ISEL/TAR/EBB. ISA3.0 also requires
+         * binary128, DARN and SCV. DSCR/EBB/SCV are conservatively required
+         * even when a kernel/guest masks them on capable physical hardware. Restricted TM cannot supply the
+         * POWER8/9 suspend/resume inventory (checked below). */
+        {"power8",  CDISASM_PPC_CPU_POWER8,  UINT32_C(0xdc000580), UINT32_C(0xfe000000)},
+        {"power9",  CDISASM_PPC_CPU_POWER9,  UINT32_C(0xdc000580), UINT32_C(0xfef00000)},
+        /* ISA3.1/prefix + MMA. Power10 UM v1.0 section 5.6.4 p95 removes
+         * transactional execution; catalog TM forms describe compatibility
+         * encodings, so HAS_HTM is deliberately not required here. */
+        {"power10", CDISASM_PPC_CPU_POWER10, UINT32_C(0xdc000580), UINT32_C(0xbef60000)}
+    };
+    size_t index;
+
+    if (snapshot == NULL || snapshot->platform == NULL
+        || snapshot->have_hwcap != 1
+        || (snapshot->have_hwcap2 != 0 && snapshot->have_hwcap2 != 1)
+        || (!snapshot->have_hwcap2 && snapshot->hwcap2 != 0)
+        || (snapshot->process_bits != 32 && snapshot->process_bits != 64)
+        || (snapshot->little_endian != 0 && snapshot->little_endian != 1)) {
+        return CDISASM_CPU_UNKNOWN;
+    }
+
+    /* Accept only the ABI's published, non-conflicting capability bits.
+     * CELL, Book E, PA6T and NO_TB contradict these server profiles; other
+     * unlisted/reserved bits (including embedded dialects) remain unknown.
+     * Cache, SMT, perfmon and other known ancillary bits do not select a CPU.
+     * A future platform/ABI must be reviewed instead of guessed from ISA3.1. */
+    if ((snapshot->hwcap & ~UINT64_C(0xdd0e77c3)) != 0
+        || (snapshot->hwcap2 & ~UINT64_C(0xfffe0000)) != 0
+        || (snapshot->little_endian && !(snapshot->hwcap & UINT64_C(0x00000002)))) {
+        return CDISASM_CPU_UNKNOWN;
+    }
+
+    for (index = 0; index < sizeof(profiles) / sizeof(profiles[0]); ++index) {
+        if (strcmp(snapshot->platform, profiles[index].platform) != 0) {
+            continue;
+        }
+        if ((snapshot->hwcap & profiles[index].required_hwcap) != profiles[index].required_hwcap
+            || (profiles[index].required_hwcap2 && !snapshot->have_hwcap2)
+            || (snapshot->hwcap2 & profiles[index].required_hwcap2) != profiles[index].required_hwcap2
+            || ((profiles[index].cpu == CDISASM_PPC_CPU_POWER8 || profiles[index].cpu == CDISASM_PPC_CPU_POWER9)
+                && (snapshot->hwcap2 & UINT64_C(0x00080000)))) {
+            return CDISASM_CPU_UNKNOWN;
+        }
+        return profiles[index].cpu;
+    }
+#else
+    (void)snapshot;
+#endif
+    return CDISASM_CPU_UNKNOWN;
+}
+
 #if USE_ARCH_X86
 #define X86_VENDOR_INTEL_EBX UINT32_C(0x756e6547)
 #define X86_VENDOR_INTEL_EDX UINT32_C(0x49656e69)

@@ -91,6 +91,7 @@ option(USE_ARCH_ARM "Build the ARM decoder" ON)
 option(USE_ARCH_MIPS "Build the MIPS decoder" ON)
 option(USE_ARCH_M68K "Build the Motorola 68000-family decoder" ON)
 option(USE_ARCH_PPC "Build the PowerPC decoder" ON)
+option(USE_ARCH_SPU "Build the separate SPU decoder" ON)
 option(USE_DISASM_FORMAT "Build instruction formatting into cdisasm" ON)
 option(USE_EXTRA_OPCODES "Build extended opcode coverage into cdisasm" ON)
 option(USE_MIPS_ALLEGREX_UNVERIFIED "Build opt-in Allegrex source syntax with unknown physical effects" OFF)
@@ -158,6 +159,7 @@ foreach(_cdisasm_boolean IN ITEMS
         USE_ARCH_MIPS
         USE_ARCH_M68K
         USE_ARCH_PPC
+        USE_ARCH_SPU
         USE_DISASM_FORMAT
         USE_EXTRA_OPCODES
         USE_MIPS_ALLEGREX_UNVERIFIED
@@ -178,7 +180,8 @@ if(CDISASM_NORMALIZED_USE_DISASM_FORMAT
             OR CDISASM_NORMALIZED_USE_ARCH_ARM
             OR CDISASM_NORMALIZED_USE_ARCH_MIPS
             OR CDISASM_NORMALIZED_USE_ARCH_M68K
-            OR CDISASM_NORMALIZED_USE_ARCH_PPC))
+            OR CDISASM_NORMALIZED_USE_ARCH_PPC
+            OR CDISASM_NORMALIZED_USE_ARCH_SPU))
     set(CDISASM_EFFECTIVE_USE_DISASM_FORMAT ON)
 endif()
 
@@ -221,6 +224,7 @@ set(CDISASM_CONFIG_USE_ARCH_ARM ${CDISASM_NORMALIZED_USE_ARCH_ARM})
 set(CDISASM_CONFIG_USE_ARCH_MIPS ${CDISASM_NORMALIZED_USE_ARCH_MIPS})
 set(CDISASM_CONFIG_USE_ARCH_M68K ${CDISASM_NORMALIZED_USE_ARCH_M68K})
 set(CDISASM_CONFIG_USE_ARCH_PPC ${CDISASM_NORMALIZED_USE_ARCH_PPC})
+set(CDISASM_CONFIG_USE_ARCH_SPU ${CDISASM_NORMALIZED_USE_ARCH_SPU})
 set(CDISASM_CONFIG_USE_DISASM_FORMAT
     ${CDISASM_EFFECTIVE_USE_DISASM_FORMAT})
 set(CDISASM_CONFIG_USE_EXTRA_OPCODES
@@ -235,6 +239,7 @@ unset(CDISASM_CONFIG_USE_ARCH_ARM)
 unset(CDISASM_CONFIG_USE_ARCH_MIPS)
 unset(CDISASM_CONFIG_USE_ARCH_M68K)
 unset(CDISASM_CONFIG_USE_ARCH_PPC)
+unset(CDISASM_CONFIG_USE_ARCH_SPU)
 unset(CDISASM_CONFIG_USE_DISASM_FORMAT)
 unset(CDISASM_CONFIG_USE_EXTRA_OPCODES)
 unset(CDISASM_CONFIG_USE_MIPS_ALLEGREX_UNVERIFIED)
@@ -345,9 +350,15 @@ endif()
 if(USE_ARCH_PPC)
     list(APPEND _cdisasm_sources src/ppc/cdisasm_ppc.c)
 endif()
+if(USE_ARCH_SPU)
+    list(APPEND _cdisasm_sources src/spu/cdisasm_spu.c)
+endif()
 if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
     if(USE_ARCH_PPC)
         list(APPEND _cdisasm_sources src/ppc/cdisasm_ppc_format.c)
+    endif()
+    if(USE_ARCH_SPU)
+        list(APPEND _cdisasm_sources src/spu/cdisasm_spu_format.c)
     endif()
     if(USE_ARCH_M68K)
         list(APPEND _cdisasm_sources src/m68k/cdisasm_m68k_format.c)
@@ -478,6 +489,13 @@ if(CDISASM_VERIFY_GENERATED)
             COMMENT "Checking the generated PowerPC descriptor tables"
             VERBATIM)
     endif()
+    if(USE_ARCH_SPU)
+        add_custom_command(TARGET cdisasm_check_generated POST_BUILD
+            COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_spu.py" --check
+            COMMENT "Checking the generated SPU descriptor tables"
+            VERBATIM)
+    endif()
 
     if(USE_ARCH_M68K)
         add_custom_command(TARGET cdisasm_check_generated POST_BUILD
@@ -528,6 +546,11 @@ if(USE_ARCH_PPC)
     add_library(cdisasm_ppc INTERFACE)
     add_library(cdisasm::cdisasm_ppc ALIAS cdisasm_ppc)
     target_link_libraries(cdisasm_ppc INTERFACE cdisasm)
+endif()
+if(USE_ARCH_SPU)
+    add_library(cdisasm_spu INTERFACE)
+    add_library(cdisasm::cdisasm_spu ALIAS cdisasm_spu)
+    target_link_libraries(cdisasm_spu INTERFACE cdisasm)
 endif()
 
 if(USE_ARCH_M68K)
@@ -825,6 +848,16 @@ if(BUILD_TESTING AND _cdisasm_has_tests)
     set_tests_properties(
         cdisasm_current_cpu_tests
         PROPERTIES LABELS "cpu-detection")
+
+    add_executable(
+        cdisasm_ppc_current_cpu_tests
+        tests/test_ppc_current_cpu.c
+        src/cdisasm_cpu_identify.c)
+    target_compile_features(cdisasm_ppc_current_cpu_tests PRIVATE c_std_11)
+    target_include_directories(cdisasm_ppc_current_cpu_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    target_link_libraries(cdisasm_ppc_current_cpu_tests PRIVATE cdisasm)
+    add_test(NAME cdisasm_ppc_current_cpu_tests COMMAND cdisasm_ppc_current_cpu_tests)
+    set_tests_properties(cdisasm_ppc_current_cpu_tests PROPERTIES LABELS "ppc;cpu-detection")
 
     add_executable(cdisasm_decode_tests tests/test_decode.c)
     target_compile_features(cdisasm_decode_tests PRIVATE c_std_11)
@@ -6321,6 +6354,61 @@ if(CDISASM_BUILD_FUZZERS)
     unset(_cdisasm_fuzz_link_sanitizers)
 endif()
 
+# SPU is a separate architecture; its development tools are not published.
+if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_SPU)
+    add_executable(cdisasm_spu_tests tests/test_spu.c)
+    target_compile_features(cdisasm_spu_tests PRIVATE c_std_11)
+    target_link_libraries(cdisasm_spu_tests PRIVATE cdisasm)
+    add_test(NAME cdisasm_spu_tests COMMAND cdisasm_spu_tests)
+    set_tests_properties(cdisasm_spu_tests PROPERTIES LABELS "spu")
+    if(_cdisasm_has_tools)
+        find_package(Python3 3.10 QUIET COMPONENTS Interpreter)
+        if(Python3_EXECUTABLE)
+            add_test(NAME cdisasm_spu_generated
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/isa_codegen/generate_spu.py" --check)
+            set_tests_properties(cdisasm_spu_generated PROPERTIES LABELS "spu;generated")
+            add_test(NAME cdisasm_spu_form_ids
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_spu_form_ids.py")
+            add_test(NAME cdisasm_spu_validation_adapter
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_spu_validation.py")
+            set_tests_properties(cdisasm_spu_form_ids cdisasm_spu_validation_adapter PROPERTIES LABELS "spu;generated")
+        endif()
+        if(CDISASM_EFFECTIVE_USE_DISASM_FORMAT)
+            add_executable(cdisasm_spu_sweep tools/validation/spu_sweep.c)
+            target_compile_features(cdisasm_spu_sweep PRIVATE c_std_11)
+            target_link_libraries(cdisasm_spu_sweep PRIVATE cdisasm)
+            add_test(NAME cdisasm_spu_catalog COMMAND cdisasm_spu_sweep --samples 4 --check)
+            set_tests_properties(cdisasm_spu_catalog PROPERTIES LABELS "spu;catalog")
+            find_program(CDISASM_SPU_GNU_AS NAMES spu-as as-new
+                HINTS /home/hors/.cache/ppc-work/gap/dialects/spu-build/gas)
+            find_program(CDISASM_SPU_GNU_OBJDUMP NAMES spu-objdump objdump
+                HINTS /home/hors/.cache/ppc-work/gap/dialects/spu-build/binutils NO_DEFAULT_PATH)
+            find_program(CDISASM_SPU_GNU_LD NAMES spu-ld ld-new
+                HINTS /home/hors/.cache/ppc-work/job16/spu-gnu-linker/ld NO_DEFAULT_PATH)
+            if(Python3_EXECUTABLE AND CDISASM_SPU_GNU_AS AND CDISASM_SPU_GNU_OBJDUMP AND CDISASM_SPU_GNU_LD)
+                add_test(NAME cdisasm_spu_gnu_differential
+                    COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/validation/spu_gnu_diff.py"
+                        --sweep $<TARGET_FILE:cdisasm_spu_sweep> --samples 4
+                        --gnu-as "${CDISASM_SPU_GNU_AS}" --gnu-objdump "${CDISASM_SPU_GNU_OBJDUMP}"
+                        --gnu-ld "${CDISASM_SPU_GNU_LD}"
+                        --work-dir "${CMAKE_CURRENT_BINARY_DIR}/spu-gnu-normal"
+                        --report "${CMAKE_CURRENT_BINARY_DIR}/spu-gnu-normal.json" --strict)
+                set_tests_properties(cdisasm_spu_gnu_differential PROPERTIES LABELS "spu;differential" TIMEOUT 600)
+            endif()
+        endif()
+    endif()
+endif()
+if(_cdisasm_has_tests AND BUILD_TESTING AND CDISASM_BUILD_PACKAGE_TESTS)
+    add_test(NAME cdisasm_spu_package_matrix
+        COMMAND "${CMAKE_COMMAND}"
+            "-DSOURCE_DIR:PATH=${CMAKE_CURRENT_SOURCE_DIR}"
+            "-DWORK_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/spu-package-tests"
+            "-DGENERATOR:STRING=${CMAKE_GENERATOR}"
+            "-DPLATFORM:STRING=${CMAKE_GENERATOR_PLATFORM}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/test_spu_package.cmake")
+    set_tests_properties(cdisasm_spu_package_matrix PROPERTIES LABELS "spu;package;install" RUN_SERIAL TRUE TIMEOUT 1200)
+endif()
+
 if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_PPC)
     add_executable(cdisasm_ppc_tests tests/test_ppc.c)
     target_compile_features(cdisasm_ppc_tests PRIVATE c_std_11)
@@ -6337,7 +6425,7 @@ if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_PPC)
     target_link_libraries(cdisasm_ppc_server_tests PRIVATE cdisasm)
     add_test(NAME cdisasm_ppc_server_tests COMMAND cdisasm_ppc_server_tests)
     set_tests_properties(cdisasm_ppc_server_tests PROPERTIES LABELS "ppc")
-    foreach(_ppc_suite IN ITEMS embedded vle qpx modern system atomic vle_job7 a2_job7 embedded_job7)
+    foreach(_ppc_suite IN ITEMS embedded vle qpx modern system atomic vle_job7 a2_job7 embedded_job7 server_job10 vsx_alias_job10 sprs_job11 sprs_job12 4xx_job12 sprs_job13 sync_e_job13 apu_job13 a2_job14 sprs_job14 power_job15 sprs_job15)
         add_executable(cdisasm_ppc_${_ppc_suite}_tests tests/test_ppc_${_ppc_suite}.c)
         target_compile_features(cdisasm_ppc_${_ppc_suite}_tests PRIVATE c_std_11)
         target_link_libraries(cdisasm_ppc_${_ppc_suite}_tests PRIVATE cdisasm)
@@ -6363,7 +6451,7 @@ if(_cdisasm_has_tests AND BUILD_TESTING AND USE_ARCH_PPC)
             add_executable(cdisasm_ppc_sweep tools/validation/ppc_sweep.c)
             target_compile_features(cdisasm_ppc_sweep PRIVATE c_std_11)
             target_link_libraries(cdisasm_ppc_sweep PRIVATE cdisasm)
-            foreach(_ppc_profile IN ITEMS ppc32 601 603 604 750 7400 7410 7450 7455 750cl gekko broadway 403 405 440 460 e500v1 e500v2 e500mc 476 e200z3 e200z4 e200z6 e200z7)
+            foreach(_ppc_profile IN ITEMS ppc32 601 603 604 750 7400 7410 7450 7455 750cl gekko broadway 403 405 440 460 460ex 403gcx power power2 e500v1 e500v2 e500mc 476 e200z3 e200z4 e200z6 e200z7)
                 foreach(_ppc_endian IN ITEMS be le)
                     set(_ppc_order)
                     if(_ppc_endian STREQUAL "le")
@@ -6583,6 +6671,10 @@ if(USE_ARCH_PPC)
     list(APPEND _cdisasm_install_targets cdisasm_ppc)
     list(APPEND _cdisasm_public_headers include/cdisasm/cdisasm_ppc.h)
 endif()
+if(USE_ARCH_SPU)
+    list(APPEND _cdisasm_install_targets cdisasm_spu)
+    list(APPEND _cdisasm_public_headers include/cdisasm/cdisasm_spu.h)
+endif()
 if(USE_ARCH_M68K)
     list(APPEND _cdisasm_install_targets cdisasm_m68k)
     list(APPEND _cdisasm_public_headers include/cdisasm/cdisasm_m68k.h)
@@ -6669,8 +6761,13 @@ install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/cdisasm-variant.txt"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cdisasm")
 install(
-    FILES README.md LICENSE
+    FILES README.md LICENSE CHANGELOG.md PPC_COVERAGE.md SPU_COVERAGE.md
     DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm")
+# These release coverage summaries are root files so exact publisher exports
+# retain them even when the optional development docs/ tree is omitted.
+install(
+    FILES PPC_COVERAGE.md SPU_COVERAGE.md
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/cdisasm/docs")
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/THIRD_PARTY_NOTICES.md")
     install(
         FILES THIRD_PARTY_NOTICES.md

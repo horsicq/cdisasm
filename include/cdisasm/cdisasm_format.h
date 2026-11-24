@@ -7,7 +7,7 @@
 
 #if !USE_DISASM_FORMAT
 #error "cdisasm formatting is disabled in this build"
-#elif !USE_ARCH_X86 && !USE_ARCH_ARM && !USE_ARCH_MIPS && !USE_ARCH_M68K && !USE_ARCH_PPC
+#elif !USE_ARCH_X86 && !USE_ARCH_ARM && !USE_ARCH_MIPS && !USE_ARCH_M68K && !USE_ARCH_PPC && !USE_ARCH_SPU
 #error "cdisasm formatting requires an enabled architecture"
 #endif
 
@@ -30,6 +30,9 @@
 
 #if USE_DISASM_FORMAT && USE_ARCH_PPC
 #include "cdisasm_ppc.h"
+#endif
+#if USE_DISASM_FORMAT && USE_ARCH_SPU
+#include "cdisasm_spu.h"
 #endif
 
 /* Formatter exports are owned by the same cdisasm library as decoder exports. */

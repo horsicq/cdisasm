@@ -20,6 +20,9 @@ size_t CDISASM_CALL cdisasm_instruction_size(cdisasm_cpu_id cpu_id)
 #if USE_ARCH_PPC
         case CDISASM_CPU_GROUP_PPC: return sizeof(cdisasm_ppc_instruction);
 #endif
+#if USE_ARCH_SPU
+        case CDISASM_CPU_GROUP_SPU: return sizeof(cdisasm_spu_instruction);
+#endif
         default: return 0;
     }
 }
@@ -48,6 +51,9 @@ cdisasm_status CDISASM_CALL cdisasm_cpu_decode_flag_mask(cdisasm_cpu_id cpu_id, 
 #endif
 #if USE_ARCH_PPC
         case CDISASM_CPU_GROUP_PPC: return cdisasm_ppc_cpu_decode_flag_mask((cdisasm_ppc_cpu_id)cpu_id, mode, flags);
+#endif
+#if USE_ARCH_SPU
+        case CDISASM_CPU_GROUP_SPU: return cdisasm_spu_cpu_decode_flag_mask((cdisasm_spu_cpu_id)cpu_id, mode, flags);
 #endif
         default: return CDISASM_STATUS_INVALID_ARGUMENT;
     }
@@ -83,6 +89,10 @@ uint32_t CDISASM_CALL cdisasm_decode(cdisasm_cpu_id cpu_id, uint32_t mode, const
 #if USE_ARCH_PPC
         case CDISASM_CPU_GROUP_PPC:
             return cdisasm_ppc_decode((cdisasm_ppc_cpu_id)cpu_id, mode, code, code_size, address, flags, (cdisasm_ppc_instruction *)instruction);
+#endif
+#if USE_ARCH_SPU
+        case CDISASM_CPU_GROUP_SPU:
+            return cdisasm_spu_decode((cdisasm_spu_cpu_id)cpu_id, mode, code, code_size, address, flags, (cdisasm_spu_instruction *)instruction);
 #endif
         default: return 0;
     }

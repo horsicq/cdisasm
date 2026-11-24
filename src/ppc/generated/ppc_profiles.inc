@@ -41,4 +41,8 @@ static const struct { const char *name; uint64_t features; uint32_t modes; } ppc
     {"e200z4",UINT64_C(8593080453),1},
     {"e200z6",UINT64_C(8593080453),1},
     {"e200z7",UINT64_C(8593080453),1},
+    {"460ex",UINT64_C(5244151),1},
+    {"403gcx",UINT64_C(4194437),1},
+    {"power",UINT64_C(17179869190),1},
+    {"power2",UINT64_C(51539607558),1},
 };

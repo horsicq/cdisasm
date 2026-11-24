@@ -13,6 +13,12 @@
 #define CDISASM_NATIVE_ARM 0
 #endif
 
+#if USE_ARCH_PPC && (defined(__powerpc__) || defined(__powerpc64__) || defined(__ppc__) || defined(__PPC__))
+#define CDISASM_NATIVE_PPC 1
+#else
+#define CDISASM_NATIVE_PPC 0
+#endif
+
 #if CDISASM_NATIVE_X86
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -340,6 +346,52 @@ static cdisasm_cpu_id current_apple_arm_cpu(void)
 }
 #endif
 
+#if CDISASM_NATIVE_PPC && defined(__linux__)
+#include <errno.h>
+#include <sys/auxv.h>
+
+static cdisasm_cpu_id current_linux_ppc_cpu(void)
+{
+#if defined(AT_PLATFORM) && defined(AT_HWCAP) && defined(AT_HWCAP2) \
+    && defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && defined(__ORDER_BIG_ENDIAN__)
+    cdisasm_internal_ppc_cpu_snapshot snapshot = {0};
+    const int saved_errno = errno;
+    int hwcap2_error;
+
+    /* Power ELFv2 ABI v1.5 section 4.1.2.3 pp120-121: BASE_PLATFORM and PVR
+     * would expose the physical host, not the compatibility guest. Read
+     * only the kernel's process-visible platform and facility bitmaps.
+     * getauxval returns zero with ENOENT for an absent entry. */
+    errno = 0;
+    snapshot.platform = (const char *)(uintptr_t)getauxval(AT_PLATFORM);
+    if (errno != 0 || snapshot.platform == NULL) {
+        errno = saved_errno;
+        return CDISASM_CPU_UNKNOWN;
+    }
+    errno = 0;
+    snapshot.hwcap = (uint64_t)getauxval(AT_HWCAP);
+    snapshot.have_hwcap = errno == 0;
+    errno = 0;
+    snapshot.hwcap2 = (uint64_t)getauxval(AT_HWCAP2);
+    hwcap2_error = errno;
+    snapshot.have_hwcap2 = hwcap2_error == 0;
+    errno = saved_errno;
+    if (hwcap2_error != 0 && hwcap2_error != ENOENT) {
+        return CDISASM_CPU_UNKNOWN;
+    }
+    snapshot.process_bits = (uint32_t)(sizeof(void *) * 8u);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    snapshot.little_endian = 1;
+#elif __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__
+    return CDISASM_CPU_UNKNOWN;
+#endif
+    return cdisasm_internal_classify_ppc_cpu(&snapshot);
+#else
+    return CDISASM_CPU_UNKNOWN;
+#endif
+}
+#endif
+
 cdisasm_cpu_id CDISASM_CALL cdisasm_current_cpu(void)
 {
 #if CDISASM_NATIVE_X86
@@ -348,6 +400,8 @@ cdisasm_cpu_id CDISASM_CALL cdisasm_current_cpu(void)
     return current_linux_arm_cpu();
 #elif CDISASM_NATIVE_ARM && defined(__APPLE__)
     return current_apple_arm_cpu();
+#elif CDISASM_NATIVE_PPC && defined(__linux__)
+    return current_linux_ppc_cpu();
 #else
     return CDISASM_CPU_UNKNOWN;
 #endif
@@ -355,3 +409,4 @@ cdisasm_cpu_id CDISASM_CALL cdisasm_current_cpu(void)
 
 #undef CDISASM_NATIVE_X86
 #undef CDISASM_NATIVE_ARM
+#undef CDISASM_NATIVE_PPC

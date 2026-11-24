@@ -5,6 +5,7 @@
 #include "generated/ppc_forms.inc"
 #include "generated/ppc_aliases.inc"
 #include "generated/ppc_profiles.inc"
+#include "generated/ppc_sprs.inc"
 
 static uint64_t ppc_mask(unsigned width)
 {
@@ -230,10 +231,12 @@ static int ppc_constraints(const cdisasm_ppc_form *form, cdisasm_ppc_cpu_id cpu,
         if (op == 31 && xo == 146 && (word & 0x10000u) &&
             !(cdisasm_ppc_cpu_features(cpu) & CDISASM_PPC_FEATURE_64)) return 0;
         if (op == 31 && (xo == 306 || xo == 274) && cpu_index >= 19 && cpu_index <= 20) {
-            unsigned ric = (word >> 18) & 3u, prs = (word >> 17) & 1u, r = (word >> 16) & 1u;
-            /* ISA3.1 BookIII6.9.4 tlbie/tlbiel invalid forms. */
-            if ((!r && prs && ric != 2) || (!r && ric == 1) ||
-                (ric == 3 && (r || xo == 274))) return 0;
+            unsigned ric = (word >> 18) & 3u, prs = (word >> 17) & 1u;
+            /* ISA3.1B BookIII6.9.3.3 / ISA3.1C pp1172,1176,1183:
+             * effR is R in hypervisor state, otherwise LPCR[HR]. Neither
+             * that state nor SF is supplied to this encoding decoder.
+             * Reject only combinations invalid for every possible effR. */
+            if (ric == 3 && (xo == 274 || prs)) return 0;
         }
         if (op == 31 && xo == 30 && (word & 0x30000u) && ((word >> 21) & 3u) != 2) return 0;
         if (op == 31 && xo == 498) {
@@ -251,6 +254,9 @@ static int ppc_constraints(const cdisasm_ppc_form *form, cdisasm_ppc_cpu_id cpu,
             if (sop == 19 && (sx == 16 || sx == 528 || sx == 560 || sx == 146 ||
                 sx == 18 || sx == 50 || sx == 82 || sx == 274 || sx == 306 || sx == 370)) return 0;
             if (sop == 31 && (sx == 146 || sx == 178) && !(suffix & 0x10000u)) return 0;
+            /* ISA3.1C BookI6.3.2 p251: mtvscr is context synchronizing.
+             * Trap/hash-check interrupt conditions are execution state. */
+            if ((suffix & UINT32_C(0xffff07ff)) == UINT32_C(0x10000644)) return 0;
         }
     }
     return 1;
@@ -284,6 +290,8 @@ static void ppc_operands(const cdisasm_ppc_form *form, cdisasm_ppc_instruction *
         op->width = spec->width; op->scale = spec->scale; op->size = spec->size;
         op->value = (spec->flags & CDISASM_PPC_OPERAND_SIGNED) ? ppc_signed(raw, spec->width) : (int64_t)raw;
         op->recipe = spec->recipe;
+        if (spec->recipe == CDISASM_PPC_RECIPE_HASH_DISP)
+            op->value = (int64_t)raw - 64;
         if (spec->recipe == CDISASM_PPC_RECIPE_SCI8) {
             unsigned shift = (unsigned)((raw >> 8) & 3u) * 8u;
             uint32_t expanded = (raw & 0x400u) ? UINT32_MAX : 0;
@@ -436,261 +444,18 @@ uint32_t CDISASM_CALL cdisasm_ppc_form_sample(cdisasm_ppc_cpu_id cpu, uint32_t m
     }
     return 0;
 }
-/* IBM A2 UM v1.3 (2012-10-23), sections2.3.2-2.3.4 pp69-74 and
- * 2.11.1-2.11.3 pp114-119. Access bits gate named aliases; numeric SPR
- * selectors retain the raw mfspr/mtspr encoding for unknown registers. */
-static const struct { uint16_t code; uint8_t access; const char *name; } ppc_a2_sprs[] = {
-    {1,3,"xer"},
-    {8,3,"lr"},
-    {9,3,"ctr"},
-    {259,1,"usprg3"},
-    {260,1,"usprg4"},
-    {261,1,"usprg5"},
-    {262,1,"usprg6"},
-    {263,1,"usprg7"},
-    {272,3,"sprg0"},
-    {273,3,"sprg1"},
-    {274,3,"sprg2"},
-    {275,3,"sprg3"},
-    {276,3,"sprg4"},
-    {277,3,"sprg5"},
-    {278,3,"sprg6"},
-    {279,3,"sprg7"},
-    {286,1,"pir"},
-    {368,3,"gsprg0"},
-    {369,3,"gsprg1"},
-    {370,3,"gsprg2"},
-    {371,3,"gsprg3"},
-    {382,3,"gpir"},
-    {437,1,"tensr"},
-    {438,3,"tens"},
-    {439,3,"tenc"},
-    {446,1,"tir"},
-    {604,3,"sprg8"},
-    {883,3,"iucr1"},
-    {898,3,"ppr32"},
-    {947,3,"eplc"},
-    {948,3,"epsc"},
-    {1008,3,"ccr0"},
-    {1009,3,"ccr1"},
-};
-static int ppc_a2_cpu(cdisasm_ppc_cpu_id cpu)
-{
-    return cpu == CDISASM_PPC_CPU_A2 || cpu == CDISASM_PPC_CPU_A2QPX;
-}
-/* Insert before cdisasm_ppc_spr_name; dispatch for ordinals30..33 and34..39.
- * Architectural selector facts transcribed from E500MCRM Rev.3 Table2-2,
- * E6500RM Rev.0 Table2-2, IBM476FP UM v2.2 Table2-5/AppendixA, and
- * E200Z0CORERM Rev.0 Table2-22 (minimal shared e200 baseline).
- * Numeric selectors continue to be accepted independently of these names. */
-static const char *ppc_job7_embedded_spr_name(cdisasm_ppc_cpu_id cpu, uint32_t spr)
-{
-    static const struct { uint16_t code; const char *name; } e500_common[] = {
-        {1,"xer"},{8,"lr"},{9,"ctr"},{22,"dec"},{26,"srr0"},{27,"srr1"},
-        {48,"pid"},{54,"decar"},{58,"csrr0"},{59,"csrr1"},{61,"dear"},
-        {62,"esr"},{63,"ivpr"},{259,"sprg3"},{260,"sprg4"},{261,"sprg5"},
-        {262,"sprg6"},{263,"sprg7"},{268,"tbl"},{269,"tbu"},
-        {272,"sprg0"},{273,"sprg1"},{274,"sprg2"},{275,"sprg3"},
-        {276,"sprg4"},{277,"sprg5"},{278,"sprg6"},{279,"sprg7"},
-        {284,"tbl"},{285,"tbu"},{286,"pir"},{287,"pvr"},
-        {304,"dbsr"},{306,"dbsrwr"},{307,"epcr"},{308,"dbcr0"},
-        {309,"dbcr1"},{310,"dbcr2"},{311,"msrp"},{312,"iac1"},{313,"iac2"},
-        {316,"dac1"},{317,"dac2"},{338,"lpidr"},{339,"mas5"},{341,"mas8"},
-        {368,"gsprg0"},{369,"gsprg1"},{370,"gsprg2"},{371,"gsprg3"},
-        {378,"gsrr0"},{379,"gsrr1"},{380,"gepr"},{381,"gdear"},
-        {382,"gpir"},{383,"gesr"},{432,"ivor38"},{433,"ivor39"},
-        {434,"ivor40"},{435,"ivor41"},{440,"givor2"},{441,"givor3"},
-        {442,"givor4"},{443,"givor8"},{444,"givor13"},{445,"givor14"},
-        {447,"givpr"},{515,"l1cfg0"},{516,"l1cfg1"},{517,"npidr"},
-        {526,"atbl"},{527,"atbu"},{531,"ivor35"},{532,"ivor36"},{533,"ivor37"},
-        {563,"dbcr4"},{569,"mcaru"},{570,"mcsrr0"},{571,"mcsrr1"},
-        {572,"mcsr"},{573,"mcar"},{574,"dsrr0"},{575,"dsrr1"},{576,"ddam"},
-        {606,"l1csr2"},{624,"mas0"},{625,"mas1"},{626,"mas2"},{627,"mas3"},
-        {628,"mas4"},{630,"mas6"},{696,"cdcsr0"},{702,"epr"},
-        {944,"mas7"},{947,"eplc"},{948,"epsc"},{975,"devent"},
-        {983,"nspd"},{984,"nspc"},{1008,"hid0"},{1010,"l1csr0"},
-        {1011,"l1csr1"},{1012,"mmucsr0"},{1013,"bucsr"},{1015,"mmucfg"}
-    };
-    static const struct { uint16_t code; const char *name; } e6500_only[] = {
-        {56,"lper"},{57,"lperu"},{256,"vrsave"},{283,"cir"},
-        {314,"iac3"},{315,"iac4"},{342,"lratcfg"},{343,"lratps"},
-        {348,"mas5_mas6"},{349,"mas8_mas1"},{350,"eptcfg"},
-        {372,"mas7_mas3"},{373,"mas0_mas1"},{436,"ivor42"},
-        {437,"tensr"},{438,"tens"},{439,"tenc"},{464,"givor35"},
-        {528,"ivor32"},{529,"ivor33"},{564,"dbcr5"},{565,"iac5"},
-        {566,"iac6"},{567,"iac7"},{568,"iac8"},{604,"sprg8"},
-        {637,"mcarua"},{638,"edbrac0"},{700,"dbrr0"},{898,"ppr32"},
-        {1019,"pwrmgtcr0"},{1022,"sccsrbar"}
-    };
-    static const struct { uint16_t code; const char *name; } p476[] = {
-        {1,"xer"},{8,"lr"},{9,"ctr"},{316,"dac1"},{317,"dac2"},
-        {318,"dvc1"},{319,"dvc2"},{308,"dbcr0"},{309,"dbcr1"},{310,"dbcr2"},
-        {850,"dcesr"},{851,"icesr"},{860,"ioccr"},{861,"iocr1"},{862,"iocr2"},
-        {891,"dcripr"},{924,"dcdbtrl"},{925,"dcdbtrh"},
-        {926,"icdbtrl"},{927,"icdbtrh"},{979,"icdbdr0"},{980,"icdbdr1"}
-    };
-    static const struct { uint16_t code; const char *name; } e200_minimal[] = {
-        {1,"xer"},{8,"lr"},{9,"ctr"},{26,"srr0"},{27,"srr1"},
-        {48,"pid0"},{58,"csrr0"},{59,"csrr1"},{61,"dear"},{62,"esr"},
-        {63,"ivpr"},{272,"sprg0"},{273,"sprg1"},{286,"pir"},{287,"pvr"},
-        {304,"dbsr"},{308,"dbcr0"},{309,"dbcr1"},{310,"dbcr2"},
-        {312,"iac1"},{313,"iac2"},{314,"iac3"},{315,"iac4"},
-        {316,"dac1"},{317,"dac2"},{515,"l1cfg0"},{572,"mcsr"},
-        {574,"dsrr0"},{575,"dsrr1"},{1008,"hid0"},{1009,"hid1"},
-        {1013,"bucsr"},{1015,"mmucfg"},{1023,"svr"}
-    };
-    static const char *const ivor[] = {"ivor0","ivor1","ivor2","ivor3", "ivor4","ivor5","ivor6","ivor7",
-        "ivor8","ivor9","ivor10","ivor11","ivor12","ivor13","ivor14","ivor15"};
-    unsigned ord=CDISASM_CPU_ORDINAL_OF(cpu); size_t i;
-    if (ord>=30 && ord<=32) {
-        if(spr>=400 && spr<=415) return ivor[spr-400];
-        for(i=0;i<sizeof(e500_common)/sizeof(e500_common[0]);++i)
-            if(e500_common[i].code==spr)return e500_common[i].name;
-        if(ord==32)for(i=0;i<sizeof(e6500_only)/sizeof(e6500_only[0]);++i)
-            if(e6500_only[i].code==spr)return e6500_only[i].name;
-    } else if(ord==33) {
-        for(i=0;i<sizeof(p476)/sizeof(p476[0]);++i)
-            if(p476[i].code==spr)return p476[i].name;
-    } else if(ord>=34 && ord<=39) {
-        for(i=0;i<sizeof(e200_minimal)/sizeof(e200_minimal[0]);++i)
-            if(e200_minimal[i].code==spr)return e200_minimal[i].name;
-    }
-    return NULL;
-}
-
-
+/* Only the named inventory is constrained by the published implementation
+ * tables. mfspr/mtspr numeric operands retain every ten-bit selector. */
 const char *CDISASM_CALL cdisasm_ppc_spr_name(cdisasm_ppc_cpu_id cpu, uint32_t spr)
 {
-    static const struct { uint16_t code; const char *name; } common[] = {
-        {1,"xer"},{8,"lr"},{9,"ctr"},{18,"dsisr"},{19,"dar"},{22,"dec"},{25,"sdr1"},{26,"srr0"},{27,"srr1"},
-        {272,"sprg0"},{273,"sprg1"},{274,"sprg2"},{275,"sprg3"},{282,"ear"},{287,"pvr"},
-        {528,"ibat0u"},{529,"ibat0l"},{530,"ibat1u"},{531,"ibat1l"},{532,"ibat2u"},{533,"ibat2l"},{534,"ibat3u"},{535,"ibat3l"},
-        {536,"dbat0u"},{537,"dbat0l"},{538,"dbat1u"},{539,"dbat1l"},{540,"dbat2u"},{541,"dbat2l"},{542,"dbat3u"},{543,"dbat3l"}
-    };
-    /* Power ISA 3.0C Book III Figure 21 SPR encodings. Architectural
-     * names are scoped to generations providing the corresponding resource;
-     * unknown numeric selectors remain encodable through mfspr/mtspr. */
-    static const struct { uint16_t code; uint8_t first; const char *name; } server[] = {
-        {310,14,"hdec"},{313,14,"hrmor"},{314,14,"hsrr0"},{315,14,"hsrr1"},
-        {318,14,"lpcr"},{319,14,"lpidr"},{304,14,"hsprg0"},
-        {309,15,"purr"},{136,15,"ctrl"},{152,15,"ctrl"},
-        {3,16,"udscr"},{17,16,"dscr"},{13,16,"uamr"},{29,16,"amr"},
-        {308,16,"spurr"},{349,16,"amor"},
-        {128,18,"tfhar"},{129,18,"tfiar"},{130,18,"texasr"},{131,18,"texasru"},
-        {153,18,"fscr"},{190,18,"hfscr"},{815,18,"tar"},
-        {48,19,"pidr"},{464,19,"ptcr"},
-        {800,18,"bescrs"},{801,18,"bescrsu"},{802,18,"bescrr"},{803,18,"bescrru"},
-        {804,18,"ebbhr"},{805,18,"ebbrr"},{806,18,"bescr"},{898,16,"ppr32"},
-        {28,16,"cfar"},
-        {61,18,"iamr"},
-        {157,19,"uamor"},
-        {159,18,"pspb"},
-        {176,18,"dpdes"},
-        {180,18,"dawr0"},
-        {181,20,"dawr1"},
-        {186,19,"rpr"},
-        {187,18,"ciabr"},
-        {188,18,"dawrx0"},
-        {189,20,"dawrx1"},
-        {339,18,"heir"},
-        {446,19,"tir"},
-        {816,19,"asdr"},
-        {823,19,"psscr"},
-        {848,19,"ic"},
-        {849,18,"vtb"},
-        {855,19,"hpsscr"},
-        {896,16,"ppr"},
-        {496,19,"usprg0"},
-        {497,19,"usprg1"},
-        {505,19,"urmor"},
-        {506,19,"usrr0"},
-        {507,19,"usrr1"},
-        {511,19,"smfctrl"},
-        {736,20,"usier2"},
-        {737,20,"usier3"},
-        {738,20,"ummcr3"},
-        {752,20,"sier2"},
-        {753,20,"sier3"},
-        {754,20,"mmcr3"},
-        {768,17,"usier"},
-        {769,18,"ummcr2"},
-        {770,13,"ummcra"},
-        {779,13,"ummcr0"},
-        {780,13,"usiar"},
-        {781,13,"usdar"},
-        {782,13,"ummcr1"},
-        {784,17,"sier"},
-        {785,18,"mmcr2"},
-        {786,13,"mmcra"},
-        {795,13,"mmcr0"},
-        {796,13,"siar"},
-        {797,13,"sdar"},
-        {798,13,"mmcr1"},
-        {771,13,"upmc1"},
-        {772,13,"upmc2"},
-        {773,13,"upmc3"},
-        {774,13,"upmc4"},
-        {775,13,"upmc5"},
-        {776,13,"upmc6"},
-        {787,13,"pmc1"},
-        {788,13,"pmc2"},
-        {789,13,"pmc3"},
-        {790,13,"pmc4"},
-        {791,13,"pmc5"},
-        {792,13,"pmc6"}
-    };
     size_t i;
-    if (!ppc_cpu_valid(cpu)) return NULL;
-    if (CDISASM_CPU_ORDINAL_OF(cpu)>=30u && CDISASM_CPU_ORDINAL_OF(cpu)<=39u)
-        return ppc_job7_embedded_spr_name(cpu, spr);
-    if (ppc_a2_cpu(cpu)) {
-        for (i = 0; i < sizeof(ppc_a2_sprs) / sizeof(ppc_a2_sprs[0]); ++i)
-            if (spr == ppc_a2_sprs[i].code) return ppc_a2_sprs[i].name;
+    uint32_t ordinal = CDISASM_CPU_ORDINAL_OF(cpu);
+    if (!ppc_cpu_valid(cpu) || spr >= 1024u) return NULL;
+    if (ppc_spr_audited[ordinal]) {
+        for (i = ppc_spr_bounds[ordinal]; i < ppc_spr_bounds[ordinal + 1u]; ++i)
+            if (ppc_sprs[i].selector == spr) return ppc_sprs[i].name;
         return NULL;
     }
-    if (CDISASM_CPU_ORDINAL_OF(cpu) >= 21u) {
-        /* PowerPC UISA's XER/LR/CTR selectors are shared by the embedded
-         * integer profiles. Other SPR names need a profile-specific audit:
-         * desktop BAT selectors overlap e500 interrupt-vector resources.
-         * E500CORERM Rev.1 Table 2-8 (2.7.1.5) assigns IVOR32..35 below.
-         * Unlisted selectors remain available as numeric operands. */
-        if (spr == 1) return "xer";
-        if (spr == 8) return "lr";
-        if (spr == 9) return "ctr";
-        if (cpu == CDISASM_PPC_CPU_E500V1 || cpu == CDISASM_PPC_CPU_E500V2) {
-            static const char *const ivor[] = {"ivor32","ivor33","ivor34","ivor35"};
-            if (spr >= 528 && spr <= 531) return ivor[spr - 528];
-        }
-        return NULL;
-    }
-    if (cpu == CDISASM_PPC_CPU_970) {
-        /* IBM970FX UM v1.7 sections2.1.4.7/8 and Table2-5. */
-        if (spr == 304) return "hsprg0";
-        if (spr == 305) return "hsprg1";
-        if (spr == 310) return "hdec";
-        if (spr == 313) return "hrmor";
-        if (spr == 314) return "hsrr0";
-        if (spr == 315) return "hsrr1";
-    }
-    for (i = 0; i < sizeof(server) / sizeof(server[0]); ++i)
-        if (spr == server[i].code && CDISASM_CPU_ORDINAL_OF(cpu) >= server[i].first && CDISASM_CPU_ORDINAL_OF(cpu) <= 20u) return server[i].name;
-    if (cdisasm_ppc_cpu_features(cpu) & CDISASM_PPC_FEATURE_VMX) {
-        if (spr == 256) return "vrsave";
-    }
-    if (cdisasm_ppc_cpu_features(cpu) & CDISASM_PPC_FEATURE_64) {
-        if (spr >= 528 && spr <= 543) return NULL; /* BATs are a 32-bit MMU facility. */
-        if (spr == 1013 && CDISASM_CPU_ORDINAL_OF(cpu) <= 17) return "dabr";
-    }
-    if (cpu == CDISASM_PPC_CPU_601) {
-        if (!spr) return "mq";
-        if (spr == 4 || spr == 20) return "rtcu";
-        if (spr == 5 || spr == 21) return "rtcl";
-        if (spr >= 536 && spr <= 543) return NULL;
-    } else {
-        if (spr == 268 || spr == 284) return "tbl";
-        if (spr == 269 || spr == 285) return "tbu";
-    }
-    for (i = 0; i < sizeof(common) / sizeof(common[0]); ++i) if (common[i].code == spr) return common[i].name;
     return NULL;
 }
 
@@ -698,33 +463,12 @@ int32_t CDISASM_CALL cdisasm_ppc_spr_from_name(cdisasm_ppc_cpu_id cpu, const cha
 {
     uint32_t spr;
     if (!ppc_cpu_valid(cpu) || !name) return -1;
-    if (CDISASM_CPU_ORDINAL_OF(cpu)>=30u && CDISASM_CPU_ORDINAL_OF(cpu)<=32u) {
-        /* E500MCRM/E6500RM Table2-2 user-readable aliases and write selectors. */
-        if (ppc_equal(name,"tbl")) return write ? 284 : 268;
-        if (ppc_equal(name,"tbu")) return write ? 285 : 269;
-        if (write && strlen(name)==5 && (name[0]=='s'||name[0]=='S') &&
-            (name[1]=='p'||name[1]=='P') && (name[2]=='r'||name[2]=='R') &&
-            (name[3]=='g'||name[3]=='G') && name[4]>='3' && name[4]<='7')
-            return 272 + name[4]-'0';
-    }
-
-    if (ppc_a2_cpu(cpu)) {
-        for (spr = 0; spr < sizeof(ppc_a2_sprs) / sizeof(ppc_a2_sprs[0]); ++spr)
-            if (ppc_equal(name, ppc_a2_sprs[spr].name) &&
-                (ppc_a2_sprs[spr].access & (write ? 2u : 1u))) return ppc_a2_sprs[spr].code;
+    if (ppc_spr_audited[CDISASM_CPU_ORDINAL_OF(cpu)]) {
+        uint32_t ordinal = CDISASM_CPU_ORDINAL_OF(cpu);
+        for (spr = ppc_spr_bounds[ordinal]; spr < ppc_spr_bounds[ordinal + 1u]; ++spr)
+            if (ppc_sprs[spr].name_lookup && (ppc_sprs[spr].access & (write ? 2u : 1u)) &&
+                ppc_equal(name, ppc_sprs[spr].name)) return ppc_sprs[spr].selector;
         return -1;
-    }
-    if (CDISASM_CPU_ORDINAL_OF(cpu) >= 15 && CDISASM_CPU_ORDINAL_OF(cpu) <= 20u && ppc_equal(name, "ctrl")) return write ? 152 : 136;
-    if (cpu == CDISASM_PPC_CPU_601) {
-        if (ppc_equal(name, "rtcu")) return write ? 20 : 4;
-        if (ppc_equal(name, "rtcl")) return write ? 21 : 5;
-    } else if (CDISASM_CPU_ORDINAL_OF(cpu) <= 20u) {
-        if (ppc_equal(name, "tbl")) return write ? 284 : 268;
-        if (ppc_equal(name, "tbu")) return write ? 285 : 269;
-    }
-    for (spr = 0; spr < 1024; ++spr) {
-        const char *candidate = cdisasm_ppc_spr_name(cpu, spr);
-        if (candidate && ppc_equal(name, candidate)) return (int32_t)spr;
     }
     return -1;
 }

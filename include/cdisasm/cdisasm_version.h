@@ -7,7 +7,7 @@
  * keep their simple decimal form so both C and CMake can consume them.
  */
 #define CDISASM_VERSION_MAJOR 12
-#define CDISASM_VERSION_MINOR 17
+#define CDISASM_VERSION_MINOR 18
 #define CDISASM_VERSION_PATCH 0
 
 #define CDISASM_VERSION_STRINGIFY_DETAIL(value) #value

@@ -44,6 +44,7 @@ typedef uint32_t cdisasm_cpu_id;
 #define CDISASM_CPU_GROUP_MIPS UINT32_C(0x00030000)
 #define CDISASM_CPU_GROUP_M68K UINT32_C(0x00040000)
 #define CDISASM_CPU_GROUP_PPC UINT32_C(0x00050000)
+#define CDISASM_CPU_GROUP_SPU UINT32_C(0x00060000)
 #define CDISASM_CPU_GROUP_OF(cpu_id) ((uint32_t)(cpu_id) & CDISASM_CPU_GROUP_MASK)
 #define CDISASM_CPU_ORDINAL_OF(cpu_id) ((uint32_t)(cpu_id) & CDISASM_CPU_ORDINAL_MASK)
 
@@ -186,6 +187,11 @@ extern "C" {
  * identification is unavailable, or no safe named profile is known. The
  * unrestricted CDISASM_CPU_X86 and CDISASM_ARM_CPU_ANY profiles are never
  * returned. Detection never changes decoder selection implicitly.
+ * Linux PPC uses an exact process-visible AT_PLATFORM name and conservative
+ * HWCAP/HWCAP2 checks for POWER4 through POWER10. Missing, contradictory or
+ * unsupported evidence returns UNKNOWN; physical-host PVR/BASE_PLATFORM is
+ * never consulted. Other PPC operating systems remain unidentified. This
+ * does not select buffer byte order or authorize privileged instructions.
  */
 CDISASM_API cdisasm_cpu_id CDISASM_CALL cdisasm_current_cpu(void);
 

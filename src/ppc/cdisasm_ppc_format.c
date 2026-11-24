@@ -60,6 +60,26 @@ static int ppc_alias_match(const cdisasm_ppc_alias *a, const cdisasm_ppc_instruc
     const cdisasm_ppc_operand *p = in->operand;
     if (!a->preferred || a->base_name_id != in->name_id) return 0;
     switch (a->kind) {
+    case CDISASM_PPC_ALIAS_WCLR:
+        /* Original A2 UM v1.3 p512: L0/1 ignores the address in execution,
+         * but only zero address fields can be omitted in exact output. */
+        return in->operand_count == 2 && p[1].type == CDISASM_PPC_OP_MEMX &&
+            (a->param == 2 ? p[0].value == 2 :
+             a->param == 0 && p[0].value < 2 && !p[1].base && !p[1].index);
+    case CDISASM_PPC_ALIAS_ESYNC:
+        /* EREF Rev.1 6-352 / TableB-36: E!=0 ignores L in execution,
+         * but the alias may discard L only when it reproduces its bits. */
+        return in->cpu_id == CDISASM_PPC_CPU_E6500 && a->param == 1 &&
+            in->operand_count == 2 && p[1].value > 0 && p[1].value < 16 &&
+            p[0].value == ((~((unsigned)p[1].value >> 1)) & 1u);
+    case CDISASM_PPC_ALIAS_VSXPERM:
+        /* ISA3.1C BookI p922: duplicate-source aliases must preserve XA/XB. */
+        if (in->operand_count != 4) return 0;
+        if (a->param == 4) return p[1].value == p[2].value && (p[3].value == 0 || p[3].value == 3);
+        if (a->param == 2) return p[1].value == p[2].value && p[3].value == 2;
+        return (a->param == 0 || a->param == 3) && p[3].value == a->param;
+    case CDISASM_PPC_ALIAS_TLBWORD:
+        return in->cpu_id == CDISASM_PPC_CPU_403GCX && in->operand_count == 3 && p[2].value == a->param;
     case CDISASM_PPC_ALIAS_TLBILX:
         /* EREF Rev.1 Table6-18: suppress only encoded zero addresses. */
         return in->operand_count == 2 && p[1].type == CDISASM_PPC_OP_MEMX &&
@@ -75,10 +95,19 @@ static int ppc_alias_match(const cdisasm_ppc_alias *a, const cdisasm_ppc_instruc
     case CDISASM_PPC_ALIAS_MEMIMM:
         return in->operand_count == 2 && p[0].type == CDISASM_PPC_OP_MEMX && p[1].value == a->param;
     case CDISASM_PPC_ALIAS_CONSTPAIR:
-        return in->operand_count == 2 && p[0].value == (a->param & 7u) && p[1].value == (a->param >> 3);
+        /* Server SC and embedded elemental E occupy different fields. */
+        return in->operand_count == 2 && p[1].width == 2 &&
+            p[0].value == (a->param & 7u) && p[1].value == (a->param >> 3);
     case CDISASM_PPC_ALIAS_CONST:
         return (in->operand_count == 1 || in->operand_count == 2) && p[0].value == a->param &&
             (in->operand_count == 1 || p[1].value == 0);
+    case CDISASM_PPC_ALIAS_PREPEND:
+        return (in->operand_count == 2 || in->operand_count == 3) && p[0].value == a->param;
+    case CDISASM_PPC_ALIAS_TRAP:
+        return in->operand_count == 3 && p[0].value == a->param && !p[1].value && !p[2].value;
+    case CDISASM_PPC_ALIAS_ROTATE32EXPR: return 0; /* source-only expression aliases */
+    case CDISASM_PPC_ALIAS_LIL: return in->operand_count == 2 && !p[1].base;
+    case CDISASM_PPC_ALIAS_SUBIMM: return 0; /* source-only; retain canonical ai */
     case CDISASM_PPC_ALIAS_LI: return in->operand_count == 3 && p[1].value == 0;
     case CDISASM_PPC_ALIAS_DUP: case CDISASM_PPC_ALIAS_CRDUP:
         return in->operand_count == 3 && p[1].value == p[2].value;
@@ -115,11 +144,11 @@ static int ppc_alias_match(const cdisasm_ppc_alias *a, const cdisasm_ppc_instruc
     case CDISASM_PPC_ALIAS_BCOND:
         return in->operand_count == 3 && in->bo == a->param / 32u && (in->bi & 3u) == (a->param & 3u);
     case CDISASM_PPC_ALIAS_BCOUNT: return in->operand_count == 3 && in->bo == a->param && in->bi == 0;
-    case CDISASM_PPC_ALIAS_BREG: return in->operand_count == 3 && in->bo == 20 && in->bi == 0;
+    case CDISASM_PPC_ALIAS_BREG: return (in->operand_count == 3 || in->operand_count == 2) && in->bo == 20 && in->bi == 0;
     case CDISASM_PPC_ALIAS_BREGCOND:
-        return in->operand_count == 3 && in->bo == a->param / 32u && (in->bi & 3u) == (a->param & 3u);
-    case CDISASM_PPC_ALIAS_BREGTEST: return in->operand_count == 3 && in->bo == a->param;
-    case CDISASM_PPC_ALIAS_BREGCOUNT: return in->operand_count == 3 && in->bo == a->param && in->bi == 0;
+        return (in->operand_count == 3 || in->operand_count == 2) && in->bo == a->param / 32u && (in->bi & 3u) == (a->param & 3u);
+    case CDISASM_PPC_ALIAS_BREGTEST: return (in->operand_count == 3 || in->operand_count == 2) && in->bo == a->param;
+    case CDISASM_PPC_ALIAS_BREGCOUNT: return (in->operand_count == 3 || in->operand_count == 2) && in->bo == a->param && in->bi == 0;
     case CDISASM_PPC_ALIAS_BTEST: return in->operand_count == 3 && in->bo == a->param;
     case CDISASM_PPC_ALIAS_NOP:
         return in->operand_count == (a->param == 2 ? 2 : 3) && !p[0].value && !p[1].value && (a->param == 2 || !p[2].value);
@@ -137,6 +166,15 @@ static void ppc_alias_operands(ppc_text *t, const cdisasm_ppc_alias *a, const cd
 {
     const cdisasm_ppc_operand *p = in->operand;
     switch (a->kind) {
+    case CDISASM_PPC_ALIAS_WCLR:
+        ppc_put(t, " "); ppc_operand(t, &p[a->param == 2 ? 1 : 0]); break;
+    case CDISASM_PPC_ALIAS_ESYNC:
+        ppc_put(t, " "); ppc_operand(t, &p[1]); break;
+    case CDISASM_PPC_ALIAS_VSXPERM:
+        ppc_put(t, " "); ppc_operand(t, &p[0]); ppc_put(t, ","); ppc_operand(t, &p[1]);
+        if (a->param == 4) ppc_put(t, ",%u", (unsigned)(p[3].value / 3));
+        else if (a->param != 2) { ppc_put(t, ","); ppc_operand(t, &p[2]); }
+        break;
     case CDISASM_PPC_ALIAS_TLBILX:
         if (a->param == 3) { ppc_put(t, " "); ppc_operand(t, &p[1]); }
         break;
@@ -148,8 +186,15 @@ static void ppc_alias_operands(ppc_text *t, const cdisasm_ppc_alias *a, const cd
         ppc_put(t, ","); ppc_operand(t, &p[2]); break;
     case CDISASM_PPC_ALIAS_MEMIMM:
         ppc_put(t, " "); ppc_operand(t, &p[0]); break;
+    case CDISASM_PPC_ALIAS_PREPEND:
+        ppc_put(t, " "); ppc_operand(t, &p[1]);
+        if (in->operand_count == 3) { ppc_put(t, ","); ppc_operand(t, &p[2]); }
+        break;
+    case CDISASM_PPC_ALIAS_LIL:
+        ppc_put(t, " "); ppc_operand(t, &p[0]); ppc_put(t, ",%lld", (long long)p[1].disp); break;
     case CDISASM_PPC_ALIAS_LI:
         ppc_put(t, " "); ppc_operand(t, &p[0]); ppc_put(t, ","); ppc_operand(t, &p[2]); break;
+    case CDISASM_PPC_ALIAS_TLBWORD:
     case CDISASM_PPC_ALIAS_DUP: case CDISASM_PPC_ALIAS_CRDUP:
         ppc_put(t, " "); ppc_operand(t, &p[0]); ppc_put(t, ","); ppc_operand(t, &p[1]); break;
     case CDISASM_PPC_ALIAS_CRSET: case CDISASM_PPC_ALIAS_SPR_FROM: case CDISASM_PPC_ALIAS_TBR_FROM:

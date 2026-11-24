@@ -56,7 +56,11 @@ typedef cdisasm_cpu_id cdisasm_ppc_cpu_id;
 #define CDISASM_PPC_CPU_E200Z4 (CDISASM_CPU_GROUP_PPC | 37u)
 #define CDISASM_PPC_CPU_E200Z6 (CDISASM_CPU_GROUP_PPC | 38u)
 #define CDISASM_PPC_CPU_E200Z7 (CDISASM_CPU_GROUP_PPC | 39u)
-#define CDISASM_PPC_CPU_COUNT 40u
+#define CDISASM_PPC_CPU_460EX (CDISASM_CPU_GROUP_PPC | 40u)
+#define CDISASM_PPC_CPU_403GCX (CDISASM_CPU_GROUP_PPC | 41u)
+#define CDISASM_PPC_CPU_POWER (CDISASM_CPU_GROUP_PPC | 42u)
+#define CDISASM_PPC_CPU_POWER2 (CDISASM_CPU_GROUP_PPC | 43u)
+#define CDISASM_PPC_CPU_COUNT 44u
 #define CDISASM_PPC_MODE_32 32u
 #define CDISASM_PPC_MODE_64 64u
 #define CDISASM_PPC_MODE_MASK_32 1u
@@ -93,6 +97,9 @@ typedef cdisasm_cpu_id cdisasm_ppc_cpu_id;
 #define CDISASM_PPC_FEATURE_HTM (UINT64_C(1) << 31)
 #define CDISASM_PPC_FEATURE_CRYPTO (UINT64_C(1) << 32)
 #define CDISASM_PPC_FEATURE_VLE (UINT64_C(1) << 33)
+/* Original RS/6000 POWER dialect, distinct from the PowerPC601 subset. */
+#define CDISASM_PPC_FEATURE_POWER (UINT64_C(1) << 34)
+#define CDISASM_PPC_FEATURE_POWER2 (UINT64_C(1) << 35)
 /* bitmap[0]: controls; bitmap[1]: facility enable; bitmap[2]: disable.
  * Enable/disable must not intersect; enable must be available on the profile.
  * FPU, VMX and PS can be disabled when available on the selected profile.
@@ -166,6 +173,9 @@ typedef struct cdisasm_ppc_form_operand {
  * final SCL operand preserves redundant encodings of zero and all ones. */
 #define CDISASM_PPC_RECIPE_IDENTITY 0u
 #define CDISASM_PPC_RECIPE_SCI8 1u
+/* Hash displacement: six encoded bits represent -64..-1, scaled by eight.
+ * Power ISA 3.1B/C hashst/hashchk instruction definitions. */
+#define CDISASM_PPC_RECIPE_HASH_DISP 2u
 #define CDISASM_PPC_CONSTRAINT_EQ 0u
 #define CDISASM_PPC_CONSTRAINT_NE 1u
 #define CDISASM_PPC_CONSTRAINT_LT 2u
@@ -255,6 +265,16 @@ typedef struct cdisasm_ppc_instruction {
 #define CDISASM_PPC_ALIAS_MEMHINT 23u /* accepted indexed memory,TH; param0:TH0..7, param1:TH0/8..15 */
 #define CDISASM_PPC_ALIAS_QPXLOGICAL 24u /* QPX truth table; param0/15 unary,5/10 binary,others ternary */
 #define CDISASM_PPC_ALIAS_TLBILX 25u /* fixed T: param0/1 omit zero RA/RB, param3 retains RA/RB */
+#define CDISASM_PPC_ALIAS_VSXPERM 26u /* xxpermdi: param0/3 fixed DM,2 duplicate XA with DM2,4 splat DM0/3 */
+#define CDISASM_PPC_ALIAS_PREFIXSUB 27u /* psubi: negate SI and use paddi R=0; assembly-only */
+#define CDISASM_PPC_ALIAS_TLBWORD 28u /* 403GCX: two registers and fixed third operand WS=param */
+#define CDISASM_PPC_ALIAS_ESYNC 29u /* e6500: E, L=~E[2]; param0 E=0/lwsync, param1 E!=0/sync */
+#define CDISASM_PPC_ALIAS_WCLR 30u /* A2: param2 wclrone RA,RB; param0 wclrall L (0/1), RA=RB=0 */
+#define CDISASM_PPC_ALIAS_SUBIMM 31u /* POWER si: negate signed immediate, three operands */
+#define CDISASM_PPC_ALIAS_LIL 32u /* POWER lil: cal RT,SI(0) */
+#define CDISASM_PPC_ALIAS_PREPEND 33u /* prepend fixed first immediate (trap TO, mtcr FXM) */
+#define CDISASM_PPC_ALIAS_TRAP 34u /* no operands: t param,0,0 */
+#define CDISASM_PPC_ALIAS_ROTATE32EXPR 35u /* POWER extract/insert/rotate/clear source expressions */
 typedef struct cdisasm_ppc_alias {
     const char *name;
     uint32_t base_name_id;
@@ -281,8 +301,14 @@ CDISASM_API int CDISASM_CALL cdisasm_ppc_form_valid(const cdisasm_ppc_form *form
 /* Deterministic valid sample; 0 means unavailable (or malformed form ID).
  * seed varies all operand/control bits. Intended for catalog consumers. */
 CDISASM_API uint32_t CDISASM_CALL cdisasm_ppc_form_sample(cdisasm_ppc_cpu_id cpu, uint32_t mode, const cdisasm_decode_flags *flags, uint32_t form_id, uint32_t seed, uint8_t bytes[8]);
+/* Published name for this profile/selector, or NULL; does not imply either
+ * access direction, current privilege, or successful execution. Generic
+ * profiles expose architectural names only. Unknown selectors stay numeric. */
 CDISASM_API const char *CDISASM_CALL cdisasm_ppc_spr_name(cdisasm_ppc_cpu_id cpu, uint32_t spr);
-/* Symbolic read/write pairs (tbl/tbu and 601 rtcu/rtcl) resolve by direction. */
+/* Resolve a published name in the requested direction (write != 0).
+ * Read/write selector pairs and implementation-specific restrictions apply.
+ * Facility ownership is architectural; these queries do not take run-time
+ * facility-enable or privilege state. Returns -1 for an unavailable name. */
 CDISASM_API int32_t CDISASM_CALL cdisasm_ppc_spr_from_name(cdisasm_ppc_cpu_id cpu, const char *name, int write);
 #define CDISASM_PPC_FORMAT_REGISTER_NAMES 1u
 #define CDISASM_PPC_FORMAT_BASE_MNEMONICS 2u

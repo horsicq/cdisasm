@@ -3,6 +3,22 @@
 
 #include "cdisasm/cdisasm.h"
 
+/* Linux PPC process-visible auxv evidence. No PVR or AT_BASE_PLATFORM:
+ * neither identifies the instruction environment of a compatibility guest.
+ * Flags are exactly 0/1; missing capability entries have value zero.
+ * Kept available in disabled builds so the unknown fallback is testable. */
+typedef struct cdisasm_internal_ppc_cpu_snapshot {
+    const char *platform;
+    uint64_t hwcap;
+    uint64_t hwcap2;
+    uint32_t process_bits;
+    int little_endian;
+    int have_hwcap;
+    int have_hwcap2;
+} cdisasm_internal_ppc_cpu_snapshot;
+
+cdisasm_cpu_id cdisasm_internal_classify_ppc_cpu(const cdisasm_internal_ppc_cpu_snapshot *snapshot);
+
 #if USE_ARCH_X86
 /* Injectable CPUID image used by the native reader and deterministic tests. */
 typedef struct cdisasm_internal_x86_cpu_snapshot {
