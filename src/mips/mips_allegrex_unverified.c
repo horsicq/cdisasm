@@ -33,8 +33,7 @@ int cdisasm_mips_allegrex_unverified_decode(uint32_t raw, cdisasm_mips_instructi
             unsigned selector = (raw >> (index ? 8u : 0u)) & 127u;
             unsigned vector = index ? form->source_vector : form->destination_vector;
             operand->type = CDISASM_OPERAND_REGISTER;
-            operand->reg = (cdisasm_mips_reg_id)(vector ? CDISASM_MIPS_REG_VFPU_VECTOR(selector) :
-                CDISASM_MIPS_REG_VFPU_SCALAR(selector));
+            operand->reg = (cdisasm_mips_reg_id)(vector ? CDISASM_MIPS_REG_VFPU_VECTOR(selector) : CDISASM_MIPS_REG_VFPU_SCALAR(selector));
             operand->size = index ? form->source_size : form->destination_size;
             operand->access = CDISASM_OPERAND_ACCESS_NONE;
             if (vector) operand->detail.element_size = 4;

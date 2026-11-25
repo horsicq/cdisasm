@@ -10,20 +10,17 @@
 /* Internal entry points receive an already normalized fixed-width instruction.
  * Public argument validation and transactional output clearing live in the
  * wrapper.  Feature flags here contain the active CPU-supported families. */
-cdisasm_status cdisasm_mips_decode_core(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-                                      cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
-                                      cdisasm_mips_instruction *instruction);
-cdisasm_status cdisasm_mips_decode_extra(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-                                       cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
-                                       cdisasm_mips_instruction *instruction);
-cdisasm_status cdisasm_mips_decode_generated(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-                                           cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
-                                           cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_core(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
+                                        cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_extra(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                         const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_generated(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                             const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 uint64_t cdisasm_mips_extra_required_flags(cdisasm_mips_form_id form);
-cdisasm_status cdisasm_mips_decode_xlr(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
-cdisasm_status cdisasm_mips_decode_xlp(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_xlr(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
+                                       cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_xlp(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
+                                       cdisasm_mips_instruction *instruction);
 int cdisasm_mips_xlp_owns(uint32_t raw);
 uint64_t cdisasm_mips_xlp_required_flags(cdisasm_mips_form_id form);
 size_t cdisasm_mips_xlp_effects(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
@@ -36,40 +33,37 @@ uint64_t cdisasm_mips_instruction_required_flags(const cdisasm_mips_instruction 
 int cdisasm_mips_instruction_validate(const cdisasm_mips_instruction *instruction);
 int cdisasm_mips_instruction_build_allowed(const cdisasm_mips_instruction *instruction);
 int cdisasm_mips_instruction_validate_v2(const cdisasm_mips_instruction_v2 *instruction);
-cdisasm_status cdisasm_mips_decode_compact(uint64_t raw, uint32_t size, cdisasm_mips_encoding encoding, uint64_t address,
-                                         cdisasm_mips_mode mode, cdisasm_mips_revision revision,
-                                         const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_compact(uint64_t raw, uint32_t size, cdisasm_mips_encoding encoding, uint64_t address, cdisasm_mips_mode mode,
+                                           cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 uint32_t cdisasm_mips_compact_size(cdisasm_mips_encoding encoding, uint16_t first);
 uint64_t cdisasm_mips_compact_required_flags(cdisasm_mips_form_id form);
-cdisasm_status cdisasm_mips_micro64_arithmetic(uint32_t raw,uint64_t address,cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision,const cdisasm_mips_decode_flags *features,cdisasm_mips_instruction *instruction);
-cdisasm_status cdisasm_mips_micro64_r6(uint32_t raw,uint64_t address,cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision,const cdisasm_mips_decode_flags *features,cdisasm_mips_instruction *instruction);
-cdisasm_status cdisasm_mips_micro64_cop(uint32_t raw,uint64_t address,cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision,const cdisasm_mips_decode_flags *features,cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_micro64_arithmetic(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                               const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_micro64_r6(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
+                                       cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_micro64_cop(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
+                                        cdisasm_mips_instruction *instruction);
 uint64_t cdisasm_mips_micro64_cop_required_flags(cdisasm_mips_form_id form);
-cdisasm_status cdisasm_mips_micro64_fp(uint32_t raw,uint64_t address,cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision,const cdisasm_mips_decode_flags *features,cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_micro64_fp(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
+                                       cdisasm_mips_instruction *instruction);
 uint64_t cdisasm_mips_micro64_fp_required_flags(cdisasm_mips_form_id form);
-cdisasm_status cdisasm_mips_micro64_memory(uint32_t raw,uint64_t address,cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision,const cdisasm_mips_decode_flags *features,cdisasm_mips_instruction *instruction);
-cdisasm_status cdisasm_mips_decode_mips16e2(uint32_t raw, uint32_t size, uint64_t address,
-    cdisasm_mips_mode mode, cdisasm_mips_revision revision,
-    const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_micro64_memory(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                           const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_mips16e2(uint32_t raw, uint32_t size, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                            const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 int cdisasm_mips_mips16e2_owns(uint32_t raw);
 uint64_t cdisasm_mips_mips16e2_required_flags(cdisasm_mips_form_id form);
 size_t cdisasm_mips_compact_effects(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
-cdisasm_status cdisasm_mips_decode_nano(uint64_t raw, uint32_t size, uint64_t address,
-                                      cdisasm_mips_mode mode, cdisasm_mips_revision revision,
-                                      const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_nano(uint64_t raw, uint32_t size, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                        const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 uint32_t cdisasm_mips_nano_size(uint16_t first);
 int cdisasm_mips_nano_fpu_owns(uint32_t raw);
-cdisasm_status cdisasm_mips_nano_fpu(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_nano_fpu(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
+                                     cdisasm_mips_instruction *instruction);
 uint64_t cdisasm_mips_nano_fpu_required_flags(cdisasm_mips_form_id form);
 uint64_t cdisasm_mips_nano_required_flags(cdisasm_mips_form_id form);
-cdisasm_status cdisasm_mips_decode_allegrex(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_allegrex(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                            const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 uint64_t cdisasm_mips_allegrex_required_flags(cdisasm_mips_form_id form);
 int cdisasm_mips_allegrex_encoding_allowed(uint32_t raw);
 int cdisasm_mips_allegrex_owns(uint32_t raw);
@@ -77,34 +71,33 @@ int cdisasm_mips_allegrex_owns(uint32_t raw);
  * notation sizes and selectors carry no architectural access/extent claim. */
 int cdisasm_mips_allegrex_unverified_decode(uint32_t raw, cdisasm_mips_instruction *instruction);
 size_t cdisasm_mips_allegrex_effects(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
-cdisasm_status cdisasm_mips_decode_r5900(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_r5900(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                         const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 uint64_t cdisasm_mips_r5900_required_flags(cdisasm_mips_form_id form);
 int cdisasm_mips_r5900_owns(uint32_t raw);
 size_t cdisasm_mips_r5900_effects(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
-cdisasm_status cdisasm_mips_decode_mxu(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_mxu(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
+                                       cdisasm_mips_instruction *instruction);
 uint64_t cdisasm_mips_mxu_required_flags(cdisasm_mips_form_id form);
 size_t cdisasm_mips_mxu_effects(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
-cdisasm_status cdisasm_mips_decode_mxu_vector(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_mxu_vector(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                              const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 int cdisasm_mips_mxu_vector_owns(uint32_t raw, const cdisasm_mips_decode_flags *features);
 uint64_t cdisasm_mips_mxu_vector_required_flags(cdisasm_mips_form_id form);
 size_t cdisasm_mips_mxu_vector_effects(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
 uint32_t cdisasm_mips_mxu_vector_effect_limitations(const cdisasm_mips_instruction *instruction);
-cdisasm_status cdisasm_mips_decode_loongsimd(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_loongsimd(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                             const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 int cdisasm_mips_loongsimd_owns(uint32_t raw);
 uint64_t cdisasm_mips_loongsimd_required_flags(cdisasm_mips_form_id form);
-cdisasm_status cdisasm_mips_decode_loongasx(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_loongasx(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                            const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 int cdisasm_mips_loongasx_owns(uint32_t raw, const cdisasm_mips_decode_flags *features);
 uint64_t cdisasm_mips_loongasx_required_flags(cdisasm_mips_form_id form);
-cdisasm_status cdisasm_mips_decode_vu_macro(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
-cdisasm_status cdisasm_mips_decode_vu_word(uint32_t raw, uint64_t address, cdisasm_mips_encoding encoding,
-    uint32_t unit, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
-    const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_vu_macro(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                            const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_decode_vu_word(uint32_t raw, uint64_t address, cdisasm_mips_encoding encoding, uint32_t unit, cdisasm_mips_mode mode,
+                                           cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction);
 int cdisasm_mips_vu_macro_owns(uint32_t raw);
 uint64_t cdisasm_mips_vu_required_flags(cdisasm_mips_form_id form);
 size_t cdisasm_mips_vu_effects(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
@@ -118,12 +111,11 @@ size_t cdisasm_mips_allegrex_unverified_format(const cdisasm_mips_instruction *i
 
 /* Octeon II/III V3 extension; input address is retained on successful lowering.
  * Ownership is available even when its feature tables are disabled. */
-cdisasm_status cdisasm_mips_octeon_decode(uint32_t raw, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, unsigned generation, cdisasm_mips_instruction *instruction);
+cdisasm_status cdisasm_mips_octeon_decode(uint32_t raw, cdisasm_mips_mode mode, cdisasm_mips_revision revision, unsigned generation,
+                                          cdisasm_mips_instruction *instruction);
 int cdisasm_mips_octeon_owns(uint32_t raw, unsigned generation);
 unsigned cdisasm_mips_octeon_form_generation(cdisasm_mips_form_id form);
-size_t cdisasm_mips_octeon_effects(const cdisasm_mips_instruction *instruction,
-    cdisasm_mips_register_effect *effects, size_t capacity);
+size_t cdisasm_mips_octeon_effects(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
 cdisasm_mips_effect_limitations cdisasm_mips_octeon_effect_limitations(cdisasm_mips_form_id form);
 
 cdisasm_mips_effect_limitations cdisasm_mips_nano_effect_limitations(const cdisasm_mips_instruction *instruction);

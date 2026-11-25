@@ -11,7 +11,9 @@ uint32_t cdisasm_mips_nano_size(uint16_t first)
 }
 
 #if USE_EXTRA_OPCODES
-typedef struct nano_bit { uint8_t source, destination; } nano_bit;
+typedef struct nano_bit {
+    uint8_t source, destination;
+} nano_bit;
 typedef struct nano_operand_recipe {
     uint8_t kind, mapping, width, adjustment, detail, access, size, flags;
     uint16_t bit_start;
@@ -119,9 +121,8 @@ static int nano_operand(uint64_t raw, const nano_operand_recipe *recipe, const n
                 reg += CDISASM_MIPS_REG_GPR0;
             }
             nano_register(operand, (uint16_t)reg, recipe->size, recipe->access, recipe->flags);
-            if (instruction->mode == CDISASM_MIPS_MODE_64 &&
-                ((reg >= CDISASM_MIPS_REG_GPR0 && reg <= CDISASM_MIPS_REG_GPR31) ||
-                 (reg >= CDISASM_MIPS_REG_PREVIOUS_GPR_FIRST && reg <= CDISASM_MIPS_REG_PREVIOUS_GPR_LAST)))
+            if (instruction->mode == CDISASM_MIPS_MODE_64 && ((reg >= CDISASM_MIPS_REG_GPR0 && reg <= CDISASM_MIPS_REG_GPR31) ||
+                                                              (reg >= CDISASM_MIPS_REG_PREVIOUS_GPR_FIRST && reg <= CDISASM_MIPS_REG_PREVIOUS_GPR_LAST)))
                 operand->size = 8u;
             operand->detail.flags = recipe->detail;
             return 1;
@@ -167,7 +168,8 @@ static int nano_operand(uint64_t raw, const nano_operand_recipe *recipe, const n
             operand->flags |= CDISASM_OPERAND_FLAG_PC_RELATIVE | CDISASM_OPERAND_FLAG_HAS_ADDRESS;
             instruction->branch_target = operand->imm;
             return 1;
-        case 5u: case 7u:
+        case 5u:
+        case 7u:
             if (recipe->adjustment) immediate *= INT64_C(4096);
             operand->address = instruction->address + instruction->opcode_size + (uint64_t)immediate;
             if (instruction->mode != CDISASM_MIPS_MODE_64) operand->address = (uint32_t)operand->address;
@@ -207,8 +209,7 @@ static int nano_operand(uint64_t raw, const nano_operand_recipe *recipe, const n
 static int nano_finish(const nano_form *form, uint64_t raw, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *i)
 {
     unsigned n;
-    if ((i->name_id == CDISASM_MIPS_NAME_ADDIU_32 || i->name_id == CDISASM_MIPS_NAME_SLTU) &&
-        i->operand[0].reg == CDISASM_MIPS_REG_GPR0) return 0;
+    if ((i->name_id == CDISASM_MIPS_NAME_ADDIU_32 || i->name_id == CDISASM_MIPS_NAME_SLTU) && i->operand[0].reg == CDISASM_MIPS_REG_GPR0) return 0;
     if (form->special == 1u || form->special == 2u) {
         unsigned rs = ((unsigned)raw >> 4) & 7u, rt = ((unsigned)raw >> 7) & 7u;
         if ((raw & 15u) == 0u || (form->special == 1u ? rs >= rt : rs < rt)) return 0;
@@ -217,7 +218,8 @@ static int nano_finish(const nano_form *form, uint64_t raw, const cdisasm_mips_d
         cdisasm_mips_operand *sp, *memory;
         uint64_t list = i->operand[1].imm;
         unsigned count = 0u, save = i->name_id == CDISASM_MIPS_NAME_SAVE;
-        for (n = 0u; n < 32u; ++n) if (list & (UINT64_C(1) << n)) ++count;
+        for (n = 0u; n < 32u; ++n)
+            if (list & (UINT64_C(1) << n)) ++count;
         sp = &i->operand[i->operand_count++];
         nano_register(sp, CDISASM_MIPS_REG_GPR29, i->mode == CDISASM_MIPS_MODE_64 ? 8u : 4u, CDISASM_OPERAND_ACCESS_READ_WRITE, CDISASM_OPERAND_FLAG_IMPLICIT);
         if (count) {
@@ -232,8 +234,7 @@ static int nano_finish(const nano_form *form, uint64_t raw, const cdisasm_mips_d
     }
     if (form->special == 4u) {
         unsigned count = (unsigned)i->operand[2].imm, start = i->operand[0].reg - CDISASM_MIPS_REG_GPR0;
-        unsigned zero_store = start == 0u &&
-            (i->name_id == CDISASM_MIPS_NAME_SWM || i->name_id == CDISASM_MIPS_NAME_UASWM);
+        unsigned zero_store = start == 0u && (i->name_id == CDISASM_MIPS_NAME_SWM || i->name_id == CDISASM_MIPS_NAME_UASWM);
         uint64_t list = 0u;
         for (n = 0u; n < count; ++n) {
             /* MD01247 rev.01.01 pp.200,228: rt=0 stores zero on every
@@ -277,28 +278,27 @@ static int nano_finish(const nano_form *form, uint64_t raw, const cdisasm_mips_d
             o->reg = sel == 4u ? CDISASM_MIPS_REG_COP2(encoded, 0u) : (uint16_t)(CDISASM_MIPS_REG_FCR2_FIRST + encoded);
             i->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_COP2;
         } else return 0;
-        if (h) { o->size = 8u; o->detail.flags |= CDISASM_MIPS_OPERAND_DETAIL_HIGH_HALF; }
+        if (h) {
+            o->size = 8u;
+            o->detail.flags |= CDISASM_MIPS_OPERAND_DETAIL_HIGH_HALF;
+        }
         o->access = move_to ? h ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ;
     }
     if (form->special == 6u && (i->operand[3].imm == 0u || i->operand[2].imm + i->operand[3].imm > 64u)) return 0;
-    if (i->mode == CDISASM_MIPS_MODE_64 &&
-        (i->name_id == CDISASM_MIPS_NAME_MTC0 || i->name_id == CDISASM_MIPS_NAME_MTHC0))
-        i->operand[0].size = 4u;
+    if (i->mode == CDISASM_MIPS_MODE_64 && (i->name_id == CDISASM_MIPS_NAME_MTC0 || i->name_id == CDISASM_MIPS_NAME_MTHC0)) i->operand[0].size = 4u;
     if (i->name_id == CDISASM_MIPS_NAME_EXT || i->name_id == CDISASM_MIPS_NAME_INS) {
         if (i->operand[2].imm + i->operand[3].imm > 32u || i->operand[3].imm == 0u) return 0;
     }
     if (i->name_id == CDISASM_MIPS_NAME_JRC && i->operand[0].reg == CDISASM_MIPS_REG_GPR31) i->opcode_groups |= CDISASM_GROUP_RETURN;
-    if ((i->name_id == CDISASM_MIPS_NAME_JALRC || i->name_id == CDISASM_MIPS_NAME_JALRC_HB) &&
-        i->operand[0].reg == CDISASM_MIPS_REG_GPR0) {
+    if ((i->name_id == CDISASM_MIPS_NAME_JALRC || i->name_id == CDISASM_MIPS_NAME_JALRC_HB) && i->operand[0].reg == CDISASM_MIPS_REG_GPR0) {
         i->opcode_groups &= ~CDISASM_GROUP_CALL;
         if (i->operand[1].reg == CDISASM_MIPS_REG_GPR31) i->opcode_groups |= CDISASM_GROUP_RETURN;
     }
     return i->operand_count <= CDISASM_MIPS_MAX_OPERANDS;
 }
 
-cdisasm_status cdisasm_mips_decode_nano(uint64_t raw, uint32_t size, uint64_t address,
-                                      cdisasm_mips_mode mode, cdisasm_mips_revision revision,
-                                      const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction)
+cdisasm_status cdisasm_mips_decode_nano(uint64_t raw, uint32_t size, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                        const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction)
 {
     size_t n;
     unsigned operand;
@@ -307,17 +307,18 @@ cdisasm_status cdisasm_mips_decode_nano(uint64_t raw, uint32_t size, uint64_t ad
     if (size != 2u && size != 4u && size != 6u) return CDISASM_STATUS_INVALID_ARGUMENT;
     if (cdisasm_mips_nano_size((uint16_t)(raw >> (8u * (size - 2u)))) != size) return CDISASM_STATUS_INVALID_INSTRUCTION;
     if (mode == CDISASM_MIPS_MODE_64 && revision != CDISASM_MIPS_REVISION_64R6) return CDISASM_STATUS_INVALID_ARGUMENT;
-    if (size == 4u && cdisasm_mips_nano_fpu_owns((uint32_t)raw))
-        return cdisasm_mips_nano_fpu((uint32_t)raw,address,mode,revision,features,instruction);
-    for (n = 0u; n < sizeof(nano_forms) / sizeof(nano_forms[0]) +
-            (mode == CDISASM_MIPS_MODE_64 ? sizeof(nano64_forms) / sizeof(nano64_forms[0]) : 0u); ++n) {
+    if (size == 4u && cdisasm_mips_nano_fpu_owns((uint32_t)raw)) return cdisasm_mips_nano_fpu((uint32_t)raw, address, mode, revision, features, instruction);
+    for (n = 0u; n < sizeof(nano_forms) / sizeof(nano_forms[0]) + (mode == CDISASM_MIPS_MODE_64 ? sizeof(nano64_forms) / sizeof(nano64_forms[0]) : 0u); ++n) {
         size_t extra = mode == CDISASM_MIPS_MODE_64 ? sizeof(nano64_forms) / sizeof(nano64_forms[0]) : 0u;
         const nano_form *form = n < extra ? &nano64_forms[n] : &nano_forms[n - extra];
         const nano_operand_recipe *recipes = n < extra ? nano64_operands : nano_operands;
         const nano_bit *bits = n < extra ? nano64_bits : nano_bits;
         cdisasm_mips_instruction candidate;
         if (form->size != size || (raw & form->mask) != form->value) continue;
-        if ((features->bitmap[0] & form->required) != form->required) { disabled = 1; continue; }
+        if ((features->bitmap[0] & form->required) != form->required) {
+            disabled = 1;
+            continue;
+        }
         memset(&candidate, 0, sizeof(candidate));
         candidate.address = address;
         candidate.opcode_size = size;
@@ -354,14 +355,23 @@ uint64_t cdisasm_mips_nano_required_flags(cdisasm_mips_form_id form)
     return 0u;
 }
 #else
-cdisasm_status cdisasm_mips_decode_nano(uint64_t raw, uint32_t size, uint64_t address,
-                                      cdisasm_mips_mode mode, cdisasm_mips_revision revision,
-                                      const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction)
+cdisasm_status cdisasm_mips_decode_nano(uint64_t raw, uint32_t size, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                        const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction)
 {
-    (void)raw; (void)size; (void)address; (void)mode; (void)revision; (void)features; (void)instruction;
+    (void)raw;
+    (void)size;
+    (void)address;
+    (void)mode;
+    (void)revision;
+    (void)features;
+    (void)instruction;
     return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
 }
-uint64_t cdisasm_mips_nano_required_flags(cdisasm_mips_form_id form) { (void)form; return 0u; }
+uint64_t cdisasm_mips_nano_required_flags(cdisasm_mips_form_id form)
+{
+    (void)form;
+    return 0u;
+}
 #endif
 
 cdisasm_mips_effect_limitations cdisasm_mips_nano_effect_limitations(const cdisasm_mips_instruction *instruction)
@@ -371,14 +381,10 @@ cdisasm_mips_effect_limitations cdisasm_mips_nano_effect_limitations(const cdisa
      * domains as UNPREDICTABLE. Preserve the allocated instruction and its
      * visible operands, but do not promise a complete effect set. This is a
      * domain limitation, not a claim that the encoding is reserved. */
-    if ((instruction->name_id == CDISASM_MIPS_NAME_RESTORE ||
-         instruction->name_id == CDISASM_MIPS_NAME_RESTORE_JRC) &&
-        instruction->operand_count >= 2u &&
+    if ((instruction->name_id == CDISASM_MIPS_NAME_RESTORE || instruction->name_id == CDISASM_MIPS_NAME_RESTORE_JRC) && instruction->operand_count >= 2u &&
         (instruction->operand[1].imm & (UINT64_C(1) << 29)) != 0u)
         return CDISASM_MIPS_EFFECT_LIMITATION_IMPLICIT_EFFECTS;
-    if ((instruction->name_id == CDISASM_MIPS_NAME_LWM ||
-         instruction->name_id == CDISASM_MIPS_NAME_UALWM) &&
-        instruction->operand_count >= 3u) {
+    if ((instruction->name_id == CDISASM_MIPS_NAME_LWM || instruction->name_id == CDISASM_MIPS_NAME_UALWM) && instruction->operand_count >= 3u) {
         unsigned n, start = (instruction->raw_instruction >> 21) & 31u;
         unsigned base = (instruction->raw_instruction >> 16) & 31u;
         unsigned count = (unsigned)instruction->operand[2].imm;
@@ -391,8 +397,7 @@ cdisasm_mips_effect_limitations cdisasm_mips_nano_effect_limitations(const cdisa
     /* The author source allocates paired atomics and explicit registers.
      * LLbit has an existing abstract resource. No nano64 privileged manual
      * proves an LLAddr physical selector, so do not borrow classic CP0 IDs. */
-    if (instruction->mode == CDISASM_MIPS_MODE_64 &&
-        (instruction->form_id == 37057u || instruction->form_id == 37064u))
+    if (instruction->mode == CDISASM_MIPS_MODE_64 && (instruction->form_id == 37057u || instruction->form_id == 37064u))
         return CDISASM_MIPS_EFFECT_LIMITATION_IMPLICIT_EFFECTS;
 #if USE_EXTRA_OPCODES
     if (instruction->mode == CDISASM_MIPS_MODE_64) {

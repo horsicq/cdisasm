@@ -139,8 +139,8 @@ typedef cdisasm_cpu_id cdisasm_ppc_cpu_id;
 #define CDISASM_PPC_OPERAND_ABSOLUTE 8u
 #define CDISASM_PPC_OPERAND_PC_RELATIVE 16u /* target is CIA plus displacement/immediate */
 #define CDISASM_PPC_OPERAND_REDUCED_GPR 32u /* VLE RX/RY/RZ: 0..7,24..31 */
-#define CDISASM_PPC_OPERAND_OFFSET_ONE 64u /* VLE OIM5: encoded 0..31 means 1..32 */
-#define CDISASM_PPC_OPERAND_ALT_GPR 128u /* VLE ARX/ARY: encoded 0..15 means 8..23 */
+#define CDISASM_PPC_OPERAND_OFFSET_ONE 64u  /* VLE OIM5: encoded 0..31 means 1..32 */
+#define CDISASM_PPC_OPERAND_ALT_GPR 128u    /* VLE ARX/ARY: encoded 0..15 means 8..23 */
 #define CDISASM_PPC_ACCESS_READ 1u
 #define CDISASM_PPC_ACCESS_WRITE 2u
 #define CDISASM_PPC_FLAG_BRANCH 1u
@@ -153,7 +153,9 @@ typedef cdisasm_cpu_id cdisasm_ppc_cpu_id;
 /* Manual bits are numbered MSB-first: manual bit b = C bit 31-b.
  * Slices use C LSB positions. Each slice copies width bits to dst_lsb.
  * SPR halves, for example, are {0,16,5,0},{0,11,5,5}. */
-typedef struct cdisasm_ppc_slice { uint8_t word, lsb, width, dst_lsb; } cdisasm_ppc_slice;
+typedef struct cdisasm_ppc_slice {
+    uint8_t word, lsb, width, dst_lsb;
+} cdisasm_ppc_slice;
 typedef struct cdisasm_ppc_field {
     uint64_t literal; /* used exactly when slice_count == 0 */
     uint8_t slice_count, width;
@@ -183,13 +185,13 @@ typedef struct cdisasm_ppc_form_operand {
 #define CDISASM_PPC_CONSTRAINT_STRING 4u
 #define CDISASM_PPC_CONSTRAINT_LMW 5u
 #define CDISASM_PPC_CONSTRAINT_ONEOF 6u
-#define CDISASM_PPC_CONSTRAINT_BO 7u /* profile-specific classic y/z or server a/t */
-#define CDISASM_PPC_CONSTRAINT_CLEAR 10u /* (a & b) == 0 */
+#define CDISASM_PPC_CONSTRAINT_BO 7u      /* profile-specific classic y/z or server a/t */
+#define CDISASM_PPC_CONSTRAINT_CLEAR 10u  /* (a & b) == 0 */
 #define CDISASM_PPC_CONSTRAINT_ONEHOT 12u /* exactly one set bit in a */
-#define CDISASM_PPC_CONSTRAINT_ROUND 13u /* R=a or RMC=b is 0/3 */
+#define CDISASM_PPC_CONSTRAINT_ROUND 13u  /* R=a or RMC=b is 0/3 */
 #define CDISASM_PPC_CONSTRAINT_VALUES 14u /* a < 64 and bit a of b is set */
-#define CDISASM_PPC_CONSTRAINT_MMA 11u /* VSR b cannot alias accumulator a */
-#define CDISASM_PPC_CONSTRAINT_ZEROIF 9u /* b nonzero requires a zero */
+#define CDISASM_PPC_CONSTRAINT_MMA 11u    /* VSR b cannot alias accumulator a */
+#define CDISASM_PPC_CONSTRAINT_ZEROIF 9u  /* b nonzero requires a zero */
 #define CDISASM_PPC_CONSTRAINT_NONZERO 8u /* at least one of a,b nonzero */
 /* STRING: a=RT,b=RA,c=NB; RA must not be among ceil((NB?NB:32)/4)
  * target registers, wrapping modulo 32; RA=0 still participates in this check. */
@@ -217,9 +219,9 @@ typedef struct cdisasm_ppc_operand {
     uint8_t type, access, flags, width;
     uint8_t scale, size, reg, base;
     uint8_t index, has_index, zero_base, recipe; /* CDISASM_PPC_RECIPE_* */
-    int64_t value; /* sign extended where SIGNED; numeric SPR/TBR otherwise */
-    int64_t disp;  /* scaled byte displacement; SCI8 raw F:SCL:UI8 */
-    uint64_t target; /* branch target, modulo execution address width */
+    int64_t value;                               /* sign extended where SIGNED; numeric SPR/TBR otherwise */
+    int64_t disp;                                /* scaled byte displacement; SCI8 raw F:SCL:UI8 */
+    uint64_t target;                             /* branch target, modulo execution address width */
 } cdisasm_ppc_operand;
 typedef struct cdisasm_ppc_instruction {
     uint64_t address, branch_target, features;
@@ -255,25 +257,25 @@ typedef struct cdisasm_ppc_instruction {
 /* ROTATE64 parameters: sldi,srdi,clrldi,clrrdi,rotldi,rotrdi,rotld,
  * extldi,extrdi,insrdi,clrlsldi (0..10). */
 #define CDISASM_PPC_ALIAS_ROTATE64 15u
-#define CDISASM_PPC_ALIAS_PREFIXLI 16u /* param0 pli, param1 pla; paddi D,0,I,param */
-#define CDISASM_PPC_ALIAS_BREGCOND 17u /* param BO*32+condition; optional CR field and BH */
-#define CDISASM_PPC_ALIAS_BREGTEST 18u /* param BO; CR bit and optional BH */
-#define CDISASM_PPC_ALIAS_BREGCOUNT 19u /* param BO; BI=0 and optional BH */
-#define CDISASM_PPC_ALIAS_CONST 20u /* no source operands; fixed first immediate; optional second zero */
-#define CDISASM_PPC_ALIAS_MEMIMM 21u /* indexed memory plus fixed final immediate param */
-#define CDISASM_PPC_ALIAS_CONSTPAIR 22u /* no source operands; fixed L=param&7, SC=param>>3 */
-#define CDISASM_PPC_ALIAS_MEMHINT 23u /* accepted indexed memory,TH; param0:TH0..7, param1:TH0/8..15 */
-#define CDISASM_PPC_ALIAS_QPXLOGICAL 24u /* QPX truth table; param0/15 unary,5/10 binary,others ternary */
-#define CDISASM_PPC_ALIAS_TLBILX 25u /* fixed T: param0/1 omit zero RA/RB, param3 retains RA/RB */
-#define CDISASM_PPC_ALIAS_VSXPERM 26u /* xxpermdi: param0/3 fixed DM,2 duplicate XA with DM2,4 splat DM0/3 */
-#define CDISASM_PPC_ALIAS_PREFIXSUB 27u /* psubi: negate SI and use paddi R=0; assembly-only */
-#define CDISASM_PPC_ALIAS_TLBWORD 28u /* 403GCX: two registers and fixed third operand WS=param */
-#define CDISASM_PPC_ALIAS_ESYNC 29u /* e6500: E, L=~E[2]; param0 E=0/lwsync, param1 E!=0/sync */
-#define CDISASM_PPC_ALIAS_WCLR 30u /* A2: param2 wclrone RA,RB; param0 wclrall L (0/1), RA=RB=0 */
-#define CDISASM_PPC_ALIAS_SUBIMM 31u /* POWER si: negate signed immediate, three operands */
-#define CDISASM_PPC_ALIAS_LIL 32u /* POWER lil: cal RT,SI(0) */
-#define CDISASM_PPC_ALIAS_PREPEND 33u /* prepend fixed first immediate (trap TO, mtcr FXM) */
-#define CDISASM_PPC_ALIAS_TRAP 34u /* no operands: t param,0,0 */
+#define CDISASM_PPC_ALIAS_PREFIXLI 16u     /* param0 pli, param1 pla; paddi D,0,I,param */
+#define CDISASM_PPC_ALIAS_BREGCOND 17u     /* param BO*32+condition; optional CR field and BH */
+#define CDISASM_PPC_ALIAS_BREGTEST 18u     /* param BO; CR bit and optional BH */
+#define CDISASM_PPC_ALIAS_BREGCOUNT 19u    /* param BO; BI=0 and optional BH */
+#define CDISASM_PPC_ALIAS_CONST 20u        /* no source operands; fixed first immediate; optional second zero */
+#define CDISASM_PPC_ALIAS_MEMIMM 21u       /* indexed memory plus fixed final immediate param */
+#define CDISASM_PPC_ALIAS_CONSTPAIR 22u    /* no source operands; fixed L=param&7, SC=param>>3 */
+#define CDISASM_PPC_ALIAS_MEMHINT 23u      /* accepted indexed memory,TH; param0:TH0..7, param1:TH0/8..15 */
+#define CDISASM_PPC_ALIAS_QPXLOGICAL 24u   /* QPX truth table; param0/15 unary,5/10 binary,others ternary */
+#define CDISASM_PPC_ALIAS_TLBILX 25u       /* fixed T: param0/1 omit zero RA/RB, param3 retains RA/RB */
+#define CDISASM_PPC_ALIAS_VSXPERM 26u      /* xxpermdi: param0/3 fixed DM,2 duplicate XA with DM2,4 splat DM0/3 */
+#define CDISASM_PPC_ALIAS_PREFIXSUB 27u    /* psubi: negate SI and use paddi R=0; assembly-only */
+#define CDISASM_PPC_ALIAS_TLBWORD 28u      /* 403GCX: two registers and fixed third operand WS=param */
+#define CDISASM_PPC_ALIAS_ESYNC 29u        /* e6500: E, L=~E[2]; param0 E=0/lwsync, param1 E!=0/sync */
+#define CDISASM_PPC_ALIAS_WCLR 30u         /* A2: param2 wclrone RA,RB; param0 wclrall L (0/1), RA=RB=0 */
+#define CDISASM_PPC_ALIAS_SUBIMM 31u       /* POWER si: negate signed immediate, three operands */
+#define CDISASM_PPC_ALIAS_LIL 32u          /* POWER lil: cal RT,SI(0) */
+#define CDISASM_PPC_ALIAS_PREPEND 33u      /* prepend fixed first immediate (trap TO, mtcr FXM) */
+#define CDISASM_PPC_ALIAS_TRAP 34u         /* no operands: t param,0,0 */
 #define CDISASM_PPC_ALIAS_ROTATE32EXPR 35u /* POWER extract/insert/rotate/clear source expressions */
 typedef struct cdisasm_ppc_alias {
     const char *name;
@@ -288,7 +290,8 @@ CDISASM_API const char *CDISASM_CALL cdisasm_ppc_cpu_name(cdisasm_ppc_cpu_id cpu
 CDISASM_API cdisasm_ppc_cpu_id CDISASM_CALL cdisasm_ppc_cpu_from_name(const char *name);
 CDISASM_API uint32_t CDISASM_CALL cdisasm_ppc_cpu_mode_mask(cdisasm_ppc_cpu_id cpu);
 CDISASM_API cdisasm_status CDISASM_CALL cdisasm_ppc_cpu_decode_flag_mask(cdisasm_ppc_cpu_id cpu, uint32_t mode, cdisasm_decode_flags *flags);
-CDISASM_API uint32_t CDISASM_CALL cdisasm_ppc_decode(cdisasm_ppc_cpu_id cpu, uint32_t mode, const uint8_t *code, size_t code_size, uint64_t address, const cdisasm_decode_flags *flags, cdisasm_ppc_instruction *instruction);
+CDISASM_API uint32_t CDISASM_CALL cdisasm_ppc_decode(cdisasm_ppc_cpu_id cpu, uint32_t mode, const uint8_t *code, size_t code_size, uint64_t address,
+                                                     const cdisasm_decode_flags *flags, cdisasm_ppc_instruction *instruction);
 CDISASM_API uint32_t CDISASM_CALL cdisasm_ppc_form_count(void);
 CDISASM_API const cdisasm_ppc_form *CDISASM_CALL cdisasm_ppc_forms(void);
 CDISASM_API const char *CDISASM_CALL cdisasm_ppc_name(uint32_t name_id);
@@ -297,10 +300,12 @@ CDISASM_API const cdisasm_ppc_alias *CDISASM_CALL cdisasm_ppc_aliases(void);
 CDISASM_API uint64_t CDISASM_CALL cdisasm_ppc_field_get(const uint32_t words[2], const cdisasm_ppc_field *field);
 CDISASM_API int CDISASM_CALL cdisasm_ppc_field_set(uint32_t words[2], const cdisasm_ppc_field *field, uint64_t value);
 CDISASM_API int CDISASM_CALL cdisasm_ppc_form_available(const cdisasm_ppc_form *form, cdisasm_ppc_cpu_id cpu, uint32_t mode, const cdisasm_decode_flags *flags);
-CDISASM_API int CDISASM_CALL cdisasm_ppc_form_valid(const cdisasm_ppc_form *form, cdisasm_ppc_cpu_id cpu, uint32_t mode, const cdisasm_decode_flags *flags, const uint32_t words[2]);
+CDISASM_API int CDISASM_CALL cdisasm_ppc_form_valid(const cdisasm_ppc_form *form, cdisasm_ppc_cpu_id cpu, uint32_t mode, const cdisasm_decode_flags *flags,
+                                                    const uint32_t words[2]);
 /* Deterministic valid sample; 0 means unavailable (or malformed form ID).
  * seed varies all operand/control bits. Intended for catalog consumers. */
-CDISASM_API uint32_t CDISASM_CALL cdisasm_ppc_form_sample(cdisasm_ppc_cpu_id cpu, uint32_t mode, const cdisasm_decode_flags *flags, uint32_t form_id, uint32_t seed, uint8_t bytes[8]);
+CDISASM_API uint32_t CDISASM_CALL cdisasm_ppc_form_sample(cdisasm_ppc_cpu_id cpu, uint32_t mode, const cdisasm_decode_flags *flags, uint32_t form_id, uint32_t seed,
+                                                          uint8_t bytes[8]);
 /* Published name for this profile/selector, or NULL; does not imply either
  * access direction, current privilege, or successful execution. Generic
  * profiles expose architectural names only. Unknown selectors stay numeric. */

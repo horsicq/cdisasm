@@ -3102,8 +3102,8 @@ static cdisasm_status t32_decode_psr_transfer(uint16_t first, uint16_t second, c
                                               int *recognized)
 {
     int read_psr = (first & UINT16_C(0xffef)) == UINT16_C(0xf3ef) && (second & UINT16_C(0xf0ff)) == UINT16_C(0x8000);
-    int read_m_profile = first == UINT16_C(0xf3ef) && (second & UINT16_C(0xf000)) == UINT16_C(0x8000) &&
-                         (second & UINT16_C(0x00ff)) >= UINT16_C(0x10) && (second & UINT16_C(0x00ff)) <= UINT16_C(0x14);
+    int read_m_profile = first == UINT16_C(0xf3ef) && (second & UINT16_C(0xf000)) == UINT16_C(0x8000) && (second & UINT16_C(0x00ff)) >= UINT16_C(0x10) &&
+                         (second & UINT16_C(0x00ff)) <= UINT16_C(0x14);
     int write_psr = (first & UINT16_C(0xffe0)) == UINT16_C(0xf380) && (second & UINT16_C(0xf0ff)) == UINT16_C(0x8000);
     unsigned saved;
     unsigned mask;

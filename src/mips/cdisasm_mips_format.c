@@ -70,7 +70,8 @@ static void append_register(mips_text_writer *writer, cdisasm_mips_reg_id reg)
     else if (reg >= CDISASM_MIPS_REG_ACC0 && reg <= CDISASM_MIPS_REG_ACC3) append_number(writer, "$ac%u", (unsigned)(reg - CDISASM_MIPS_REG_ACC0));
     else if (reg >= CDISASM_MIPS_REG_MSA0 && reg <= CDISASM_MIPS_REG_MSA31) append_number(writer, "$w%u", (unsigned)(reg - CDISASM_MIPS_REG_MSA0));
     else if (reg >= CDISASM_MIPS_REG_FCR0 && reg <= CDISASM_MIPS_REG_FCR31) append_number(writer, "$fcr%u", (unsigned)(reg - CDISASM_MIPS_REG_FCR0));
-    else if (reg >= CDISASM_MIPS_REG_MSACTRL_FIRST && reg <= CDISASM_MIPS_REG_MSACTRL_LAST) append_number(writer, "$%u", (unsigned)(reg - CDISASM_MIPS_REG_MSACTRL_FIRST));
+    else if (reg >= CDISASM_MIPS_REG_MSACTRL_FIRST && reg <= CDISASM_MIPS_REG_MSACTRL_LAST)
+        append_number(writer, "$%u", (unsigned)(reg - CDISASM_MIPS_REG_MSACTRL_FIRST));
     else if (reg >= CDISASM_MIPS_REG_MXU_FIRST && reg <= CDISASM_MIPS_REG_MXU_LAST) append_number(writer, "XR%u", (unsigned)(reg - CDISASM_MIPS_REG_MXU_FIRST));
     else if (reg == CDISASM_MIPS_REG_PC) append_text(writer, "$pc", 3u);
     else if (reg == CDISASM_MIPS_REG_LLBIT) append_text(writer, "$llbit", 6u);
@@ -87,17 +88,17 @@ static void append_register(mips_text_writer *writer, cdisasm_mips_reg_id reg)
     else if (reg >= CDISASM_MIPS_REG_COP2CC_FIRST && reg <= CDISASM_MIPS_REG_COP2CC_LAST) append_number(writer, "$cc%u", (unsigned)(reg - CDISASM_MIPS_REG_COP2CC_FIRST));
     else if (reg == CDISASM_MIPS_REG_COP0CC0 || reg == CDISASM_MIPS_REG_COP3CC0) append_text(writer, "$cc0", 4u);
     else if (reg == CDISASM_MIPS_REG_DSPCONTROL) append_text(writer, "$dspcontrol", 11u);
-    else if (reg >= CDISASM_MIPS_REG_PREVIOUS_GPR_FIRST && reg <= CDISASM_MIPS_REG_PREVIOUS_GPR_LAST) append_number(writer, "$%u", (unsigned)(reg - CDISASM_MIPS_REG_PREVIOUS_GPR_FIRST));
-    else if (reg >= CDISASM_MIPS_REG_CP0_CONTROL_FIRST && reg <= CDISASM_MIPS_REG_CP0_CONTROL_LAST) append_number(writer, "$%u", (unsigned)(reg - CDISASM_MIPS_REG_CP0_CONTROL_FIRST));
+    else if (reg >= CDISASM_MIPS_REG_PREVIOUS_GPR_FIRST && reg <= CDISASM_MIPS_REG_PREVIOUS_GPR_LAST)
+        append_number(writer, "$%u", (unsigned)(reg - CDISASM_MIPS_REG_PREVIOUS_GPR_FIRST));
+    else if (reg >= CDISASM_MIPS_REG_CP0_CONTROL_FIRST && reg <= CDISASM_MIPS_REG_CP0_CONTROL_LAST)
+        append_number(writer, "$%u", (unsigned)(reg - CDISASM_MIPS_REG_CP0_CONTROL_FIRST));
     else if (reg >= CDISASM_MIPS_REG_NANO_CP0_FIRST && reg <= CDISASM_MIPS_REG_NANO_CP0_LAST) {
         const unsigned encoded = (unsigned)(reg - CDISASM_MIPS_REG_NANO_CP0_FIRST);
         append_number(writer, "$%u, %u", encoded / 32u, encoded % 32u);
-    }
-    else if (reg >= CDISASM_MIPS_REG_NANO_GUEST_CP0_FIRST && reg <= CDISASM_MIPS_REG_NANO_GUEST_CP0_LAST) {
+    } else if (reg >= CDISASM_MIPS_REG_NANO_GUEST_CP0_FIRST && reg <= CDISASM_MIPS_REG_NANO_GUEST_CP0_LAST) {
         const unsigned encoded = (unsigned)(reg - CDISASM_MIPS_REG_NANO_GUEST_CP0_FIRST);
         append_number(writer, "$%u, %u", encoded / 32u, encoded % 32u);
-    }
-    else if (reg >= CDISASM_MIPS_REG_MXU2_VR_FIRST && reg <= CDISASM_MIPS_REG_MXU2_VR_LAST)
+    } else if (reg >= CDISASM_MIPS_REG_MXU2_VR_FIRST && reg <= CDISASM_MIPS_REG_MXU2_VR_LAST)
         append_number(writer, "$vr%u", (unsigned)(reg - CDISASM_MIPS_REG_MXU2_VR_FIRST));
     else if (reg >= CDISASM_MIPS_REG_MXU3_VR_FIRST && reg <= CDISASM_MIPS_REG_MXU3_VR_LAST)
         append_number(writer, "$vr%u", (unsigned)(reg - CDISASM_MIPS_REG_MXU3_VR_FIRST));
@@ -129,8 +130,7 @@ static void append_operand_register(mips_text_writer *writer, const cdisasm_mips
         append_number(writer, "0x%" PRIx64, operand->imm);
         return;
     }
-    if ((operand->detail.flags & CDISASM_MIPS_OPERAND_DETAIL_REGISTER_LIST) != 0 &&
-        !(operand->reg >= CDISASM_MIPS_REG_FCC0 && operand->reg <= CDISASM_MIPS_REG_FCC7)) {
+    if ((operand->detail.flags & CDISASM_MIPS_OPERAND_DETAIL_REGISTER_LIST) != 0 && !(operand->reg >= CDISASM_MIPS_REG_FCC0 && operand->reg <= CDISASM_MIPS_REG_FCC7)) {
         unsigned bit, count = 0;
         append_text(writer, "{", 1u);
         for (bit = 0; bit < 32u; ++bit) {
@@ -141,8 +141,7 @@ static void append_operand_register(mips_text_writer *writer, const cdisasm_mips
         append_text(writer, "}", 1u);
         return;
     }
-    if ((instruction_flags & CDISASM_MIPS_INSTRUCTION_FLAG_MDMX) != 0 &&
-        operand->reg >= CDISASM_MIPS_REG_FPR0 && operand->reg <= CDISASM_MIPS_REG_FPR31)
+    if ((instruction_flags & CDISASM_MIPS_INSTRUCTION_FLAG_MDMX) != 0 && operand->reg >= CDISASM_MIPS_REG_FPR0 && operand->reg <= CDISASM_MIPS_REG_FPR31)
         append_number(writer, "$v%u", (unsigned)(operand->reg - CDISASM_MIPS_REG_FPR0));
     else append_register(writer, operand->reg);
     if ((operand->detail.flags & CDISASM_MIPS_OPERAND_DETAIL_HAS_LANE) != 0) {
@@ -156,14 +155,29 @@ static void append_operand_register(mips_text_writer *writer, const cdisasm_mips
 static int decimal_control(cdisasm_mips_name_id name)
 {
     switch (name) {
-        case CDISASM_MIPS_NAME_SLL: case CDISASM_MIPS_NAME_SRL: case CDISASM_MIPS_NAME_SRA:
-        case CDISASM_MIPS_NAME_DSLL: case CDISASM_MIPS_NAME_DSRL: case CDISASM_MIPS_NAME_DSRA:
-        case CDISASM_MIPS_NAME_DSLL32: case CDISASM_MIPS_NAME_DSRL32: case CDISASM_MIPS_NAME_DSRA32:
-        case CDISASM_MIPS_NAME_ROTR: case CDISASM_MIPS_NAME_EXT: case CDISASM_MIPS_NAME_INS:
-        case CDISASM_MIPS_NAME_DEXT: case CDISASM_MIPS_NAME_DEXTM: case CDISASM_MIPS_NAME_DEXTU:
-        case CDISASM_MIPS_NAME_DINS: case CDISASM_MIPS_NAME_DINSM: case CDISASM_MIPS_NAME_DINSU:
-        case CDISASM_MIPS_NAME_RDHWR: case CDISASM_MIPS_NAME_LSA: case CDISASM_MIPS_NAME_DLSA:
-        case CDISASM_MIPS_NAME_DROTR: case CDISASM_MIPS_NAME_DROTR32: return 1;
+        case CDISASM_MIPS_NAME_SLL:
+        case CDISASM_MIPS_NAME_SRL:
+        case CDISASM_MIPS_NAME_SRA:
+        case CDISASM_MIPS_NAME_DSLL:
+        case CDISASM_MIPS_NAME_DSRL:
+        case CDISASM_MIPS_NAME_DSRA:
+        case CDISASM_MIPS_NAME_DSLL32:
+        case CDISASM_MIPS_NAME_DSRL32:
+        case CDISASM_MIPS_NAME_DSRA32:
+        case CDISASM_MIPS_NAME_ROTR:
+        case CDISASM_MIPS_NAME_EXT:
+        case CDISASM_MIPS_NAME_INS:
+        case CDISASM_MIPS_NAME_DEXT:
+        case CDISASM_MIPS_NAME_DEXTM:
+        case CDISASM_MIPS_NAME_DEXTU:
+        case CDISASM_MIPS_NAME_DINS:
+        case CDISASM_MIPS_NAME_DINSM:
+        case CDISASM_MIPS_NAME_DINSU:
+        case CDISASM_MIPS_NAME_RDHWR:
+        case CDISASM_MIPS_NAME_LSA:
+        case CDISASM_MIPS_NAME_DLSA:
+        case CDISASM_MIPS_NAME_DROTR:
+        case CDISASM_MIPS_NAME_DROTR32: return 1;
         default: return 0;
     }
 }
@@ -177,8 +191,7 @@ static size_t render_instruction(const cdisasm_mips_instruction *instruction, ui
     if (buffer_size != 0 && buffer == NULL) return 0;
     if (buffer_size != 0) buffer[0] = '\0';
     if ((flags & ~CDISASM_FORMAT_KNOWN_FLAGS_MASK) != 0 || instruction == NULL) return 0;
-    if (instruction->form_id >= 62000u && instruction->form_id < 65000u)
-        return cdisasm_mips_vu_format_instruction(instruction, flags, buffer, buffer_size);
+    if (instruction->form_id >= 62000u && instruction->form_id < 65000u) return cdisasm_mips_vu_format_instruction(instruction, flags, buffer, buffer_size);
     name = mips_mnemonics[instruction->name_id];
     if (name == NULL || name[0] == '\0') return 0;
     writer.buffer = buffer;
@@ -208,18 +221,18 @@ static size_t render_instruction(const cdisasm_mips_instruction *instruction, ui
         switch (operand->type) {
             case CDISASM_OPERAND_REGISTER:
                 append_operand_register(&writer, operand, instruction->instruction_flags);
-                if (operand->reg >= CDISASM_MIPS_REG_COP2_FIRST && operand->reg <= CDISASM_MIPS_REG_COP2_LAST &&
-                    ((operand->reg - CDISASM_MIPS_REG_COP2_FIRST) % 8u) != 0)
+                if (operand->reg >= CDISASM_MIPS_REG_COP2_FIRST && operand->reg <= CDISASM_MIPS_REG_COP2_LAST && ((operand->reg - CDISASM_MIPS_REG_COP2_FIRST) % 8u) != 0)
                     append_number(&writer, ", %u", (unsigned)(operand->reg - CDISASM_MIPS_REG_COP2_FIRST) % 8u);
                 break;
             case CDISASM_OPERAND_IMMEDIATE:
                 /* Netlogic's t,d syntax prints an opaque encoded UR field as
                  * $N. Its physical resource/effects are not yet established. */
-                if ((instruction->form_id == 65031u || instruction->form_id == 65032u) && index == 1u)
-                    append_number(&writer, "$%" PRIu64, operand->imm);
-                else if ((operand->flags & (CDISASM_MIPS_OPERAND_FLAG_RELATIVE | CDISASM_MIPS_OPERAND_FLAG_ABSOLUTE)) != 0) append_number(&writer, "0x%" PRIx64, operand->imm);
+                if ((instruction->form_id == 65031u || instruction->form_id == 65032u) && index == 1u) append_number(&writer, "$%" PRIu64, operand->imm);
+                else if ((operand->flags & (CDISASM_MIPS_OPERAND_FLAG_RELATIVE | CDISASM_MIPS_OPERAND_FLAG_ABSOLUTE)) != 0)
+                    append_number(&writer, "0x%" PRIx64, operand->imm);
                 else if ((operand->flags & CDISASM_MIPS_OPERAND_FLAG_SIGNED) != 0) append_signed(&writer, operand->imm);
-                else if ((instruction->form_id >= 55050u && instruction->form_id <= 55053u) || decimal_control(instruction->name_id)) append_number(&writer, "%" PRIu64, operand->imm);
+                else if ((instruction->form_id >= 55050u && instruction->form_id <= 55053u) || decimal_control(instruction->name_id))
+                    append_number(&writer, "%" PRIu64, operand->imm);
                 else append_number(&writer, "0x%" PRIx64, operand->imm);
                 break;
             case CDISASM_OPERAND_MEMORY:
@@ -231,8 +244,7 @@ static size_t render_instruction(const cdisasm_mips_instruction *instruction, ui
                     append_number(&writer, "0x%" PRIx64, operand->address);
                     break;
                 }
-                if (operand->index_reg != CDISASM_MIPS_REG_NONE &&
-                    (operand->flags & CDISASM_MIPS_OPERAND_FLAG_HAS_DISPLACEMENT) != 0) {
+                if (operand->index_reg != CDISASM_MIPS_REG_NONE && (operand->flags & CDISASM_MIPS_OPERAND_FLAG_HAS_DISPLACEMENT) != 0) {
                     append_signed(&writer, operand->imm);
                     append_text(&writer, "(", 1u);
                     append_register(&writer, operand->base_reg);
@@ -254,8 +266,7 @@ static size_t render_instruction(const cdisasm_mips_instruction *instruction, ui
     return writer.failed ? 0 : writer.length;
 }
 
-size_t cdisasm_mips_allegrex_unverified_format(const cdisasm_mips_instruction *instruction,
-    uint32_t flags, char *buffer, size_t buffer_size)
+size_t cdisasm_mips_allegrex_unverified_format(const cdisasm_mips_instruction *instruction, uint32_t flags, char *buffer, size_t buffer_size)
 {
     if (buffer_size != 0 && buffer == NULL) return 0;
     if (buffer_size != 0) buffer[0] = '\0';
@@ -277,7 +288,8 @@ size_t cdisasm_mips_allegrex_unverified_format(const cdisasm_mips_instruction *i
         return writer.failed ? 0 : writer.length;
     }
 #else
-    (void)instruction; (void)flags;
+    (void)instruction;
+    (void)flags;
     return 0;
 #endif
 }
@@ -291,16 +303,13 @@ size_t CDISASM_CALL cdisasm_mips_format(const cdisasm_mips_instruction *instruct
     return render_instruction(instruction, flags, buffer, buffer_size);
 }
 
-size_t CDISASM_CALL cdisasm_mips_allegrex_pattern_format(uint32_t word,
-    uint32_t flags, char *buffer, size_t buffer_size)
+size_t CDISASM_CALL cdisasm_mips_allegrex_pattern_format(uint32_t word, uint32_t flags, char *buffer, size_t buffer_size)
 {
     if (buffer_size != 0 && buffer == NULL) return 0;
     if (buffer_size != 0) buffer[0] = '\0';
 #if USE_EXTRA_OPCODES
     {
-        static const char *const field_names[] = {
-            "", "vd", "vs", "vt", "base", "disp", "imm", "cache", "vt_hi", "raw"
-        };
+        static const char *const field_names[] = {"", "vd", "vs", "vt", "base", "disp", "imm", "cache", "vt_hi", "raw"};
         const cdisasm_mips_encoding_pattern *pattern = cdisasm_mips_allegrex_pattern_find(word);
         const char *name;
         mips_text_writer writer = {buffer, buffer_size, 0, 0};
@@ -312,15 +321,13 @@ size_t CDISASM_CALL cdisasm_mips_allegrex_pattern_format(uint32_t word,
         append_number(&writer, " 0x%08" PRIx32 " ; candidate ", word);
         while (*name) {
             char letter = *name++;
-            if ((flags & CDISASM_FORMAT_UPPERCASE_OPCODE) && letter >= 'a' && letter <= 'z')
-                letter = (char)(letter - 'a' + 'A');
+            if ((flags & CDISASM_FORMAT_UPPERCASE_OPCODE) && letter >= 'a' && letter <= 'z') letter = (char)(letter - 'a' + 'A');
             append_text(&writer, &letter, 1u);
         }
         for (n = 0; n < pattern->field_count; ++n) {
             int64_t value;
             const cdisasm_mips_encoding_field *field = &pattern->field[n];
-            if (field->kind >= sizeof(field_names) / sizeof(field_names[0]) ||
-                cdisasm_mips_allegrex_pattern_field_value(pattern, word, n, &value) != CDISASM_STATUS_OK) {
+            if (field->kind >= sizeof(field_names) / sizeof(field_names[0]) || cdisasm_mips_allegrex_pattern_field_value(pattern, word, n, &value) != CDISASM_STATUS_OK) {
                 writer.failed = 1;
                 break;
             }
@@ -329,15 +336,17 @@ size_t CDISASM_CALL cdisasm_mips_allegrex_pattern_format(uint32_t word,
             append_number(&writer, "=%" PRId64, value);
         }
         {
-            const char *status = pattern->status == CDISASM_MIPS_PATTERN_OBSERVED_SYNTAX ? " [observed syntax]" :
-                pattern->status == CDISASM_MIPS_PATTERN_SOURCE_SYNTAX ? " [source syntax]" : " [unverified encoding]";
+            const char *status = pattern->status == CDISASM_MIPS_PATTERN_OBSERVED_SYNTAX ? " [observed syntax]"
+                                 : pattern->status == CDISASM_MIPS_PATTERN_SOURCE_SYNTAX ? " [source syntax]"
+                                                                                         : " [unverified encoding]";
             append_text(&writer, status, strlen(status));
         }
         finish_text(&writer);
         return writer.failed ? 0 : writer.length;
     }
 #else
-    (void)word; (void)flags;
+    (void)word;
+    (void)flags;
     return 0;
 #endif
 }
@@ -351,8 +360,7 @@ size_t CDISASM_CALL cdisasm_mips_format_v2(const cdisasm_mips_instruction_v2 *in
     return render_instruction(&instruction->instruction, flags, buffer, buffer_size);
 }
 
-size_t CDISASM_CALL cdisasm_mips_format_vu(const cdisasm_mips_vu_instruction *instruction,
-    uint32_t flags, char *buffer, size_t buffer_size)
+size_t CDISASM_CALL cdisasm_mips_format_vu(const cdisasm_mips_vu_instruction *instruction, uint32_t flags, char *buffer, size_t buffer_size)
 {
     mips_text_writer writer;
     char upper[512], lower[512];
@@ -374,8 +382,7 @@ size_t CDISASM_CALL cdisasm_mips_format_vu(const cdisasm_mips_vu_instruction *in
     return writer.failed ? 0 : writer.length;
 }
 
-size_t cdisasm_mips_v3_format_numeric(const cdisasm_mips_instruction *instruction,
-    uint32_t flags, char *buffer, size_t buffer_size)
+size_t cdisasm_mips_v3_format_numeric(const cdisasm_mips_instruction *instruction, uint32_t flags, char *buffer, size_t buffer_size)
 {
     if ((buffer_size != 0 && buffer == NULL) || (flags & ~CDISASM_FORMAT_KNOWN_FLAGS_MASK) != 0) return 0;
     return render_instruction(instruction, flags, buffer, buffer_size);

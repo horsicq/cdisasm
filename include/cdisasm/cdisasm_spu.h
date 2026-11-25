@@ -114,9 +114,9 @@ typedef struct cdisasm_spu_operand {
     uint8_t type, access, size, reg;
     uint8_t base, bits, shift, reserved;
     uint16_t flags, reserved2;
-    uint32_t raw;      /* Complete logical field, including ignored bits. */
-    int64_t value;     /* Encoded immediate/displacement after its recipe. */
-    uint64_t target;   /* Effective masked target, independent of value. */
+    uint32_t raw;    /* Complete logical field, including ignored bits. */
+    int64_t value;   /* Encoded immediate/displacement after its recipe. */
+    uint64_t target; /* Effective masked target, independent of value. */
 } cdisasm_spu_operand;
 
 typedef struct cdisasm_spu_instruction {
@@ -142,8 +142,10 @@ CDISASM_API cdisasm_status CDISASM_CALL cdisasm_spu_cpu_decode_flag_mask(cdisasm
  * any mask 2^n-1, 4<=n<=32 (ISA section3); arithmetic wraps at that mask.
  * Encoded address bits and signed displacements remain available verbatim.
  * On any failure the non-NULL result is cleared. */
-CDISASM_API uint32_t CDISASM_CALL cdisasm_spu_decode(cdisasm_spu_cpu_id cpu, uint32_t mode, const uint8_t *code, size_t code_size, uint64_t address, const cdisasm_decode_flags *flags, cdisasm_spu_instruction *instruction);
-CDISASM_API uint32_t CDISASM_CALL cdisasm_spu_decode_lslr(cdisasm_spu_cpu_id cpu, uint32_t mode, const uint8_t *code, size_t code_size, uint64_t address, const cdisasm_decode_flags *flags, uint32_t local_store_mask, cdisasm_spu_instruction *instruction);
+CDISASM_API uint32_t CDISASM_CALL cdisasm_spu_decode(cdisasm_spu_cpu_id cpu, uint32_t mode, const uint8_t *code, size_t code_size, uint64_t address,
+                                                     const cdisasm_decode_flags *flags, cdisasm_spu_instruction *instruction);
+CDISASM_API uint32_t CDISASM_CALL cdisasm_spu_decode_lslr(cdisasm_spu_cpu_id cpu, uint32_t mode, const uint8_t *code, size_t code_size, uint64_t address,
+                                                          const cdisasm_decode_flags *flags, uint32_t local_store_mask, cdisasm_spu_instruction *instruction);
 CDISASM_API uint32_t CDISASM_CALL cdisasm_spu_form_count(void);
 CDISASM_API const cdisasm_spu_form *CDISASM_CALL cdisasm_spu_forms(void);
 CDISASM_API const char *CDISASM_CALL cdisasm_spu_name(uint32_t name_id);
@@ -152,7 +154,8 @@ CDISASM_API const cdisasm_spu_alias *CDISASM_CALL cdisasm_spu_aliases(void);
 CDISASM_API uint32_t CDISASM_CALL cdisasm_spu_field_get(uint32_t word, const cdisasm_spu_form_operand *operand);
 CDISASM_API int CDISASM_CALL cdisasm_spu_field_set(uint32_t *word, const cdisasm_spu_form_operand *operand, uint32_t raw);
 CDISASM_API int CDISASM_CALL cdisasm_spu_form_available(const cdisasm_spu_form *form, cdisasm_spu_cpu_id cpu, uint32_t mode, const cdisasm_decode_flags *flags);
-CDISASM_API int CDISASM_CALL cdisasm_spu_form_valid(const cdisasm_spu_form *form, cdisasm_spu_cpu_id cpu, uint32_t mode, const cdisasm_decode_flags *flags, uint32_t word);
+CDISASM_API int CDISASM_CALL cdisasm_spu_form_valid(const cdisasm_spu_form *form, cdisasm_spu_cpu_id cpu, uint32_t mode, const cdisasm_decode_flags *flags,
+                                                    uint32_t word);
 /* Source vocabularies are profile- and direction-aware; unknown numeric
  * channels 0..127 remain representable and do not promise implementation.
  * write=0 selects read names, write>0 write names, write<0 either direction

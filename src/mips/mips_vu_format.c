@@ -20,7 +20,10 @@ static void text(vu_text *w, const char *s)
 {
     size_t count = strlen(s), copied;
     if (w->failed) return;
-    if (count > SIZE_MAX - w->length) { w->failed = 1; return; }
+    if (count > SIZE_MAX - w->length) {
+        w->failed = 1;
+        return;
+    }
     if (w->capacity && w->length < w->capacity - 1u) {
         copied = w->capacity - 1u - w->length;
         if (copied > count) copied = count;
@@ -51,20 +54,18 @@ static void components(vu_text *w, unsigned mask, int uppercase)
 {
     unsigned n;
     const char *letters = uppercase ? "XYZW" : "xyzw";
-    for (n = 0; n < 4u; ++n) if (mask & (8u >> n)) {
-        char letter[2] = { letters[n], '\0' };
-        text(w, letter);
-    }
+    for (n = 0; n < 4u; ++n)
+        if (mask & (8u >> n)) {
+            char letter[2] = {letters[n], '\0'};
+            text(w, letter);
+        }
 }
 
 static void reg_name(vu_text *w, unsigned reg)
 {
-    if (reg >= CDISASM_MIPS_REG_VU_VF_FIRST && reg <= CDISASM_MIPS_REG_VU_VF_LAST)
-        number(w, "vf%u", reg - CDISASM_MIPS_REG_VU_VF_FIRST);
-    else if (reg >= CDISASM_MIPS_REG_VU_VI_FIRST && reg <= CDISASM_MIPS_REG_VU_VI_LAST)
-        number(w, "vi%u", reg - CDISASM_MIPS_REG_VU_VI_FIRST);
-    else if (reg >= CDISASM_MIPS_REG_GPR0 && reg <= CDISASM_MIPS_REG_GPR31)
-        number(w, "$%u", reg - CDISASM_MIPS_REG_GPR0);
+    if (reg >= CDISASM_MIPS_REG_VU_VF_FIRST && reg <= CDISASM_MIPS_REG_VU_VF_LAST) number(w, "vf%u", reg - CDISASM_MIPS_REG_VU_VF_FIRST);
+    else if (reg >= CDISASM_MIPS_REG_VU_VI_FIRST && reg <= CDISASM_MIPS_REG_VU_VI_LAST) number(w, "vi%u", reg - CDISASM_MIPS_REG_VU_VI_FIRST);
+    else if (reg >= CDISASM_MIPS_REG_GPR0 && reg <= CDISASM_MIPS_REG_GPR31) number(w, "$%u", reg - CDISASM_MIPS_REG_GPR0);
     else {
         switch (reg) {
             case CDISASM_MIPS_REG_VU_ACC: text(w, "ACC"); break;
@@ -95,12 +96,10 @@ static const char *spelling(unsigned form)
     return NULL;
 }
 
-static void local_memory(vu_text *w, const cdisasm_mips_instruction *i,
-                         const cdisasm_mips_operand *o, const vu_form *f)
+static void local_memory(vu_text *w, const cdisasm_mips_instruction *i, const cdisasm_mips_operand *o, const vu_form *f)
 {
     unsigned mask = o->detail.reserved & 15u;
-    int integer = i->operand[0].reg >= CDISASM_MIPS_REG_VU_VI_FIRST &&
-                  i->operand[0].reg <= CDISASM_MIPS_REG_VU_VI_LAST;
+    int integer = i->operand[0].reg >= CDISASM_MIPS_REG_VU_VI_FIRST && i->operand[0].reg <= CDISASM_MIPS_REG_VU_VI_LAST;
     if (f->kind == 2u && (i->raw_instruction >> 25) < 64u) {
         unsigned encoded = i->raw_instruction & 2047u;
         int displacement = (int)(encoded ^ 1024u) - 1024;
@@ -115,10 +114,9 @@ static void local_memory(vu_text *w, const cdisasm_mips_instruction *i,
     if (integer) components(w, mask, 0);
 }
 
-size_t cdisasm_mips_vu_format_instruction(const cdisasm_mips_instruction *i,
-                                         uint32_t flags, char *buffer, size_t capacity)
+size_t cdisasm_mips_vu_format_instruction(const cdisasm_mips_instruction *i, uint32_t flags, char *buffer, size_t capacity)
 {
-    vu_text w = { buffer, capacity, 0u, 0 };
+    vu_text w = {buffer, capacity, 0u, 0};
     const vu_form *f;
     const char *name;
     unsigned n, visible = 0u;
@@ -130,7 +128,7 @@ size_t cdisasm_mips_vu_format_instruction(const cdisasm_mips_instruction *i,
     name = spelling(i->form_id);
     if (!name || (!f && i->form_id != 64998u && i->form_id != 64999u)) return 0;
     while (*name) {
-        char letter[2] = { *name++, '\0' };
+        char letter[2] = {*name++, '\0'};
         if (uppercase && letter[0] >= 'a' && letter[0] <= 'z') letter[0] -= 'a' - 'A';
         text(&w, letter);
     }
@@ -139,9 +137,10 @@ size_t cdisasm_mips_vu_format_instruction(const cdisasm_mips_instruction *i,
         components(&w, (i->raw_instruction >> 21) & 15u, uppercase);
     }
     if (f && f->kind == 1u && (i->raw_instruction & CDISASM_MIPS_VU_CONTROL_MASK)) {
-        static const char *const controls[5] = { "I", "E", "M", "D", "T" };
+        static const char *const controls[5] = {"I", "E", "M", "D", "T"};
         text(&w, "[");
-        for (n = 0; n < 5u; ++n) if (i->raw_instruction & (UINT32_C(1) << (31u - n))) text(&w, controls[n]);
+        for (n = 0; n < 5u; ++n)
+            if (i->raw_instruction & (UINT32_C(1) << (31u - n))) text(&w, controls[n]);
         text(&w, "]");
     }
     for (n = 0; n < i->operand_count; ++n) {
@@ -155,20 +154,22 @@ size_t cdisasm_mips_vu_format_instruction(const cdisasm_mips_instruction *i,
                 /* MR32's mnemonic uses the destination suffix on both visible
                  * operands; the typed source mask records the rotated fields
                  * actually read (Sony pp183/286). */
-                if (n == 1u && (i->name_id == CDISASM_MIPS_NAME_MR32 || i->name_id == CDISASM_MIPS_NAME_VMR32))
-                    mask = (i->raw_instruction >> 21) & 15u;
+                if (n == 1u && (i->name_id == CDISASM_MIPS_NAME_MR32 || i->name_id == CDISASM_MIPS_NAME_VMR32)) mask = (i->raw_instruction >> 21) & 15u;
                 components(&w, mask, 0);
-            }
-            else if (o->detail.flags & CDISASM_MIPS_OPERAND_DETAIL_HAS_LANE) {
-                char letter[2] = { "xyzw"[o->detail.lane_index & 3u], '\0' };
+            } else if (o->detail.flags & CDISASM_MIPS_OPERAND_DETAIL_HAS_LANE) {
+                char letter[2] = {"xyzw"[o->detail.lane_index & 3u], '\0'};
                 text(&w, letter);
             }
         } else if (o->type == CDISASM_OPERAND_MEMORY) {
             if (f && (f->properties & VU_PROP_LOCAL)) local_memory(&w, i, o, f);
-            else { signed_number(&w, o->imm); text(&w, "("); reg_name(&w, o->base_reg); text(&w, ")"); }
+            else {
+                signed_number(&w, o->imm);
+                text(&w, "(");
+                reg_name(&w, o->base_reg);
+                text(&w, ")");
+            }
         } else if (o->type == CDISASM_OPERAND_IMMEDIATE) {
-            if (i->form_id == 64998u || i->form_id == 64999u)
-                number(&w, "0x%08" PRIx64, o->imm); /* Lossless IEEE-754 payload, including NaNs. */
+            if (i->form_id == 64998u || i->form_id == 64999u) number(&w, "0x%08" PRIx64, o->imm); /* Lossless IEEE-754 payload, including NaNs. */
             else if (o->flags & CDISASM_MIPS_OPERAND_FLAG_HAS_ADDRESS) number(&w, "0x%" PRIx64, o->imm);
             else if (o->flags & CDISASM_MIPS_OPERAND_FLAG_SIGNED) signed_number(&w, o->imm);
             else number(&w, "0x%" PRIx64, o->imm);
@@ -178,10 +179,10 @@ size_t cdisasm_mips_vu_format_instruction(const cdisasm_mips_instruction *i,
     return w.failed ? 0u : w.length;
 }
 #else
-size_t cdisasm_mips_vu_format_instruction(const cdisasm_mips_instruction *i,
-                                         uint32_t flags, char *buffer, size_t capacity)
+size_t cdisasm_mips_vu_format_instruction(const cdisasm_mips_instruction *i, uint32_t flags, char *buffer, size_t capacity)
 {
-    (void)i; (void)flags;
+    (void)i;
+    (void)flags;
     if (buffer && capacity) buffer[0] = '\0';
     return 0;
 }

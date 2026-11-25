@@ -3433,8 +3433,7 @@ static int decode_mov_rm_immediate(x86_decoder *decoder, uint8_t opcode)
          * legacy prefix after REX cancels that REX in the prefix parser. */
         /* Unlike ordinary legacy branches, XBEGIN computes a 32-bit EIP
          * fallback even when its displacement has effective rel16 size. */
-        if (!add_relative_operand_with_target_bits(decoder, decoder->operand_bits == 64u ? 32u : decoder->operand_bits,
-                                                  decoder->mode == CDISASM_MODE_64 ? 64u : 32u)) {
+        if (!add_relative_operand_with_target_bits(decoder, decoder->operand_bits == 64u ? 32u : decoder->operand_bits, decoder->mode == CDISASM_MODE_64 ? 64u : 32u)) {
             return 0;
         }
 #if !USE_EXTRA_OPCODES

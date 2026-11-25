@@ -6,15 +6,13 @@
 int cdisasm_mips_xlp_owns(uint32_t raw)
 {
     uint32_t field = raw & UINT32_C(0xfc0007ff);
-    if (field == UINT32_C(0x70000038) || field == UINT32_C(0x7000001c) ||
-        field == UINT32_C(0x7000001d) || field == UINT32_C(0x70000006)) return 1;
+    if (field == UINT32_C(0x70000038) || field == UINT32_C(0x7000001c) || field == UINT32_C(0x7000001d) || field == UINT32_C(0x70000006)) return 1;
     field = raw & UINT32_C(0xfc00ffff);
-    if (field == UINT32_C(0x70000010) || field == UINT32_C(0x70000011) || field == UINT32_C(0x70000012) ||
-        field == UINT32_C(0x70000014) || field == UINT32_C(0x70000015) || field == UINT32_C(0x70000016) ||
-        field == UINT32_C(0x70000018) || field == UINT32_C(0x70000019)) return 1;
+    if (field == UINT32_C(0x70000010) || field == UINT32_C(0x70000011) || field == UINT32_C(0x70000012) || field == UINT32_C(0x70000014) ||
+        field == UINT32_C(0x70000015) || field == UINT32_C(0x70000016) || field == UINT32_C(0x70000018) || field == UINT32_C(0x70000019))
+        return 1;
     field = raw & UINT32_C(0xffe007ff);
-    if (field == UINT32_C(0x7000001e) || field == UINT32_C(0x7000001f) ||
-        field == UINT32_C(0x4a000001) || field == UINT32_C(0x4a000002)) return 1;
+    if (field == UINT32_C(0x7000001e) || field == UINT32_C(0x7000001f) || field == UINT32_C(0x4a000001) || field == UINT32_C(0x4a000002)) return 1;
     return (raw & UINT32_C(0xffe0ffff)) == UINT32_C(0x4a000003) || raw == UINT32_C(0x4a000004);
 }
 
@@ -41,16 +39,15 @@ static void xlp_register(cdisasm_mips_instruction *i, unsigned reg, unsigned acc
 uint64_t cdisasm_mips_xlp_required_flags(cdisasm_mips_form_id form)
 {
 #if USE_EXTRA_OPCODES && USE_MIPS_XLP
-    if (form >= 65020u && form <= 65037u)
-        return CDISASM_MIPS_DECODE_FLAG_XLP | (form >= 65034u ? CDISASM_MIPS_DECODE_FLAG_COP2 : 0);
+    if (form >= 65020u && form <= 65037u) return CDISASM_MIPS_DECODE_FLAG_XLP | (form >= 65034u ? CDISASM_MIPS_DECODE_FLAG_COP2 : 0);
 #else
     (void)form;
 #endif
     return 0;
 }
 
-cdisasm_status cdisasm_mips_decode_xlp(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-    cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *i)
+cdisasm_status cdisasm_mips_decode_xlp(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
+                                       cdisasm_mips_instruction *i)
 {
 #if USE_EXTRA_OPCODES && USE_MIPS_XLP
     size_t n;
@@ -62,12 +59,15 @@ cdisasm_status cdisasm_mips_decode_xlp(uint32_t raw, uint64_t address, cdisasm_m
         if ((raw & f->mask) != f->value) continue;
         if (mode != CDISASM_MIPS_MODE_64) return CDISASM_STATUS_INVALID_INSTRUCTION;
         required = cdisasm_mips_xlp_required_flags(f->form);
-        if (features == NULL || (features->bitmap[0] & required) != required)
-            return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+        if (features == NULL || (features->bitmap[0] & required) != required) return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
         memset(i, 0, sizeof(*i));
-        i->address = address; i->raw_instruction = raw; i->opcode_size = 4;
-        i->mode = (uint8_t)mode; i->revision = (uint8_t)revision;
-        i->name_id = f->name; i->form_id = f->form;
+        i->address = address;
+        i->raw_instruction = raw;
+        i->opcode_size = 4;
+        i->mode = (uint8_t)mode;
+        i->revision = (uint8_t)revision;
+        i->name_id = f->name;
+        i->form_id = f->form;
         if (f->recipe == 1u) {
             /* CRC/DCRC widths describe whole GPR dependencies only. Their
              * lane semantics and polynomial are not established by pinfo. */
@@ -81,7 +81,8 @@ cdisasm_status cdisasm_mips_decode_xlp(uint32_t raw, uint64_t address, cdisasm_m
             memory = &i->operand[i->operand_count++];
             memory->type = CDISASM_OPERAND_MEMORY;
             memory->base_reg = (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_GPR0 + rs);
-            memory->size = f->size; memory->access = CDISASM_OPERAND_ACCESS_READ_WRITE;
+            memory->size = f->size;
+            memory->access = CDISASM_OPERAND_ACCESS_READ_WRITE;
             memory->flags = CDISASM_OPERAND_FLAG_IMPLICIT;
             i->instruction_flags = CDISASM_MIPS_INSTRUCTION_FLAG_ATOMIC;
         } else if (f->recipe == 3u || f->recipe == 4u) {
@@ -95,7 +96,9 @@ cdisasm_status cdisasm_mips_decode_xlp(uint32_t raw, uint64_t address, cdisasm_m
              * or GPRrd dependency. Retain those bits as an opaque parameter. */
             encoded = &i->operand[i->operand_count++];
             encoded->type = CDISASM_OPERAND_IMMEDIATE;
-            encoded->imm = rd; encoded->size = 1; encoded->access = CDISASM_OPERAND_ACCESS_READ;
+            encoded->imm = rd;
+            encoded->size = 1;
+            encoded->access = CDISASM_OPERAND_ACCESS_READ;
         } else {
             if (f->recipe == 7u) xlp_register(i, rd, CDISASM_OPERAND_ACCESS_WRITE);
             if (f->recipe != 9u) xlp_register(i, rt, CDISASM_OPERAND_ACCESS_READ);
@@ -104,7 +107,12 @@ cdisasm_status cdisasm_mips_decode_xlp(uint32_t raw, uint64_t address, cdisasm_m
         return CDISASM_STATUS_OK;
     }
 #else
-    (void)raw; (void)address; (void)mode; (void)revision; (void)features; (void)i;
+    (void)raw;
+    (void)address;
+    (void)mode;
+    (void)revision;
+    (void)features;
+    (void)i;
 #endif
     return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
 }
@@ -114,18 +122,23 @@ size_t cdisasm_mips_xlp_effects(const cdisasm_mips_instruction *i, cdisasm_mips_
     cdisasm_mips_register_effect effects[8] = {{0}};
     size_t count = 0;
 #if USE_EXTRA_OPCODES && USE_MIPS_XLP
-#define EFFECT(reg_, access_, size_) do { effects[count].reg = (reg_); effects[count].access = (access_); effects[count].size = (size_); ++count; } while (0)
+#define EFFECT(reg_, access_, size_)       \
+    do {                                   \
+        effects[count].reg = (reg_);       \
+        effects[count].access = (access_); \
+        effects[count].size = (size_);     \
+        ++count;                           \
+    } while (0)
     if (i->form_id == 65020u) {
-        EFFECT(CDISASM_MIPS_REG_CP0(12,0), CDISASM_OPERAND_ACCESS_READ_WRITE, 4);
+        EFFECT(CDISASM_MIPS_REG_CP0(12, 0), CDISASM_OPERAND_ACCESS_READ_WRITE, 4);
     } else if (i->form_id == 65027u || i->form_id == 65028u) {
         EFFECT(CDISASM_MIPS_REG_XLP_CONTROL_BANK, i->form_id == 65027u ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_READ_WRITE, 0);
     } else if (i->form_id == 65034u || i->form_id == 65035u) {
         unsigned n;
         for (n = 0; n < 4; ++n)
-            EFFECT(CDISASM_MIPS_REG_COP2(i->form_id == 65034u ? 0 : 1,n),
-                i->form_id == 65034u ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_READ_WRITE, 8);
+            EFFECT(CDISASM_MIPS_REG_COP2(i->form_id == 65034u ? 0 : 1, n), i->form_id == 65034u ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_READ_WRITE, 8);
         /* XLP separates TX and RX status, unlike XLR's shared register2. */
-        EFFECT(CDISASM_MIPS_REG_COP2(i->form_id == 65034u ? 2 : 3,0), CDISASM_OPERAND_ACCESS_READ_WRITE, 4);
+        EFFECT(CDISASM_MIPS_REG_COP2(i->form_id == 65034u ? 2 : 3, 0), CDISASM_OPERAND_ACCESS_READ_WRITE, 4);
         EFFECT(CDISASM_MIPS_REG_XLP_FMN_BANK, CDISASM_OPERAND_ACCESS_READ_WRITE, 0);
     } else if (i->form_id == 65036u) {
         EFFECT(CDISASM_MIPS_REG_XLP_FMN_BANK, CDISASM_OPERAND_ACCESS_READ, 0);

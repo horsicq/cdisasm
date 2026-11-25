@@ -53,22 +53,46 @@ uint32_t CDISASM_CALL cdisasm_spu_cpu_mode_mask(cdisasm_spu_cpu_id cpu)
     return spu_cpu(cpu) ? CDISASM_SPU_MODE_MASK_32 : 0;
 }
 
-uint32_t CDISASM_CALL cdisasm_spu_profile_count(void) { return CDISASM_SPU_PROFILE_COUNT; }
-const cdisasm_spu_profile *CDISASM_CALL cdisasm_spu_profiles(void) { return spu_profiles; }
+uint32_t CDISASM_CALL cdisasm_spu_profile_count(void)
+{
+    return CDISASM_SPU_PROFILE_COUNT;
+}
+const cdisasm_spu_profile *CDISASM_CALL cdisasm_spu_profiles(void)
+{
+    return spu_profiles;
+}
 const cdisasm_spu_profile *CDISASM_CALL cdisasm_spu_profile_at(uint32_t index)
 {
     return index < CDISASM_SPU_PROFILE_COUNT ? &spu_profiles[index] : NULL;
 }
-uint32_t CDISASM_CALL cdisasm_spu_form_count(void) { return CDISASM_SPU_FORM_COUNT; }
-const cdisasm_spu_form *CDISASM_CALL cdisasm_spu_forms(void) { return spu_forms; }
+uint32_t CDISASM_CALL cdisasm_spu_form_count(void)
+{
+    return CDISASM_SPU_FORM_COUNT;
+}
+const cdisasm_spu_form *CDISASM_CALL cdisasm_spu_forms(void)
+{
+    return spu_forms;
+}
 const char *CDISASM_CALL cdisasm_spu_name(uint32_t name_id)
 {
     return name_id < CDISASM_SPU_NAME_COUNT ? spu_names[name_id] : NULL;
 }
-uint32_t CDISASM_CALL cdisasm_spu_alias_count(void) { return CDISASM_SPU_ALIAS_COUNT; }
-const cdisasm_spu_alias *CDISASM_CALL cdisasm_spu_aliases(void) { return spu_aliases; }
-uint32_t CDISASM_CALL cdisasm_spu_channel_count(void) { return CDISASM_SPU_CHANNEL_COUNT; }
-const cdisasm_spu_channel *CDISASM_CALL cdisasm_spu_channels(void) { return spu_channels; }
+uint32_t CDISASM_CALL cdisasm_spu_alias_count(void)
+{
+    return CDISASM_SPU_ALIAS_COUNT;
+}
+const cdisasm_spu_alias *CDISASM_CALL cdisasm_spu_aliases(void)
+{
+    return spu_aliases;
+}
+uint32_t CDISASM_CALL cdisasm_spu_channel_count(void)
+{
+    return CDISASM_SPU_CHANNEL_COUNT;
+}
+const cdisasm_spu_channel *CDISASM_CALL cdisasm_spu_channels(void)
+{
+    return spu_channels;
+}
 
 cdisasm_status CDISASM_CALL cdisasm_spu_cpu_decode_flag_mask(cdisasm_spu_cpu_id cpu, uint32_t mode, cdisasm_decode_flags *flags)
 {
@@ -100,8 +124,8 @@ static int spu_field_valid(const cdisasm_spu_form_operand *operand)
     for (index = 0; index < operand->field_count; ++index) {
         const cdisasm_spu_field *field = &operand->field[index];
         uint32_t source, value;
-        if (!field->width || field->width > 32 || field->lsb >= 32 || field->value_lsb >= 32 ||
-            field->width > 32u - field->lsb || field->width > 32u - field->value_lsb) return 0;
+        if (!field->width || field->width > 32 || field->lsb >= 32 || field->value_lsb >= 32 || field->width > 32u - field->lsb || field->width > 32u - field->value_lsb)
+            return 0;
         source = spu_mask(field->width) << field->lsb;
         value = spu_mask(field->width) << field->value_lsb;
         if ((source & encoded) || (value & used)) return 0;
@@ -149,7 +173,8 @@ int CDISASM_CALL cdisasm_spu_form_valid(const cdisasm_spu_form *form, cdisasm_sp
     unsigned index;
     if (!cdisasm_spu_form_available(form, cpu, mode, flags) || (word & form->mask) != form->match || form->operand_count > CDISASM_SPU_MAX_OPERANDS) return 0;
     if (form->constraint == CDISASM_SPU_CONSTRAINT_DE &&
-        (word & (CDISASM_SPU_CONTROL_DISABLE | CDISASM_SPU_CONTROL_ENABLE)) == (CDISASM_SPU_CONTROL_DISABLE | CDISASM_SPU_CONTROL_ENABLE)) return 0;
+        (word & (CDISASM_SPU_CONTROL_DISABLE | CDISASM_SPU_CONTROL_ENABLE)) == (CDISASM_SPU_CONTROL_DISABLE | CDISASM_SPU_CONTROL_ENABLE))
+        return 0;
     if (form->constraint == CDISASM_SPU_CONSTRAINT_HBR && (word & CDISASM_SPU_CONTROL_PREFETCH)) {
         for (index = 0; index < form->operand_count; ++index)
             if (form->operand[index].kind == CDISASM_SPU_OP_HINT && cdisasm_spu_field_get(word, &form->operand[index])) return 0;
@@ -197,19 +222,18 @@ static int64_t spu_value(uint32_t raw, const cdisasm_spu_form_operand *operand)
 {
     int64_t value = raw;
     if (operand->flags & CDISASM_SPU_OPERAND_SCALE_NEGATE) value = (int64_t)operand->bias - raw;
-    else if ((operand->flags & CDISASM_SPU_OPERAND_SIGNED) && operand->bits && (raw & (UINT32_C(1) << (operand->bits - 1u))))
-        value -= INT64_C(1) << operand->bits;
+    else if ((operand->flags & CDISASM_SPU_OPERAND_SIGNED) && operand->bits && (raw & (UINT32_C(1) << (operand->bits - 1u)))) value -= INT64_C(1) << operand->bits;
     return value * (INT64_C(1) << operand->shift);
 }
 
 uint32_t CDISASM_CALL cdisasm_spu_decode_lslr(cdisasm_spu_cpu_id cpu, uint32_t mode, const uint8_t *code, size_t code_size, uint64_t address,
-                                            const cdisasm_decode_flags *flags, uint32_t local_store_mask, cdisasm_spu_instruction *instruction)
+                                              const cdisasm_decode_flags *flags, uint32_t local_store_mask, cdisasm_spu_instruction *instruction)
 {
     uint32_t word, slot, last;
     if (!instruction) return 0;
     memset(instruction, 0, sizeof(*instruction));
-    if (!code || code_size < 4 || (address & 3u) || !spu_context(cpu, mode, flags) || local_store_mask < 15u ||
-        (local_store_mask & (local_store_mask + UINT32_C(1)))) return 0;
+    if (!code || code_size < 4 || (address & 3u) || !spu_context(cpu, mode, flags) || local_store_mask < 15u || (local_store_mask & (local_store_mask + UINT32_C(1))))
+        return 0;
     word = ((uint32_t)code[0] << 24) | ((uint32_t)code[1] << 16) | ((uint32_t)code[2] << 8) | code[3];
     last = spu_bucket_first[(word >> 21) + 1u];
     for (slot = spu_bucket_first[word >> 21]; slot < last; ++slot) {
@@ -266,7 +290,7 @@ uint32_t CDISASM_CALL cdisasm_spu_decode_lslr(cdisasm_spu_cpu_id cpu, uint32_t m
 }
 
 uint32_t CDISASM_CALL cdisasm_spu_decode(cdisasm_spu_cpu_id cpu, uint32_t mode, const uint8_t *code, size_t code_size, uint64_t address,
-                                       const cdisasm_decode_flags *flags, cdisasm_spu_instruction *instruction)
+                                         const cdisasm_decode_flags *flags, cdisasm_spu_instruction *instruction)
 {
     return cdisasm_spu_decode_lslr(cpu, mode, code, code_size, address, flags, CDISASM_SPU_DEFAULT_LOCAL_STORE_MASK, instruction);
 }

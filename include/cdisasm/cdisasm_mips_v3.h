@@ -74,7 +74,8 @@ CDISASM_MIPS_API cdisasm_status CDISASM_CALL cdisasm_mips_family_decode_flags_v3
 CDISASM_MIPS_API cdisasm_mips_family_mask CDISASM_CALL cdisasm_mips_family_mask_from_flags_v3(const cdisasm_mips_decode_flags *flags);
 
 CDISASM_MIPS_API cdisasm_status CDISASM_CALL cdisasm_mips_cpu_decode_flag_mask_v3(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode, cdisasm_mips_decode_flags *flags);
-CDISASM_MIPS_API cdisasm_status CDISASM_CALL cdisasm_mips_cpu_decode_context_v3(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode, cdisasm_mips_revision revision, cdisasm_mips_encoding encoding, cdisasm_mips_decode_context_v3 *context);
+CDISASM_MIPS_API cdisasm_status CDISASM_CALL cdisasm_mips_cpu_decode_context_v3(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                                                                cdisasm_mips_encoding encoding, cdisasm_mips_decode_context_v3 *context);
 CDISASM_MIPS_API int CDISASM_CALL cdisasm_mips_decode_context_add_family_v3(cdisasm_mips_decode_context_v3 *context, cdisasm_mips_family_id family_id);
 CDISASM_MIPS_API int CDISASM_CALL cdisasm_mips_decode_context_remove_family_v3(cdisasm_mips_decode_context_v3 *context, cdisasm_mips_family_id family_id);
 CDISASM_MIPS_API cdisasm_mips_family_mask CDISASM_CALL cdisasm_mips_decode_context_get_available_families_v3(const cdisasm_mips_decode_context_v3 *context);
@@ -83,8 +84,10 @@ CDISASM_MIPS_API cdisasm_mips_family_mask CDISASM_CALL cdisasm_mips_decode_conte
  * The structure header, bytes, operands and every requirement word take part
  * in strict replay validation. Unknown versions, sizes, bits and nonzero
  * reserved fields are invalid, including for formatting and effect queries. */
-CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_v3(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode, const uint8_t *code, size_t code_size, uint64_t address, const cdisasm_mips_decode_flags *flags, cdisasm_mips_instruction_v3 *instruction);
-CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_with_context_v3(const cdisasm_mips_decode_context_v3 *context, const uint8_t *code, size_t code_size, uint64_t address, cdisasm_mips_instruction_v3 *instruction);
+CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_v3(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode, const uint8_t *code, size_t code_size, uint64_t address,
+                                                              const cdisasm_mips_decode_flags *flags, cdisasm_mips_instruction_v3 *instruction);
+CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_with_context_v3(const cdisasm_mips_decode_context_v3 *context, const uint8_t *code, size_t code_size,
+                                                                           uint64_t address, cdisasm_mips_instruction_v3 *instruction);
 CDISASM_MIPS_API int CDISASM_CALL cdisasm_mips_instruction_validate_v3(const cdisasm_mips_instruction_v3 *instruction);
 /* Validated identification of an opt-in uncertain source view. Such results
  * describe encoded register views: operand sizes are encoded view sizes,
@@ -98,7 +101,8 @@ CDISASM_MIPS_API int CDISASM_CALL cdisasm_mips_instruction_is_unverified_v3(cons
  * returns its byte size and the canonical result; invalid input returns zero
  * with INVALID_ARGUMENT. In-place replay is supported. */
 CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_replay_v3(const cdisasm_mips_instruction_v3 *instruction, cdisasm_mips_instruction_v3 *result);
-CDISASM_MIPS_API size_t CDISASM_CALL cdisasm_mips_register_effects_v3(const cdisasm_mips_instruction_v3 *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
+CDISASM_MIPS_API size_t CDISASM_CALL cdisasm_mips_register_effects_v3(const cdisasm_mips_instruction_v3 *instruction, cdisasm_mips_register_effect *effects,
+                                                                      size_t capacity);
 CDISASM_MIPS_API cdisasm_mips_effect_limitations CDISASM_CALL cdisasm_mips_register_effect_limitations_v3(const cdisasm_mips_instruction_v3 *instruction);
 CDISASM_MIPS_API cdisasm_mips_family_mask CDISASM_CALL cdisasm_mips_instruction_family_mask_v3(const cdisasm_mips_instruction_v3 *instruction);
 CDISASM_MIPS_API cdisasm_mips_family_id CDISASM_CALL cdisasm_mips_instruction_family_v3(const cdisasm_mips_instruction_v3 *instruction);

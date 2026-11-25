@@ -8096,8 +8096,7 @@ static cdisasm_status decode_a64_base_system_extra(uint32_t word, cdisasm_arm_in
             return CDISASM_STATUS_INTERNAL_ERROR;
         }
         instruction->name_id = names[opc];
-        append_register(instruction, a64_reg(rd, sf != 0u, 0), size,
-                        opc == 1u ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE);
+        append_register(instruction, a64_reg(rd, sf != 0u, 0), size, opc == 1u ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE);
         append_register(instruction, a64_reg(rn, sf != 0u, 0), size, CDISASM_OPERAND_ACCESS_READ);
         append_immediate(instruction, immr, 1u);
         append_immediate(instruction, imms, 1u);

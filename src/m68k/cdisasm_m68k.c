@@ -53,9 +53,19 @@ static const struct {
     uint32_t ordinal;
     uint64_t options;
 } m68k_cf_parts[] = {
-    {"5202", 15, 0}, {"5204", 15, 0}, {"5206", 15, 0}, {"5206e", 16, F(MAC)}, {"5307", 16, F(MAC)},
-    {"5407", 19, F(MAC)}, {"5249", 16, F(MAC) | F(EMAC)}, {"528x", 17, F(MAC) | F(EMAC)}, {"521x", 17, 0},
-    {"547x", 22, 0}, {"548x", 22, 0}, {"5475", 22, 0}, {"5485", 22, 0},
+    {"5202", 15, 0},
+    {"5204", 15, 0},
+    {"5206", 15, 0},
+    {"5206e", 16, F(MAC)},
+    {"5307", 16, F(MAC)},
+    {"5407", 19, F(MAC)},
+    {"5249", 16, F(MAC) | F(EMAC)},
+    {"528x", 17, F(MAC) | F(EMAC)},
+    {"521x", 17, 0},
+    {"547x", 22, 0},
+    {"548x", 22, 0},
+    {"5475", 22, 0},
+    {"5485", 22, 0},
 };
 
 uint64_t CDISASM_CALL cdisasm_m68k_cpu_features(cdisasm_m68k_cpu_id cpu_id)
@@ -141,9 +151,8 @@ static const struct {
     uint16_t code;
     const char *name;
 } m68k_ctl_names[] = {
-    {0x000, "sfc"}, {0x001, "dfc"}, {0x002, "cacr"}, {0x003, "tc"}, {0x004, "itt0"}, {0x005, "itt1"}, {0x006, "dtt0"},
-    {0x007, "dtt1"}, {0x008, "buscr"}, {0x800, "usp"}, {0x801, "vbr"}, {0x802, "caar"}, {0x803, "msp"}, {0x804, "isp"},
-    {0x805, "mmusr"}, {0x806, "urp"}, {0x807, "srp"}, {0x808, "pcr"},
+    {0x000, "sfc"}, {0x001, "dfc"}, {0x002, "cacr"}, {0x003, "tc"},  {0x004, "itt0"}, {0x005, "itt1"},  {0x006, "dtt0"}, {0x007, "dtt1"}, {0x008, "buscr"},
+    {0x800, "usp"}, {0x801, "vbr"}, {0x802, "caar"}, {0x803, "msp"}, {0x804, "isp"},  {0x805, "mmusr"}, {0x806, "urp"},  {0x807, "srp"},  {0x808, "pcr"},
 };
 
 const char *CDISASM_CALL cdisasm_m68k_control_register_name(uint32_t code)
@@ -161,9 +170,9 @@ static const struct {
     uint16_t code;
     const char *name;
 } m68k_cf_ctl_names[] = {
-    {0x002, "cacr"}, {0x003, "asid"}, {0x004, "acr0"}, {0x005, "acr1"}, {0x006, "acr2"}, {0x007, "acr3"},
-    {0x008, "mmubar"}, {0x800, "usp"}, {0x801, "vbr"}, {0x80f, "pc"}, {0xc00, "rombar0"}, {0xc01, "rombar1"}, {0xc04, "rambar0"},
-    {0xc05, "rambar1"}, {0xc0c, "mpcr"}, {0xc0d, "edrambar"}, {0xc0e, "secmbar"}, {0xc0f, "mbar"},
+    {0x002, "cacr"},    {0x003, "asid"},    {0x004, "acr0"}, {0x005, "acr1"},     {0x006, "acr2"},    {0x007, "acr3"},
+    {0x008, "mmubar"},  {0x800, "usp"},     {0x801, "vbr"},  {0x80f, "pc"},       {0xc00, "rombar0"}, {0xc01, "rombar1"},
+    {0xc04, "rambar0"}, {0xc05, "rambar1"}, {0xc0c, "mpcr"}, {0xc0d, "edrambar"}, {0xc0e, "secmbar"}, {0xc0f, "mbar"},
 };
 
 const char *CDISASM_CALL cdisasm_m68k_cf_control_register_name(uint32_t code)
@@ -178,17 +187,27 @@ const char *CDISASM_CALL cdisasm_m68k_cf_control_register_name(uint32_t code)
  * and CPU32 user's manuals, MOVEC tables). */
 static int m68k_ctl_valid(uint64_t features, uint32_t code)
 {
-    int is020 = (features & F(BCCL)) != 0, is040 = (features & F(CACHE040)) != 0, is060 = (features & F(PLPA)) != 0 ||
-                                                                                       ((features & F(LPSTOP)) && is020);
+    int is020 = (features & F(BCCL)) != 0, is040 = (features & F(CACHE040)) != 0, is060 = (features & F(PLPA)) != 0 || ((features & F(LPSTOP)) && is020);
     if ((features & CDISASM_M68K_FEATURE_ALL_68K) == CDISASM_M68K_FEATURE_ALL_68K) return cdisasm_m68k_control_register_name(code) != NULL;
     switch (code) {
-        case 0x000: case 0x001: case 0x800: case 0x801: return 1;
+        case 0x000:
+        case 0x001:
+        case 0x800:
+        case 0x801: return 1;
         case 0x002: return is020;
         case 0x802: return is020 && !is040;
-        case 0x803: case 0x804: return is020 && !is060;
-        case 0x003: case 0x004: case 0x005: case 0x006: case 0x007: case 0x806: case 0x807: return is040;
+        case 0x803:
+        case 0x804: return is020 && !is060;
+        case 0x003:
+        case 0x004:
+        case 0x005:
+        case 0x006:
+        case 0x007:
+        case 0x806:
+        case 0x807: return is040;
         case 0x805: return is040 && !is060;
-        case 0x008: case 0x808: return is060;
+        case 0x008:
+        case 0x808: return is060;
         default: return 0;
     }
 }
@@ -234,9 +253,12 @@ static uint8_t m68k_size_bytes(char size)
     switch (size) {
         case 'b': return 1;
         case 'w': return 2;
-        case 'l': case 's': return 4;
-        case 'q': case 'd': return 8;
-        case 'x': case 'p': return 12;
+        case 'l':
+        case 's': return 4;
+        case 'q':
+        case 'd': return 8;
+        case 'x':
+        case 'p': return 12;
         default: return 0;
     }
 }
@@ -343,8 +365,7 @@ static int m68k_index_ea(m68k_reader *reader, uint64_t features, int pc, cdisasm
     return 1;
 }
 
-static int m68k_ea(m68k_reader *reader, uint64_t features, uint32_t mode, uint32_t reg, uint32_t class_modes, unsigned imm_bytes,
-                   cdisasm_m68k_operand *operand)
+static int m68k_ea(m68k_reader *reader, uint64_t features, uint32_t mode, uint32_t reg, uint32_t class_modes, unsigned imm_bytes, cdisasm_m68k_operand *operand)
 {
     uint32_t index = mode < 7 ? mode : reg <= 4 ? 7 + reg : 12, value;
     if (index > 11 || !(class_modes & (1u << index))) return 0;
@@ -389,8 +410,7 @@ static unsigned m68k_popcount(uint32_t value)
 }
 
 /* Decodes the operands of `form`; 0 when they are not encodable. */
-static int m68k_try(const cdisasm_m68k_form *form, uint64_t features, m68k_reader *reader, const uint32_t *words,
-                    cdisasm_m68k_instruction *instruction)
+static int m68k_try(const cdisasm_m68k_form *form, uint64_t features, m68k_reader *reader, const uint32_t *words, cdisasm_m68k_instruction *instruction)
 {
     unsigned i;
     unsigned imm_bytes = form->imm_bytes;
@@ -423,10 +443,14 @@ static int m68k_try(const cdisasm_m68k_form *form, uint64_t features, m68k_reade
                 if (operand->ea_mode == CDISASM_M68K_EA_IMM) operand->size = (uint8_t)(bytes == 1 ? 1 : bytes);
                 break;
             }
-            case CDISASM_M68K_OP_DREG: case CDISASM_M68K_OP_AREG: case CDISASM_M68K_OP_PREDEC: case CDISASM_M68K_OP_POSTINC:
-            case CDISASM_M68K_OP_IND: case CDISASM_M68K_OP_FPREG: case CDISASM_M68K_OP_FPDYN: case CDISASM_M68K_OP_KDYN:
-                operand->reg = (uint8_t)f0;
-                break;
+            case CDISASM_M68K_OP_DREG:
+            case CDISASM_M68K_OP_AREG:
+            case CDISASM_M68K_OP_PREDEC:
+            case CDISASM_M68K_OP_POSTINC:
+            case CDISASM_M68K_OP_IND:
+            case CDISASM_M68K_OP_FPREG:
+            case CDISASM_M68K_OP_FPDYN:
+            case CDISASM_M68K_OP_KDYN: operand->reg = (uint8_t)f0; break;
             case CDISASM_M68K_OP_RREG: operand->reg = (uint8_t)f0; break;
             case CDISASM_M68K_OP_DISP:
                 operand->reg = (uint8_t)f0;
@@ -436,12 +460,22 @@ static int m68k_try(const cdisasm_m68k_form *form, uint64_t features, m68k_reade
             case CDISASM_M68K_OP_IMM:
                 if (!m68k_immediate(reader, imm_bytes ? imm_bytes : 2, operand)) return 0;
                 break;
-            case CDISASM_M68K_OP_IMM_B: operand->size = 1; if (!m68k_immediate(reader, 1, operand)) return 0; break;
-            case CDISASM_M68K_OP_IMM_W: operand->size = 2; if (!m68k_immediate(reader, 2, operand)) return 0; break;
-            case CDISASM_M68K_OP_IMM_L: operand->size = 4; if (!m68k_immediate(reader, 4, operand)) return 0; break;
+            case CDISASM_M68K_OP_IMM_B:
+                operand->size = 1;
+                if (!m68k_immediate(reader, 1, operand)) return 0;
+                break;
+            case CDISASM_M68K_OP_IMM_W:
+                operand->size = 2;
+                if (!m68k_immediate(reader, 2, operand)) return 0;
+                break;
+            case CDISASM_M68K_OP_IMM_L:
+                operand->size = 4;
+                if (!m68k_immediate(reader, 4, operand)) return 0;
+                break;
             case CDISASM_M68K_OP_QUICK: operand->imm = f0 ? f0 : 8; break;
             case CDISASM_M68K_OP_SQ8: operand->imm = (uint64_t)m68k_sext(f0, 8); break;
-            case CDISASM_M68K_OP_U4: case CDISASM_M68K_OP_U3: operand->imm = f0; break;
+            case CDISASM_M68K_OP_U4:
+            case CDISASM_M68K_OP_U3: operand->imm = f0; break;
             case CDISASM_M68K_OP_S16:
                 if (!m68k_word(reader, &value)) return 0;
                 operand->imm = (uint64_t)m68k_sext(value, 16);
@@ -463,7 +497,9 @@ static int m68k_try(const cdisasm_m68k_form *form, uint64_t features, m68k_reade
                 if (!m68k_word(reader, &value)) return 0;
                 operand->imm = value & 0xffu;
                 break;
-            case CDISASM_M68K_OP_CCR: case CDISASM_M68K_OP_SR: case CDISASM_M68K_OP_USP: break;
+            case CDISASM_M68K_OP_CCR:
+            case CDISASM_M68K_OP_SR:
+            case CDISASM_M68K_OP_USP: break;
             case CDISASM_M68K_OP_BR8:
                 operand->imm = (instruction->address + 2u + (uint64_t)m68k_sext(words[0] & 0xffu, 8)) & UINT64_C(0xffffffff);
                 instruction->branch_target = operand->imm;
@@ -515,11 +551,15 @@ static int m68k_try(const cdisasm_m68k_form *form, uint64_t features, m68k_reade
                 operand->value = f1 | (width << 8) | (f0 << 16) | (dw << 17);
                 break;
             }
-            case CDISASM_M68K_OP_PAIR: case CDISASM_M68K_OP_DPAIR: case CDISASM_M68K_OP_RPAIR: case CDISASM_M68K_OP_FSC:
+            case CDISASM_M68K_OP_PAIR:
+            case CDISASM_M68K_OP_DPAIR:
+            case CDISASM_M68K_OP_RPAIR:
+            case CDISASM_M68K_OP_FSC:
                 operand->reg = (uint8_t)f0;
                 operand->reg2 = (uint8_t)f1;
                 break;
-            case CDISASM_M68K_OP_FPCTL: case CDISASM_M68K_OP_CACHE: operand->value = f0; break;
+            case CDISASM_M68K_OP_FPCTL:
+            case CDISASM_M68K_OP_CACHE: operand->value = f0; break;
             case CDISASM_M68K_OP_FPLIST: {
                 /* Control/postincrement mask: bit 7 = FP0. */
                 uint32_t out = 0;
@@ -545,7 +585,8 @@ static int m68k_try(const cdisasm_m68k_form *form, uint64_t features, m68k_reade
                 else if ((f0 & 0x18u) == 0x10u || ((f0 & 0x10u) && (features & F(MMU851)))) operand->reg = 3, operand->imm = f0 & 15u;
                 else return 0;
                 break;
-            case CDISASM_M68K_OP_MASK: case CDISASM_M68K_OP_LEVEL: operand->imm = f0; break;
+            case CDISASM_M68K_OP_MASK:
+            case CDISASM_M68K_OP_LEVEL: operand->imm = f0; break;
             case CDISASM_M68K_OP_CFCTL:
                 /* 0x800 is the other stack pointer of cores with a USP. */
                 if (!cdisasm_m68k_cf_control_register_name(f0) || (f0 == 0x800u && !(features & F(CFUSP)))) return 0;
@@ -573,8 +614,7 @@ static int m68k_try(const cdisasm_m68k_form *form, uint64_t features, m68k_reade
     return 1;
 }
 
-uint32_t CDISASM_CALL cdisasm_m68k_decode_features(uint64_t features, const uint8_t *code, size_t code_size, uint64_t address,
-                                                 cdisasm_m68k_instruction *instruction)
+uint32_t CDISASM_CALL cdisasm_m68k_decode_features(uint64_t features, const uint8_t *code, size_t code_size, uint64_t address, cdisasm_m68k_instruction *instruction)
 {
     uint32_t words[3], first;
     uint32_t index, last;
@@ -624,7 +664,7 @@ uint32_t CDISASM_CALL cdisasm_m68k_decode_features(uint64_t features, const uint
 }
 
 uint32_t CDISASM_CALL cdisasm_m68k_decode(cdisasm_m68k_cpu_id cpu_id, uint32_t mode, const uint8_t *code, size_t code_size, uint64_t address,
-                                        const cdisasm_decode_flags *flags, cdisasm_m68k_instruction *instruction)
+                                          const cdisasm_decode_flags *flags, cdisasm_m68k_instruction *instruction)
 {
     uint64_t features = cdisasm_m68k_cpu_features(cpu_id);
     (void)flags;

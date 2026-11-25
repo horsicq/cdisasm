@@ -87,12 +87,10 @@ uint32_t CDISASM_CALL cdisasm_decode(cdisasm_cpu_id cpu_id, uint32_t mode, const
             return cdisasm_m68k_decode((cdisasm_m68k_cpu_id)cpu_id, mode, code, code_size, address, flags, (cdisasm_m68k_instruction *)instruction);
 #endif
 #if USE_ARCH_PPC
-        case CDISASM_CPU_GROUP_PPC:
-            return cdisasm_ppc_decode((cdisasm_ppc_cpu_id)cpu_id, mode, code, code_size, address, flags, (cdisasm_ppc_instruction *)instruction);
+        case CDISASM_CPU_GROUP_PPC: return cdisasm_ppc_decode((cdisasm_ppc_cpu_id)cpu_id, mode, code, code_size, address, flags, (cdisasm_ppc_instruction *)instruction);
 #endif
 #if USE_ARCH_SPU
-        case CDISASM_CPU_GROUP_SPU:
-            return cdisasm_spu_decode((cdisasm_spu_cpu_id)cpu_id, mode, code, code_size, address, flags, (cdisasm_spu_instruction *)instruction);
+        case CDISASM_CPU_GROUP_SPU: return cdisasm_spu_decode((cdisasm_spu_cpu_id)cpu_id, mode, code, code_size, address, flags, (cdisasm_spu_instruction *)instruction);
 #endif
         default: return 0;
     }

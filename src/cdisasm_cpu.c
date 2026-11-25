@@ -352,8 +352,7 @@ static cdisasm_cpu_id current_apple_arm_cpu(void)
 
 static cdisasm_cpu_id current_linux_ppc_cpu(void)
 {
-#if defined(AT_PLATFORM) && defined(AT_HWCAP) && defined(AT_HWCAP2) \
-    && defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && defined(__ORDER_BIG_ENDIAN__)
+#if defined(AT_PLATFORM) && defined(AT_HWCAP) && defined(AT_HWCAP2) && defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && defined(__ORDER_BIG_ENDIAN__)
     cdisasm_internal_ppc_cpu_snapshot snapshot = {0};
     const int saved_errno = errno;
     int hwcap2_error;

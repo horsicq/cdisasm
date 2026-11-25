@@ -39,8 +39,14 @@ static void spu_register(spu_text *text, uint32_t reg, int force_prefix)
         return;
     }
     if (text->options & CDISASM_SPU_FORMAT_REGISTER_NAMES) {
-        if (reg == 0) { spu_put(text, "$LR"); return; }
-        if (reg == 1) { spu_put(text, "$SP"); return; }
+        if (reg == 0) {
+            spu_put(text, "$LR");
+            return;
+        }
+        if (reg == 1) {
+            spu_put(text, "$SP");
+            return;
+        }
         spu_put(text, "$");
     } else if (force_prefix) spu_put(text, "$");
     spu_number(text, reg);
@@ -55,16 +61,20 @@ static void spu_operand(spu_text *text, const cdisasm_spu_instruction *instructi
             /* GNU treats bare 'nop N' as repetition, not the false RT. */
             spu_register(text, operand->reg, base && !strcmp(base, "nop"));
             break;
-        case CDISASM_SPU_OP_IMMEDIATE:
-            spu_number(text, operand->value);
-            break;
+        case CDISASM_SPU_OP_IMMEDIATE: spu_number(text, operand->value); break;
         case CDISASM_SPU_OP_SPR:
-            if (operand->raw > 127) { text->ok = 0; break; }
+            if (operand->raw > 127) {
+                text->ok = 0;
+                break;
+            }
             if (text->options & CDISASM_SPU_FORMAT_REGISTER_NAMES) spu_put(text, "$sp");
             spu_number(text, operand->raw);
             break;
         case CDISASM_SPU_OP_CHANNEL:
-            if (operand->raw > 127) { text->ok = 0; break; }
+            if (operand->raw > 127) {
+                text->ok = 0;
+                break;
+            }
             if (text->options & CDISASM_SPU_FORMAT_REGISTER_NAMES) {
                 int direction = base && !strcmp(base, "rchcnt") ? -1 : (operand->access & CDISASM_SPU_ACCESS_WRITE) != 0;
                 const char *name = cdisasm_spu_channel_name(instruction->cpu_id, operand->raw, direction);
@@ -100,7 +110,8 @@ static int spu_begin(spu_text *text, const cdisasm_spu_instruction *instruction,
     const cdisasm_spu_form *form;
     if (out && capacity) out[0] = 0;
     if (!instruction || !out || !capacity || instruction->length != 4 || instruction->operand_count > CDISASM_SPU_MAX_OPERANDS ||
-        instruction->form_id >= cdisasm_spu_form_count() || (options & ~(CDISASM_SPU_FORMAT_REGISTER_NAMES | CDISASM_SPU_FORMAT_BASE_MNEMONICS))) return 0;
+        instruction->form_id >= cdisasm_spu_form_count() || (options & ~(CDISASM_SPU_FORMAT_REGISTER_NAMES | CDISASM_SPU_FORMAT_BASE_MNEMONICS)))
+        return 0;
     form = &cdisasm_spu_forms()[instruction->form_id];
     if (instruction->name_id != form->name_id || instruction->operand_count != form->operand_count) return 0;
     text->out = out;
@@ -116,7 +127,10 @@ size_t CDISASM_CALL cdisasm_spu_format_operand(const cdisasm_spu_instruction *in
     spu_text out;
     if (!spu_begin(&out, instruction, options, text, capacity) || index >= instruction->operand_count) return 0;
     spu_operand(&out, instruction, index);
-    if (!out.ok) { text[0] = 0; return 0; }
+    if (!out.ok) {
+        text[0] = 0;
+        return 0;
+    }
     return out.length;
 }
 
@@ -131,8 +145,7 @@ size_t CDISASM_CALL cdisasm_spu_format(const cdisasm_spu_instruction *instructio
     form = &cdisasm_spu_forms()[instruction->form_id];
     name = cdisasm_spu_name(instruction->name_id);
     if (!name) return 0;
-    if (!(options & CDISASM_SPU_FORMAT_BASE_MNEMONICS) ||
-        (form->constraint == CDISASM_SPU_CONSTRAINT_HBR && (instruction->controls & CDISASM_SPU_CONTROL_PREFETCH))) {
+    if (!(options & CDISASM_SPU_FORMAT_BASE_MNEMONICS) || (form->constraint == CDISASM_SPU_CONSTRAINT_HBR && (instruction->controls & CDISASM_SPU_CONTROL_PREFETCH))) {
         const cdisasm_spu_alias *aliases = cdisasm_spu_aliases();
         for (index = 0; index < cdisasm_spu_alias_count(); ++index) {
             /* HBRP has no conventional explicit-operand spelling. Its
@@ -160,10 +173,16 @@ size_t CDISASM_CALL cdisasm_spu_format(const cdisasm_spu_instruction *instructio
     if (count > CDISASM_SPU_MAX_OPERANDS) out.ok = 0;
     for (index = 0; index < count && out.ok; ++index) {
         uint32_t operand = alias ? alias->operand_index[index] : index;
-        if (operand >= instruction->operand_count) { out.ok = 0; break; }
+        if (operand >= instruction->operand_count) {
+            out.ok = 0;
+            break;
+        }
         spu_put(&out, index ? "," : " ");
         spu_operand(&out, instruction, operand);
     }
-    if (!out.ok) { text[0] = 0; return 0; }
+    if (!out.ok) {
+        text[0] = 0;
+        return 0;
+    }
     return out.length;
 }

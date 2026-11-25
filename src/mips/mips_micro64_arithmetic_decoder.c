@@ -35,24 +35,23 @@ static void micro64_imm(cdisasm_mips_instruction *i, uint64_t value, unsigned si
 static unsigned micro64_release(cdisasm_mips_revision revision)
 {
     switch (revision) {
-    /* Abstract ISA selectors follow the existing compact decoder policy;
-     * this does not claim a named classic processor implements microMIPS. */
-    case CDISASM_MIPS_REVISION_III:
-    case CDISASM_MIPS_REVISION_IV:
-    case CDISASM_MIPS_REVISION_V:
-    case CDISASM_MIPS_REVISION_64R1: return 1u;
-    case CDISASM_MIPS_REVISION_64R2: return 2u;
-    case CDISASM_MIPS_REVISION_64R3: return 3u;
-    case CDISASM_MIPS_REVISION_64R5: return 5u;
-    case CDISASM_MIPS_REVISION_64R6: return 6u;
-    default: return 0u;
+        /* Abstract ISA selectors follow the existing compact decoder policy;
+         * this does not claim a named classic processor implements microMIPS. */
+        case CDISASM_MIPS_REVISION_III:
+        case CDISASM_MIPS_REVISION_IV:
+        case CDISASM_MIPS_REVISION_V:
+        case CDISASM_MIPS_REVISION_64R1: return 1u;
+        case CDISASM_MIPS_REVISION_64R2: return 2u;
+        case CDISASM_MIPS_REVISION_64R3: return 3u;
+        case CDISASM_MIPS_REVISION_64R5: return 5u;
+        case CDISASM_MIPS_REVISION_64R6: return 6u;
+        default: return 0u;
     }
 }
 #endif
 
-cdisasm_status cdisasm_mips_micro64_arithmetic(uint32_t raw, uint64_t address,
-    cdisasm_mips_mode mode, cdisasm_mips_revision revision,
-    const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction)
+cdisasm_status cdisasm_mips_micro64_arithmetic(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                               const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction)
 {
 #if USE_EXTRA_OPCODES
     size_t n;
@@ -60,14 +59,13 @@ cdisasm_status cdisasm_mips_micro64_arithmetic(uint32_t raw, uint64_t address,
     /* The compact dispatcher has selected microMIPS before this entry point;
      * effective family flags no longer contain the encoding-selection bit. */
     (void)features;
-    for (n = 0u; n < sizeof(micro64_arithmetic_forms)/sizeof(micro64_arithmetic_forms[0]); ++n) {
+    for (n = 0u; n < sizeof(micro64_arithmetic_forms) / sizeof(micro64_arithmetic_forms[0]); ++n) {
         const micro64_arithmetic_form *f = &micro64_arithmetic_forms[n];
         const unsigned rt = (raw >> 21) & 31u, rs = (raw >> 16) & 31u;
         const unsigned high = (raw >> 11) & 31u, low = (raw >> 6) & 31u;
         cdisasm_mips_instruction candidate;
         if ((raw & f->mask) != f->value) continue;
-        if (mode != CDISASM_MIPS_MODE_64 || !release || release < f->minimum_release ||
-            (f->removed_release6 && release == 6u)) return CDISASM_STATUS_INVALID_INSTRUCTION;
+        if (mode != CDISASM_MIPS_MODE_64 || !release || release < f->minimum_release || (f->removed_release6 && release == 6u)) return CDISASM_STATUS_INVALID_INSTRUCTION;
         memset(&candidate, 0, sizeof(candidate));
         candidate.raw_instruction = raw;
         candidate.address = address;
@@ -92,9 +90,12 @@ cdisasm_status cdisasm_mips_micro64_arithmetic(uint32_t raw, uint64_t address,
             micro64_reg(&candidate, rs, CDISASM_OPERAND_ACCESS_READ);
         } else if (f->kind == 4u) {
             unsigned pos = low, size, msb = high;
-            if (f->variant == 0u) size = high + 1u; /* DEXT */
+            if (f->variant == 0u) size = high + 1u;       /* DEXT */
             else if (f->variant == 1u) size = high + 33u; /* DEXTM */
-            else if (f->variant == 2u) { pos += 32u; size = high + 1u; } /* DEXTU */
+            else if (f->variant == 2u) {
+                pos += 32u;
+                size = high + 1u;
+            } /* DEXTU */
             else {
                 if (f->variant >= 4u) msb += 32u;
                 if (f->variant == 5u) pos += 32u;
@@ -127,7 +128,12 @@ cdisasm_status cdisasm_mips_micro64_arithmetic(uint32_t raw, uint64_t address,
     }
     return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
 #else
-    (void)raw; (void)address; (void)mode; (void)revision; (void)features; (void)instruction;
+    (void)raw;
+    (void)address;
+    (void)mode;
+    (void)revision;
+    (void)features;
+    (void)instruction;
     return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
 #endif
 }

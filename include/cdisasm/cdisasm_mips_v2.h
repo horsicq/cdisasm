@@ -70,10 +70,14 @@ extern "C" {
  * use decode_vu for an eight-byte upper/lower issue pair. No encoding is guessed
  * from instruction bytes. Failures clear the complete envelope and retain only
  * instruction.last_error_id. */
-CDISASM_MIPS_API cdisasm_status CDISASM_CALL cdisasm_mips_cpu_decode_context_v2(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode, cdisasm_mips_revision revision, cdisasm_mips_encoding encoding, cdisasm_mips_decode_context *context);
-CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_v2(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode, const uint8_t *code, size_t code_size, uint64_t address, const cdisasm_mips_decode_flags *flags, cdisasm_mips_instruction_v2 *instruction);
-CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_with_context_v2(const cdisasm_mips_decode_context *context, const uint8_t *code, size_t code_size, uint64_t address, cdisasm_mips_instruction_v2 *instruction);
-CDISASM_MIPS_API size_t CDISASM_CALL cdisasm_mips_register_effects_v2(const cdisasm_mips_instruction_v2 *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
+CDISASM_MIPS_API cdisasm_status CDISASM_CALL cdisasm_mips_cpu_decode_context_v2(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                                                                cdisasm_mips_encoding encoding, cdisasm_mips_decode_context *context);
+CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_v2(cdisasm_mips_cpu_id cpu_id, cdisasm_mips_mode mode, const uint8_t *code, size_t code_size, uint64_t address,
+                                                              const cdisasm_mips_decode_flags *flags, cdisasm_mips_instruction_v2 *instruction);
+CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_with_context_v2(const cdisasm_mips_decode_context *context, const uint8_t *code, size_t code_size,
+                                                                           uint64_t address, cdisasm_mips_instruction_v2 *instruction);
+CDISASM_MIPS_API size_t CDISASM_CALL cdisasm_mips_register_effects_v2(const cdisasm_mips_instruction_v2 *instruction, cdisasm_mips_register_effect *effects,
+                                                                      size_t capacity);
 /* The V1 effect-limitations contract also applies to complete V2 envelopes. */
 CDISASM_MIPS_API cdisasm_mips_effect_limitations CDISASM_CALL cdisasm_mips_register_effect_limitations_v2(const cdisasm_mips_instruction_v2 *instruction);
 /* The V1 family-query contract also applies to complete V2 envelopes and
@@ -82,8 +86,10 @@ CDISASM_MIPS_API cdisasm_mips_effect_limitations CDISASM_CALL cdisasm_mips_regis
  * validation. */
 CDISASM_MIPS_API cdisasm_mips_family_mask CDISASM_CALL cdisasm_mips_instruction_family_mask_v2(const cdisasm_mips_instruction_v2 *instruction);
 CDISASM_MIPS_API cdisasm_mips_family_id CDISASM_CALL cdisasm_mips_instruction_family_v2(const cdisasm_mips_instruction_v2 *instruction);
-CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_vu(cdisasm_mips_vu_unit unit, const uint8_t *code, size_t code_size, uint64_t address, const cdisasm_mips_decode_flags *flags, cdisasm_mips_vu_instruction *instruction);
-CDISASM_MIPS_API size_t CDISASM_CALL cdisasm_mips_register_effects_vu(const cdisasm_mips_vu_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity);
+CDISASM_MIPS_API uint32_t CDISASM_CALL cdisasm_mips_decode_vu(cdisasm_mips_vu_unit unit, const uint8_t *code, size_t code_size, uint64_t address,
+                                                              const cdisasm_mips_decode_flags *flags, cdisasm_mips_vu_instruction *instruction);
+CDISASM_MIPS_API size_t CDISASM_CALL cdisasm_mips_register_effects_vu(const cdisasm_mips_vu_instruction *instruction, cdisasm_mips_register_effect *effects,
+                                                                      size_t capacity);
 CDISASM_MIPS_API cdisasm_mips_family_mask CDISASM_CALL cdisasm_mips_instruction_family_mask_vu(const cdisasm_mips_vu_instruction *instruction);
 CDISASM_MIPS_API cdisasm_mips_family_id CDISASM_CALL cdisasm_mips_instruction_family_vu(const cdisasm_mips_vu_instruction *instruction);
 #if USE_DISASM_FORMAT

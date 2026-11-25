@@ -26,7 +26,7 @@ static const mips16e2_form mips16e2_forms[] = {
 
 static unsigned e2_gpr(unsigned encoded)
 {
-    return encoded < 2u ? encoded+16u : encoded;
+    return encoded < 2u ? encoded + 16u : encoded;
 }
 static cdisasm_mips_operand *e2_register(cdisasm_mips_instruction *i, unsigned reg, unsigned size, unsigned access, int hidden)
 {
@@ -51,7 +51,7 @@ static void e2_memory(cdisasm_mips_instruction *i, unsigned base, int64_t displa
 {
     cdisasm_mips_operand *o = &i->operand[i->operand_count++];
     o->type = CDISASM_OPERAND_MEMORY;
-    o->base_reg = (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_GPR0+base);
+    o->base_reg = (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_GPR0 + base);
     o->imm = (uint64_t)displacement;
     o->size = (uint8_t)size;
     o->access = (uint8_t)access;
@@ -73,46 +73,44 @@ static cdisasm_status e2_lower(uint32_t raw, const mips16e2_form *f, cdisasm_mip
     unsigned gpr_size = i->mode == CDISASM_MIPS_MODE_64 ? 8u : 4u;
     unsigned immediate = e2_imm16(raw);
     if (f->kind == 1u) {
-        e2_register(i, CDISASM_MIPS_REG_GPR0+rx, gpr_size, f->aux == 2u ? 3u : 2u, 0);
+        e2_register(i, CDISASM_MIPS_REG_GPR0 + rx, gpr_size, f->aux == 2u ? 3u : 2u, 0);
         if (!f->aux) e2_register(i, CDISASM_MIPS_REG_GPR28, gpr_size, 1u, 0);
         e2_immediate(i, !f->aux ? (uint64_t)(int64_t)(int16_t)immediate : immediate, 2u, f->aux == 0u);
     } else if (f->kind == 2u) {
-        e2_register(i, CDISASM_MIPS_REG_GPR0+rx, gpr_size, f->access == 1u ? 2u : 1u, 0);
+        e2_register(i, CDISASM_MIPS_REG_GPR0 + rx, gpr_size, f->access == 1u ? 2u : 1u, 0);
         e2_memory(i, 28u, (int16_t)immediate, f->size, f->access);
     } else if (f->kind == 3u) {
-        e2_register(i, CDISASM_MIPS_REG_GPR0+rx, gpr_size, f->aux ? 3u : f->access == 1u ? 2u : 1u, 0);
+        e2_register(i, CDISASM_MIPS_REG_GPR0 + rx, gpr_size, f->aux ? 3u : f->access == 1u ? 2u : 1u, 0);
         e2_memory(i, rb, e2_imm9(raw), f->size, f->access);
-        if (f->name == CDISASM_MIPS_NAME_LL || f->name == CDISASM_MIPS_NAME_SC)
-            i->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_ATOMIC;
+        if (f->name == CDISASM_MIPS_NAME_LL || f->name == CDISASM_MIPS_NAME_SC) i->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_ATOMIC;
     } else if (f->kind == 4u) {
         e2_immediate(i, (raw >> 16) & 31u, 1u, 0);
         e2_memory(i, rx, e2_imm9(raw), 0u, 0u);
         if (f->aux) i->opcode_groups |= CDISASM_GROUP_PRIVILEGED;
     } else if (f->kind == 5u) {
         unsigned position = (raw >> 22) & 31u, msb = (raw >> 16) & 31u;
-        unsigned size = f->aux ? msb-position+1u : msb+1u;
-        if ((f->aux && msb < position) || (!f->aux && position+size > 32u)) return CDISASM_STATUS_INVALID_INSTRUCTION;
-        e2_register(i, CDISASM_MIPS_REG_GPR0+ry, gpr_size, f->aux ? 3u : 2u, 0);
-        e2_register(i, CDISASM_MIPS_REG_GPR0+(f->aux == 2u ? 0u : rx), gpr_size, 1u, 0);
+        unsigned size = f->aux ? msb - position + 1u : msb + 1u;
+        if ((f->aux && msb < position) || (!f->aux && position + size > 32u)) return CDISASM_STATUS_INVALID_INSTRUCTION;
+        e2_register(i, CDISASM_MIPS_REG_GPR0 + ry, gpr_size, f->aux ? 3u : 2u, 0);
+        e2_register(i, CDISASM_MIPS_REG_GPR0 + (f->aux == 2u ? 0u : rx), gpr_size, 1u, 0);
         e2_immediate(i, position, 1u, 0);
         e2_immediate(i, size, 1u, 0);
     } else if (f->kind == 6u) {
-        e2_register(i, CDISASM_MIPS_REG_GPR0+rx, gpr_size, 3u, 0);
-        e2_register(i, CDISASM_MIPS_REG_GPR0+(f->aux ? 0u : rb), gpr_size, 1u, 0);
-        if (f->name == CDISASM_MIPS_NAME_MOVTN || f->name == CDISASM_MIPS_NAME_MOVTZ)
-            e2_register(i, CDISASM_MIPS_REG_GPR24, gpr_size, 1u, 1);
-        else e2_register(i, CDISASM_MIPS_REG_GPR0+ry, gpr_size, 1u, 0);
+        e2_register(i, CDISASM_MIPS_REG_GPR0 + rx, gpr_size, 3u, 0);
+        e2_register(i, CDISASM_MIPS_REG_GPR0 + (f->aux ? 0u : rb), gpr_size, 1u, 0);
+        if (f->name == CDISASM_MIPS_NAME_MOVTN || f->name == CDISASM_MIPS_NAME_MOVTZ) e2_register(i, CDISASM_MIPS_REG_GPR24, gpr_size, 1u, 1);
+        else e2_register(i, CDISASM_MIPS_REG_GPR0 + ry, gpr_size, 1u, 0);
         i->opcode_groups |= CDISASM_GROUP_CONDITIONAL;
     } else if (f->kind == 7u) {
-        e2_register(i, CDISASM_MIPS_REG_GPR0+ry, 4u, f->aux ? 1u : 2u, 0);
+        e2_register(i, CDISASM_MIPS_REG_GPR0 + ry, 4u, f->aux ? 1u : 2u, 0);
         e2_register(i, CDISASM_MIPS_REG_CP0(raw & 31u, (raw >> 21) & 7u), 4u, f->aux ? 2u : 1u, 0);
         i->opcode_groups |= CDISASM_GROUP_PRIVILEGED;
     } else if (f->kind == 8u) {
-        if (!f->aux) e2_register(i, CDISASM_MIPS_REG_GPR0+ry, 4u, 2u, 0);
+        if (!f->aux) e2_register(i, CDISASM_MIPS_REG_GPR0 + ry, 4u, 2u, 0);
         e2_register(i, f->state, 4u, 3u, 1);
         i->opcode_groups |= CDISASM_GROUP_PRIVILEGED;
     } else if (f->kind == 9u) {
-        e2_register(i, CDISASM_MIPS_REG_GPR0+ry, gpr_size, 2u, 0);
+        e2_register(i, CDISASM_MIPS_REG_GPR0 + ry, gpr_size, 2u, 0);
         e2_immediate(i, (raw >> 16) & 31u, 1u, 0);
     } else if (f->kind == 10u) {
         if (f->name == CDISASM_MIPS_NAME_PAUSE) e2_register(i, CDISASM_MIPS_REG_LLBIT, 1u, 1u, 1);
@@ -126,16 +124,14 @@ static cdisasm_status e2_lower(uint32_t raw, const mips16e2_form *f, cdisasm_mip
 }
 #endif
 
-cdisasm_status cdisasm_mips_decode_mips16e2(uint32_t raw, uint32_t size, uint64_t address,
-                                         cdisasm_mips_mode mode, cdisasm_mips_revision revision,
-                                         const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction)
+cdisasm_status cdisasm_mips_decode_mips16e2(uint32_t raw, uint32_t size, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                            const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction)
 {
 #if USE_EXTRA_OPCODES
     size_t n;
-    if (!features || (features->bitmap[0] & CDISASM_MIPS_DECODE_FLAG_MIPS16E2) == 0u || size != 4u)
-        return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
+    if (!features || (features->bitmap[0] & CDISASM_MIPS_DECODE_FLAG_MIPS16E2) == 0u || size != 4u) return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
     if (!cdisasm_mips_mips16e2_owns(raw)) return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
-    for (n = 0; n < sizeof(mips16e2_forms)/sizeof(mips16e2_forms[0]); ++n) {
+    for (n = 0; n < sizeof(mips16e2_forms) / sizeof(mips16e2_forms[0]); ++n) {
         const mips16e2_form *f = &mips16e2_forms[n];
         cdisasm_mips_instruction candidate;
         cdisasm_status status;
@@ -157,7 +153,13 @@ cdisasm_status cdisasm_mips_decode_mips16e2(uint32_t raw, uint32_t size, uint64_
     }
     return CDISASM_STATUS_INVALID_INSTRUCTION;
 #else
-    (void)raw; (void)size; (void)address; (void)mode; (void)revision; (void)features; (void)instruction;
+    (void)raw;
+    (void)size;
+    (void)address;
+    (void)mode;
+    (void)revision;
+    (void)features;
+    (void)instruction;
     return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
 #endif
 }
@@ -166,10 +168,9 @@ uint64_t cdisasm_mips_mips16e2_required_flags(cdisasm_mips_form_id form)
 {
 #if USE_EXTRA_OPCODES
     size_t n;
-    for (n = 0; n < sizeof(mips16e2_forms)/sizeof(mips16e2_forms[0]); ++n)
+    for (n = 0; n < sizeof(mips16e2_forms) / sizeof(mips16e2_forms[0]); ++n)
         if (mips16e2_forms[n].form == form)
-            return CDISASM_MIPS_DECODE_FLAG_MIPS16 | CDISASM_MIPS_DECODE_FLAG_MIPS16E2 |
-                   (mips16e2_forms[n].mt ? CDISASM_MIPS_DECODE_FLAG_MT : 0u);
+            return CDISASM_MIPS_DECODE_FLAG_MIPS16 | CDISASM_MIPS_DECODE_FLAG_MIPS16E2 | (mips16e2_forms[n].mt ? CDISASM_MIPS_DECODE_FLAG_MT : 0u);
 #else
     (void)form;
 #endif
@@ -181,11 +182,15 @@ uint64_t cdisasm_mips_mips16e2_required_flags(cdisasm_mips_form_id form)
 int cdisasm_mips_interaptiv_mr2_decode(uint32_t raw, unsigned encoding, cdisasm_mips_instruction *i)
 {
 #if USE_EXTRA_OPCODES && USE_MIPS_INTERAPTIV_MR2
-    static const struct { uint32_t mask, value; uint16_t name, form; uint8_t kind, encoding; } forms[] = {
+    static const struct {
+        uint32_t mask, value;
+        uint16_t name, form;
+        uint8_t kind, encoding;
+    } forms[] = {
 #include "generated/mips_interaptiv_mr2_forms.inc"
     };
     size_t n;
-    for (n = 0; n < sizeof(forms)/sizeof(forms[0]); ++n) {
+    for (n = 0; n < sizeof(forms) / sizeof(forms[0]); ++n) {
         unsigned selector, xs, j, frame;
         uint32_t args = 0, statics = 0;
         cdisasm_mips_operand *o;
@@ -195,18 +200,16 @@ int cdisasm_mips_interaptiv_mr2_decode(uint32_t raw, unsigned encoding, cdisasm_
         i->name_id = forms[n].name;
         i->form_id = forms[n].form;
         if (forms[n].kind == 0u) {
-            e2_register(i, CDISASM_MIPS_REG_GPR0+e2_gpr((raw >> 8) & 7u), 4u, CDISASM_OPERAND_ACCESS_READ, 0);
-            e2_register(i, CDISASM_MIPS_REG_GPR0+e2_gpr((raw >> 5) & 7u), 4u, CDISASM_OPERAND_ACCESS_READ, 0);
-            e2_immediate(i, ((raw >> 16) & 31u)*16u, 2u, 0);
-            e2_immediate(i, (raw & 3u)+1u, 1u, 0);
+            e2_register(i, CDISASM_MIPS_REG_GPR0 + e2_gpr((raw >> 8) & 7u), 4u, CDISASM_OPERAND_ACCESS_READ, 0);
+            e2_register(i, CDISASM_MIPS_REG_GPR0 + e2_gpr((raw >> 5) & 7u), 4u, CDISASM_OPERAND_ACCESS_READ, 0);
+            e2_immediate(i, ((raw >> 16) & 31u) * 16u, 2u, 0);
+            e2_immediate(i, (raw & 3u) + 1u, 1u, 0);
             /* The MIPS-authored compiler block-copy contract establishes both
              * ranges. They are implicit in the four-operand assembly syntax. */
-            e2_memory(i, e2_gpr((raw >> 8) & 7u), ((raw >> 16) & 31u)*16u,
-                ((raw & 3u)+1u)*4u, CDISASM_OPERAND_ACCESS_WRITE);
-            i->operand[i->operand_count-1u].flags |= CDISASM_OPERAND_FLAG_IMPLICIT;
-            e2_memory(i, e2_gpr((raw >> 5) & 7u), ((raw >> 16) & 31u)*16u,
-                ((raw & 3u)+1u)*4u, CDISASM_OPERAND_ACCESS_READ);
-            i->operand[i->operand_count-1u].flags |= CDISASM_OPERAND_FLAG_IMPLICIT;
+            e2_memory(i, e2_gpr((raw >> 8) & 7u), ((raw >> 16) & 31u) * 16u, ((raw & 3u) + 1u) * 4u, CDISASM_OPERAND_ACCESS_WRITE);
+            i->operand[i->operand_count - 1u].flags |= CDISASM_OPERAND_FLAG_IMPLICIT;
+            e2_memory(i, e2_gpr((raw >> 5) & 7u), ((raw >> 16) & 31u) * 16u, ((raw & 3u) + 1u) * 4u, CDISASM_OPERAND_ACCESS_READ);
+            i->operand[i->operand_count - 1u].flags |= CDISASM_OPERAND_FLAG_IMPLICIT;
             /* The compiler models a block transfer and conservative clobbers
              * r12-r15. Exact per-count scratch effects require the manual. */
         } else {
@@ -217,26 +220,34 @@ int cdisasm_mips_interaptiv_mr2_decode(uint32_t raw, unsigned encoding, cdisasm_
             nargs = selector == 14u ? 4u : selector == 11u ? 0u : selector >> 2;
             nstatics = selector == 11u ? 4u : selector == 14u ? 0u : selector & 3u;
             xs = (raw >> 23) & 7u;
-            frame = ((((raw >> 19) & 15u) << 4) | ((raw >> 6) & 15u))*8u;
-            for (j = 0; j < nargs; ++j) args |= UINT32_C(1) << (4u+j);
-            for (j = 0; j < nstatics; ++j) statics |= UINT32_C(1) << (7u-j);
-            for (j = 0; j < xs; ++j) statics |= UINT32_C(1) << (j == 6u ? 30u : 18u+j);
+            frame = ((((raw >> 19) & 15u) << 4) | ((raw >> 6) & 15u)) * 8u;
+            for (j = 0; j < nargs; ++j) args |= UINT32_C(1) << (4u + j);
+            for (j = 0; j < nstatics; ++j) statics |= UINT32_C(1) << (7u - j);
+            for (j = 0; j < xs; ++j) statics |= UINT32_C(1) << (j == 6u ? 30u : 18u + j);
             if (raw & 0x1000u) statics |= UINT32_C(1) << 31;
             if (raw & 0x800u) statics |= UINT32_C(1) << 16;
             if (raw & 0x400u) statics |= UINT32_C(1) << 17;
-            o = &i->operand[i->operand_count++]; o->type = CDISASM_OPERAND_REGISTER; o->size = 4u;
-            o->detail.flags = CDISASM_MIPS_OPERAND_DETAIL_REGISTER_LIST; o->imm = args;
+            o = &i->operand[i->operand_count++];
+            o->type = CDISASM_OPERAND_REGISTER;
+            o->size = 4u;
+            o->detail.flags = CDISASM_MIPS_OPERAND_DETAIL_REGISTER_LIST;
+            o->imm = args;
             o->access = save ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_NONE;
             e2_immediate(i, frame, 2u, 0);
-            o = &i->operand[i->operand_count++]; o->type = CDISASM_OPERAND_REGISTER; o->size = 4u;
-            o->detail.flags = CDISASM_MIPS_OPERAND_DETAIL_REGISTER_LIST; o->imm = statics;
+            o = &i->operand[i->operand_count++];
+            o->type = CDISASM_OPERAND_REGISTER;
+            o->size = 4u;
+            o->detail.flags = CDISASM_MIPS_OPERAND_DETAIL_REGISTER_LIST;
+            o->imm = statics;
             o->access = save ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE;
             e2_register(i, CDISASM_MIPS_REG_GPR29, 4u, CDISASM_OPERAND_ACCESS_READ_WRITE, 1);
         }
         return 1;
     }
 #else
-    (void)raw; (void)encoding; (void)i;
+    (void)raw;
+    (void)encoding;
+    (void)i;
 #endif
     return 0;
 }

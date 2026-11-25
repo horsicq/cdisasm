@@ -46,8 +46,7 @@ static uint32_t inventory_revision_bit(cdisasm_mips_revision revision)
     }
 }
 
-static void inventory_register(cdisasm_mips_instruction *instruction, cdisasm_mips_reg_id reg,
-                               uint8_t size, cdisasm_operand_access access)
+static void inventory_register(cdisasm_mips_instruction *instruction, cdisasm_mips_reg_id reg, uint8_t size, cdisasm_operand_access access)
 {
     cdisasm_mips_operand *operand = &instruction->operand[instruction->operand_count++];
     operand->type = CDISASM_OPERAND_REGISTER;
@@ -56,8 +55,7 @@ static void inventory_register(cdisasm_mips_instruction *instruction, cdisasm_mi
     operand->access = access;
 }
 
-static void inventory_gpr(cdisasm_mips_instruction *instruction, unsigned reg,
-                         uint8_t size, cdisasm_operand_access access)
+static void inventory_gpr(cdisasm_mips_instruction *instruction, unsigned reg, uint8_t size, cdisasm_operand_access access)
 {
     inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_GPR0 + reg), size, access);
 }
@@ -70,15 +68,13 @@ static void inventory_immediate(cdisasm_mips_instruction *instruction, uint64_t 
     operand->size = size;
 }
 
-static void inventory_vector(cdisasm_mips_instruction *instruction, unsigned reg,
-                             uint8_t element_size, cdisasm_operand_access access)
+static void inventory_vector(cdisasm_mips_instruction *instruction, unsigned reg, uint8_t element_size, cdisasm_operand_access access)
 {
     inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + reg), 8u, access);
     instruction->operand[instruction->operand_count - 1u].detail.element_size = element_size;
 }
 
-static int inventory_mdmx_selector(cdisasm_mips_instruction *instruction, uint32_t raw,
-                                   uint8_t element_size)
+static int inventory_mdmx_selector(cdisasm_mips_instruction *instruction, uint32_t raw, uint8_t element_size)
 {
     unsigned selector = (raw >> 21) & 31u, vt = (raw >> 16) & 31u;
     cdisasm_mips_operand *operand;
@@ -98,8 +94,7 @@ static int inventory_mdmx_selector(cdisasm_mips_instruction *instruction, uint32
     return 1;
 }
 
-static void inventory_eva_memory(cdisasm_mips_instruction *instruction, uint32_t raw,
-                                uint8_t size, cdisasm_operand_access access)
+static void inventory_eva_memory(cdisasm_mips_instruction *instruction, uint32_t raw, uint8_t size, cdisasm_operand_access access)
 {
     unsigned offset = (raw >> 7) & 511u;
     cdisasm_mips_operand *operand = &instruction->operand[instruction->operand_count++];
@@ -112,8 +107,7 @@ static void inventory_eva_memory(cdisasm_mips_instruction *instruction, uint32_t
     if (size == 0u) operand->flags |= CDISASM_OPERAND_FLAG_ADDRESS_ONLY;
 }
 
-static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisasm_mips_mode mode,
-                           cdisasm_mips_instruction *instruction)
+static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisasm_mips_mode mode, cdisasm_mips_instruction *instruction)
 {
     unsigned rt = (raw >> 16) & 31u, rd = (raw >> 11) & 31u;
     switch (form->recipe) {
@@ -123,8 +117,7 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
             break;
         case 1: /* EVA signed-nine-bit memory operations, including tied SCE. */
             inventory_gpr(instruction, rt, 4u, form->access);
-            inventory_eva_memory(instruction, raw, form->size,
-                                 (form->aux & 1u) ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
+            inventory_eva_memory(instruction, raw, form->size, (form->aux & 1u) ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
             if (form->aux & 2u) instruction->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_ATOMIC;
             break;
         case 2: /* CACHEE/PREFE hint followed by address-only memory. */
@@ -134,11 +127,9 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
             break;
         case 3: /* CP0 select is part of the guest register identity. */
         case 7:
-            inventory_gpr(instruction, rt, form->size,
-                          (form->aux & 1u) ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
-            inventory_register(instruction,
-                form->recipe == 3 ? CDISASM_MIPS_REG_GUEST_CP0(rd, raw & 7u) : CDISASM_MIPS_REG_CP0(rd, raw & 7u),
-                form->size, (form->aux & 1u) ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
+            inventory_gpr(instruction, rt, form->size, (form->aux & 1u) ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
+            inventory_register(instruction, form->recipe == 3 ? CDISASM_MIPS_REG_GUEST_CP0(rd, raw & 7u) : CDISASM_MIPS_REG_CP0(rd, raw & 7u), form->size,
+                               (form->aux & 1u) ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
             if (form->recipe == 7 || form->name == CDISASM_MIPS_NAME_MFHGC0 || form->name == CDISASM_MIPS_NAME_MTHGC0)
                 instruction->operand[1].detail.flags |= CDISASM_MIPS_OPERAND_DETAIL_HIGH_HALF;
             instruction->opcode_groups = CDISASM_GROUP_PRIVILEGED;
@@ -190,8 +181,7 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
         }
         case 11:
             inventory_gpr(instruction, rt, 8u, form->aux ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
-            inventory_register(instruction, CDISASM_MIPS_REG_COP2_FIRST, 8u,
-                               form->aux ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
+            inventory_register(instruction, CDISASM_MIPS_REG_COP2_FIRST, 8u, form->aux ? CDISASM_OPERAND_ACCESS_WRITE : CDISASM_OPERAND_ACCESS_READ);
             instruction->operand[1].imm = raw & 65535u;
             instruction->operand[1].detail.flags = CDISASM_MIPS_OPERAND_DETAIL_REGISTER_SELECTOR;
             instruction->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_COP2;
@@ -207,9 +197,7 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
             instruction->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_ATOMIC;
             break;
         }
-        case 13:
-            inventory_gpr(instruction, (raw >> 21) & 31u, 8u, CDISASM_OPERAND_ACCESS_READ);
-            break;
+        case 13: inventory_gpr(instruction, (raw >> 21) & 31u, 8u, CDISASM_OPERAND_ACCESS_READ); break;
         case 14:
             inventory_gpr(instruction, rd, form->size, CDISASM_OPERAND_ACCESS_WRITE);
             inventory_gpr(instruction, (raw >> 21) & 31u, form->size, CDISASM_OPERAND_ACCESS_READ);
@@ -225,10 +213,10 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
         }
         case 16: {
             uint8_t size = mode == CDISASM_MIPS_MODE_64 ? 8u : 4u;
-            inventory_register(instruction, (cdisasm_mips_reg_id)((form->aux ? CDISASM_MIPS_REG_PREVIOUS_GPR_FIRST : CDISASM_MIPS_REG_GPR0) + rd),
-                               size, CDISASM_OPERAND_ACCESS_WRITE);
-            inventory_register(instruction, (cdisasm_mips_reg_id)((form->aux ? CDISASM_MIPS_REG_GPR0 : CDISASM_MIPS_REG_PREVIOUS_GPR_FIRST) + rt),
-                               size, CDISASM_OPERAND_ACCESS_READ);
+            inventory_register(instruction, (cdisasm_mips_reg_id)((form->aux ? CDISASM_MIPS_REG_PREVIOUS_GPR_FIRST : CDISASM_MIPS_REG_GPR0) + rd), size,
+                               CDISASM_OPERAND_ACCESS_WRITE);
+            inventory_register(instruction, (cdisasm_mips_reg_id)((form->aux ? CDISASM_MIPS_REG_GPR0 : CDISASM_MIPS_REG_PREVIOUS_GPR_FIRST) + rt), size,
+                               CDISASM_OPERAND_ACCESS_READ);
             instruction->opcode_groups = CDISASM_GROUP_PRIVILEGED;
             break;
         }
@@ -240,8 +228,7 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
                 if (form->aux >= 2u) inventory_gpr(instruction, rt, 4u, CDISASM_OPERAND_ACCESS_READ);
             }
             instruction->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_HI | CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_LO;
-            if (form->aux != 3u && form->aux != 6u)
-                instruction->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_READS_HI | CDISASM_MIPS_INSTRUCTION_FLAG_READS_LO;
+            if (form->aux != 3u && form->aux != 6u) instruction->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_READS_HI | CDISASM_MIPS_INSTRUCTION_FLAG_READS_LO;
             break;
         case 18: { /* SmartMIPS LWXS scales the index by four before addition. */
             cdisasm_mips_operand *operand;
@@ -291,9 +278,7 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
             inventory_vector(instruction, (raw >> 6) & 31u, form->size, CDISASM_OPERAND_ACCESS_WRITE);
             if (!inventory_mdmx_selector(instruction, raw, form->size)) return 0;
             break;
-        case 25:
-            inventory_vector(instruction, (raw >> 6) & 31u, form->size, CDISASM_OPERAND_ACCESS_WRITE);
-            break;
+        case 25: inventory_vector(instruction, (raw >> 6) & 31u, form->size, CDISASM_OPERAND_ACCESS_WRITE); break;
         case 26:
             inventory_vector(instruction, rd, form->size, CDISASM_OPERAND_ACCESS_READ);
             if (form->aux) inventory_vector(instruction, rt, form->size, CDISASM_OPERAND_ACCESS_READ);
@@ -315,9 +300,13 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
             uint8_t resource_size = (form->required_flags & CDISASM_MIPS_DECODE_FLAG_LOONGSON2F) ? 8u : form->size;
             inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + ((raw >> 6) & 31u)), resource_size, CDISASM_OPERAND_ACCESS_WRITE);
             inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + rd), resource_size, CDISASM_OPERAND_ACCESS_READ);
-            if (form->aux == 3u) inventory_register(instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + rt),
-                resource_size == 4u && (form->name == CDISASM_MIPS_NAME_SLL || form->name == CDISASM_MIPS_NAME_SRA || form->name == CDISASM_MIPS_NAME_SRL) ? 8u : resource_size,
-                CDISASM_OPERAND_ACCESS_READ);
+            if (form->aux == 3u)
+                inventory_register(
+                    instruction, (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_FPR0 + rt),
+                    resource_size == 4u && (form->name == CDISASM_MIPS_NAME_SLL || form->name == CDISASM_MIPS_NAME_SRA || form->name == CDISASM_MIPS_NAME_SRL)
+                        ? 8u
+                        : resource_size,
+                    CDISASM_OPERAND_ACCESS_READ);
             break;
         }
         case 30:
@@ -407,10 +396,8 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
             const uint8_t gpr_size = mode == CDISASM_MIPS_MODE_64 ? 8u : 4u;
             const int store = (form->aux & 1u) != 0;
             cdisasm_mips_operand *memory;
-            inventory_gpr(instruction, rt, gpr_size,
-                store ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE);
-            inventory_gpr(instruction, rd, store ? form->size : gpr_size,
-                store ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
+            inventory_gpr(instruction, rt, gpr_size, store ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE);
+            inventory_gpr(instruction, rd, store ? form->size : gpr_size, store ? CDISASM_OPERAND_ACCESS_READ : CDISASM_OPERAND_ACCESS_WRITE);
             memory = &instruction->operand[instruction->operand_count++];
             memory->type = CDISASM_OPERAND_MEMORY;
             memory->base_reg = (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_GPR0 + ((raw >> 21) & 31u));
@@ -428,8 +415,7 @@ static int inventory_lower(const mips_inventory_form *form, uint32_t raw, cdisas
     if (form->required_flags & CDISASM_MIPS_DECODE_FLAG_PAIRED_SINGLE) instruction->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_PAIRED_SINGLE;
     if (form->recipe == 32u || (form->recipe >= 33u && form->recipe <= 35u)) {
         instruction->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_FLOATING_POINT;
-        if (form->recipe != 34u) instruction->instruction_flags |=
-            CDISASM_MIPS_INSTRUCTION_FLAG_READS_FCSR | CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_FCSR;
+        if (form->recipe != 34u) instruction->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_READS_FCSR | CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_FCSR;
     }
     return 1;
 }
@@ -458,13 +444,14 @@ size_t cdisasm_mips_generated_effects(cdisasm_mips_form_id form_id, cdisasm_mips
         if (form->form != form_id) continue;
         for (resource = 0; resource < 8u; ++resource) {
             unsigned bit = 1u << resource;
-            cdisasm_operand_access access = (cdisasm_operand_access)((form->effect_reads & bit ? CDISASM_OPERAND_ACCESS_READ : 0u) |
-                                                                   (form->effect_writes & bit ? CDISASM_OPERAND_ACCESS_WRITE : 0u));
+            cdisasm_operand_access access =
+                (cdisasm_operand_access)((form->effect_reads & bit ? CDISASM_OPERAND_ACCESS_READ : 0u) | (form->effect_writes & bit ? CDISASM_OPERAND_ACCESS_WRITE : 0u));
             if (access == 0u) continue;
             if (effects != NULL && count < capacity) {
                 memset(&effects[count], 0, sizeof(effects[count]));
-                effects[count].reg = resource == 7u ? CDISASM_MIPS_REG_MDMX_ACC : resource == 6u ? CDISASM_MIPS_REG_SMARTMIPS_ACX :
-                    (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_OCTEON_MPL0 + resource);
+                effects[count].reg = resource == 7u   ? CDISASM_MIPS_REG_MDMX_ACC
+                                     : resource == 6u ? CDISASM_MIPS_REG_SMARTMIPS_ACX
+                                                      : (cdisasm_mips_reg_id)(CDISASM_MIPS_REG_OCTEON_MPL0 + resource);
                 effects[count].access = access;
                 effects[count].size = resource == 7u ? 24u : 8u;
             }
@@ -488,7 +475,7 @@ size_t cdisasm_mips_generated_effects(cdisasm_mips_form_id form_id, cdisasm_mips
              * without asserting a physical width or a cache/coherence model. */
             if (effects != NULL && count < capacity) {
                 memset(&effects[count], 0, sizeof(effects[count]));
-                effects[count].reg = CDISASM_MIPS_REG_CP0(17,0);
+                effects[count].reg = CDISASM_MIPS_REG_CP0(17, 0);
                 /* LLbit aliases LLAddr bit0. A conditional store reads the
                  * address and clears that bit, preserving its other bits. */
                 effects[count].access = form->aux & 1u ? CDISASM_OPERAND_ACCESS_READ_WRITE : CDISASM_OPERAND_ACCESS_WRITE;
@@ -498,14 +485,15 @@ size_t cdisasm_mips_generated_effects(cdisasm_mips_form_id form_id, cdisasm_mips
         return count;
     }
 #else
-    (void)form_id; (void)effects; (void)capacity;
+    (void)form_id;
+    (void)effects;
+    (void)capacity;
 #endif
     return 0;
 }
 
-cdisasm_status cdisasm_mips_decode_generated(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-                                           cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
-                                           cdisasm_mips_instruction *instruction)
+cdisasm_status cdisasm_mips_decode_generated(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                             const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction)
 {
 #if USE_EXTRA_OPCODES
     uint32_t revision_bit = inventory_revision_bit(revision);
@@ -520,16 +508,17 @@ cdisasm_status cdisasm_mips_decode_generated(uint32_t raw, uint64_t address, cdi
         cdisasm_mips_instruction result;
         if ((raw & form->mask) != form->value || !(revision_bit & form->revisions) || !(mode_bit & form->modes)) continue;
         if ((enabled & form->required_flags) != form->required_flags) continue;
-        if ((form->required_flags & CDISASM_MIPS_DECODE_FLAG_MDMX) != 0 &&
-            (enabled & CDISASM_MIPS_DECODE_FLAG_FPR32) != 0) { invalid = 1; continue; }
+        if ((form->required_flags & CDISASM_MIPS_DECODE_FLAG_MDMX) != 0 && (enabled & CDISASM_MIPS_DECODE_FLAG_FPR32) != 0) {
+            invalid = 1;
+            continue;
+        }
         if ((enabled & CDISASM_MIPS_DECODE_FLAG_FPR32) != 0) {
             if (form->recipe == 29u || form->recipe == 30u || (form->recipe >= 33u && form->recipe <= 35u) ||
                 (form->recipe == 32u && (form->aux || (form->size == 8u && ((raw >> 6) | (raw >> 11) | (raw >> 16)) & 1u)))) {
                 invalid = 1;
                 continue;
             }
-            if (form->recipe >= 40u && form->recipe <= 43u && (form->aux & 2u) != 0 &&
-                (form->recipe == 43u || (form->size == 8u && ((raw >> 16) & 1u) != 0))) {
+            if (form->recipe >= 40u && form->recipe <= 43u && (form->aux & 2u) != 0 && (form->recipe == 43u || (form->size == 8u && ((raw >> 16) & 1u) != 0))) {
                 invalid = 1;
                 continue;
             }
@@ -542,17 +531,24 @@ cdisasm_status cdisasm_mips_decode_generated(uint32_t raw, uint64_t address, cdi
         result.revision = (uint8_t)revision;
         result.name_id = form->name;
         result.form_id = form->form;
-        if ((enabled & CDISASM_MIPS_DECODE_FLAG_FPR32) != 0 && form->recipe == 32u)
-            result.instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_FPR32;
+        if ((enabled & CDISASM_MIPS_DECODE_FLAG_FPR32) != 0 && form->recipe == 32u) result.instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_FPR32;
         if ((enabled & CDISASM_MIPS_DECODE_FLAG_FPR32) != 0 && form->recipe >= 40u && form->recipe <= 43u && (form->aux & 2u) != 0)
             result.instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_FPR32;
-        if (!inventory_lower(form, raw, mode, &result)) { invalid = 1; continue; }
+        if (!inventory_lower(form, raw, mode, &result)) {
+            invalid = 1;
+            continue;
+        }
         *instruction = result;
         return CDISASM_STATUS_OK;
     }
     if (invalid) return CDISASM_STATUS_INVALID_INSTRUCTION;
 #else
-    (void)raw; (void)address; (void)mode; (void)revision; (void)features; (void)instruction;
+    (void)raw;
+    (void)address;
+    (void)mode;
+    (void)revision;
+    (void)features;
+    (void)instruction;
 #endif
     return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
 }

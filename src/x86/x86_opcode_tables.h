@@ -2332,7 +2332,7 @@ static const x86_opcode_descriptor x86_primary_map[] = {
     X86_OPCODE_DESCRIPTOR(CDISASM_X86_NAME_XCHG, X86_DECODE_FORM_XCHG_ACCUMULATOR, 7, CDISASM_GROUP_NONE),                                                      /* 97 */
     X86_OPCODE_DESCRIPTOR(CDISASM_X86_NAME_NONE, X86_DECODE_FORM_ACCUMULATOR_CONVERT, 0, CDISASM_GROUP_NONE),                                                   /* 98 */
     X86_OPCODE_DESCRIPTOR(CDISASM_X86_NAME_NONE, X86_DECODE_FORM_ACCUMULATOR_SIGN_EXTEND, 0, CDISASM_GROUP_NONE),                                               /* 99 */
-    X86_OPCODE_DESCRIPTOR(CDISASM_X86_NAME_CALL_FAR, X86_DECODE_FORM_FAR_CALL, 0, CDISASM_GROUP_CALL),                                                         /* 9A */
+    X86_OPCODE_DESCRIPTOR(CDISASM_X86_NAME_CALL_FAR, X86_DECODE_FORM_FAR_CALL, 0, CDISASM_GROUP_CALL),                                                          /* 9A */
     X86_OPCODE_DESCRIPTOR(CDISASM_X86_NAME_WAIT, X86_DECODE_FORM_FIXED, 0, CDISASM_GROUP_NONE),                                                                 /* 9B */
     X86_OPCODE_DESCRIPTOR(CDISASM_X86_NAME_NONE, X86_DECODE_FORM_FLAGS_STACK, 0, CDISASM_GROUP_NONE),                                                           /* 9C */
     X86_OPCODE_DESCRIPTOR(CDISASM_X86_NAME_NONE, X86_DECODE_FORM_FLAGS_STACK, 1, CDISASM_GROUP_NONE),                                                           /* 9D */

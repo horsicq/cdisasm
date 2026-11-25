@@ -9,8 +9,7 @@ int cdisasm_mips_allegrex_encoding_allowed(uint32_t raw)
 {
     unsigned op = raw >> 26, format = (raw >> 21) & 31u, fn = raw & 63u;
     if (op == 17u) {
-        if (format == 1u || format == 3u || format == 5u || format == 7u ||
-            format == 17u || format == 21u || format == 22u) return 0;
+        if (format == 1u || format == 3u || format == 5u || format == 7u || format == 17u || format == 21u || format == 22u) return 0;
         if (format == 16u && ((fn >= 8u && fn <= 11u) || fn == 33u || fn == 37u || fn == 38u)) return 0;
         if (format == 20u && fn != 32u) return 0;
     }
@@ -27,15 +26,15 @@ int cdisasm_mips_allegrex_owns(uint32_t raw)
 {
     unsigned op = raw >> 26, fn = raw & 63u, sa = (raw >> 6) & 31u;
     unsigned rd = (raw >> 11) & 31u, rt = (raw >> 16) & 31u, rs = (raw >> 21) & 31u;
-    if (op == 24u || op == 25u || op == 27u || op == 50u || op == 52u || op == 53u || op == 54u ||
-        op == 55u || op == 58u || op == 60u || op == 61u || op == 62u || op == 63u) return 1;
+    if (op == 24u || op == 25u || op == 27u || op == 50u || op == 52u || op == 53u || op == 54u || op == 55u || op == 58u || op == 60u || op == 61u || op == 62u ||
+        op == 63u)
+        return 1;
     if (op == 18u && (rs == 3u || rs == 7u || rs == 8u)) return 1;
-    if (op == 0u && sa == 0u && ((rt == 0u && (fn == 22u || fn == 23u)) || fn == 44u || fn == 45u ||
-        (rd == 0u && (fn == 28u || fn == 29u || fn == 46u || fn == 47u)))) return 1;
+    if (op == 0u && sa == 0u && ((rt == 0u && (fn == 22u || fn == 23u)) || fn == 44u || fn == 45u || (rd == 0u && (fn == 28u || fn == 29u || fn == 46u || fn == 47u))))
+        return 1;
     if (op == 28u && sa == 0u && rd == 0u && rs == 0u && (fn == 36u || fn == 38u || (fn == 0u && rt == 0u))) return 1;
     if (op == 31u && (fn == 0u || fn == 4u || fn == 24u || fn == 32u)) return 1;
-    if (op == 0u && (((fn == 0u || fn == 2u || fn == 3u) && rs != 0u) ||
-                     ((fn == 4u || fn == 6u || fn == 7u) && sa != 0u))) return 1;
+    if (op == 0u && (((fn == 0u || fn == 2u || fn == 3u) && rs != 0u) || ((fn == 4u || fn == 6u || fn == 7u) && sa != 0u))) return 1;
     return 0;
 }
 
@@ -93,23 +92,26 @@ static int allegrex_lower(uint32_t raw, const allegrex_form *form, cdisasm_mips_
                 if ((r->aux & 2u) != 0u) value ^= 32u;
                 reg = CDISASM_MIPS_REG_VFPU_MATRIX(value);
             } else switch (r->aux) {
-            case 0: reg = CDISASM_MIPS_REG_VFPU_SCALAR(value); break;
-            case 1: reg = CDISASM_MIPS_REG_VFPU_VECTOR(value); break;
-            case 2: reg = CDISASM_MIPS_REG_GPR0 + value; break;
-            case 3:
-                /* Undefined/out-of-range control selectors have no verified
-                 * architectural register semantics in the pinned source. */
-                if (value > 15u || value == 5u || value == 6u) return 0;
-                reg = CDISASM_MIPS_REG_VFPU_CONTROL(value); break;
-            case 4: reg = CDISASM_MIPS_REG_VFPU_CONTROL(3u); break;
-            case 5:
-                value |= (raw & 3u) << 5;
-                reg = CDISASM_MIPS_REG_VFPU_SCALAR(value); break;
-            case 6:
-                value |= (raw & 1u) << 5;
-                reg = CDISASM_MIPS_REG_VFPU_VECTOR(value); break;
-            default: return 0;
-            }
+                    case 0: reg = CDISASM_MIPS_REG_VFPU_SCALAR(value); break;
+                    case 1: reg = CDISASM_MIPS_REG_VFPU_VECTOR(value); break;
+                    case 2: reg = CDISASM_MIPS_REG_GPR0 + value; break;
+                    case 3:
+                        /* Undefined/out-of-range control selectors have no verified
+                         * architectural register semantics in the pinned source. */
+                        if (value > 15u || value == 5u || value == 6u) return 0;
+                        reg = CDISASM_MIPS_REG_VFPU_CONTROL(value);
+                        break;
+                    case 4: reg = CDISASM_MIPS_REG_VFPU_CONTROL(3u); break;
+                    case 5:
+                        value |= (raw & 3u) << 5;
+                        reg = CDISASM_MIPS_REG_VFPU_SCALAR(value);
+                        break;
+                    case 6:
+                        value |= (raw & 1u) << 5;
+                        reg = CDISASM_MIPS_REG_VFPU_VECTOR(value);
+                        break;
+                    default: return 0;
+                }
             o = allegrex_reg(i, reg, r->size, r->access);
             if (r->aux == 4u) {
                 o->detail.flags = CDISASM_MIPS_OPERAND_DETAIL_HAS_LANE;
@@ -153,8 +155,7 @@ static int allegrex_lower(uint32_t raw, const allegrex_form *form, cdisasm_mips_
             if (r->aux) {
                 control |= ((raw >> (lane + 8u)) & 1u) << 2;
                 if (control == 2u) return -1; /* reserved, unmasked saturation */
-            }
-            else {
+            } else {
                 control |= ((raw >> (lane + 8u)) & 1u) << 2;
                 control |= ((raw >> (lane + 12u)) & 1u) << 3;
                 control |= ((raw >> (lane + 16u)) & 1u) << 4;
@@ -186,21 +187,19 @@ static int allegrex_scalar(uint32_t raw, cdisasm_mips_instruction *i)
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rd, 4u, 2u);
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rs, 4u, 1u);
     } else if (op == 0u && sa == 0u && (fn == 44u || fn == 45u || fn == 10u || fn == 11u)) {
-        id = fn == 44u ? CDISASM_MIPS_NAME_MAX : fn == 45u ? CDISASM_MIPS_NAME_MIN :
-             fn == 10u ? CDISASM_MIPS_NAME_MOVZ : CDISASM_MIPS_NAME_MOVN;
+        id = fn == 44u ? CDISASM_MIPS_NAME_MAX : fn == 45u ? CDISASM_MIPS_NAME_MIN : fn == 10u ? CDISASM_MIPS_NAME_MOVZ : CDISASM_MIPS_NAME_MOVN;
         form += fn;
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rd, 4u, fn < 12u ? 3u : 2u);
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rs, 4u, 1u);
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rt, 4u, 1u);
         if (fn < 12u) i->opcode_groups |= CDISASM_GROUP_CONDITIONAL;
     } else if (op == 0u && sa == 0u && rd == 0u && (fn == 28u || fn == 29u || fn == 46u || fn == 47u)) {
-        id = fn == 28u ? CDISASM_MIPS_NAME_MADD : fn == 29u ? CDISASM_MIPS_NAME_MADDU :
-             fn == 46u ? CDISASM_MIPS_NAME_MSUB : CDISASM_MIPS_NAME_MSUBU;
+        id = fn == 28u ? CDISASM_MIPS_NAME_MADD : fn == 29u ? CDISASM_MIPS_NAME_MADDU : fn == 46u ? CDISASM_MIPS_NAME_MSUB : CDISASM_MIPS_NAME_MSUBU;
         form += fn;
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rs, 4u, 1u);
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rt, 4u, 1u);
-        i->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_READS_HI | CDISASM_MIPS_INSTRUCTION_FLAG_READS_LO |
-                                CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_HI | CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_LO;
+        i->instruction_flags |= CDISASM_MIPS_INSTRUCTION_FLAG_READS_HI | CDISASM_MIPS_INSTRUCTION_FLAG_READS_LO | CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_HI |
+                                CDISASM_MIPS_INSTRUCTION_FLAG_WRITES_LO;
     } else if (op == 28u && sa == 0u && rd == 0u && rs == 0u && (fn == 36u || fn == 38u || (fn == 0u && rt == 0u))) {
         id = fn == 36u ? CDISASM_MIPS_NAME_MFIC : fn == 38u ? CDISASM_MIPS_NAME_MTIC : CDISASM_MIPS_NAME_HALT;
         form += 64u + fn;
@@ -216,10 +215,12 @@ static int allegrex_scalar(uint32_t raw, cdisasm_mips_instruction *i)
         /* Only part of SA is decoded; RS is ignored. Preserve canonical form
          * identities while accepting the aliases in the published PSP probe.
          * See allegrex_encoding_facts.json: scalar_bit_operation_domains. */
-        unsigned operation = sa < 16u ? 2u + (sa & 1u) :
-                             (sa & 4u) ? 20u : (sa & 8u) ? 24u : 16u;
-        id = operation == 2u ? CDISASM_MIPS_NAME_WSBH : operation == 3u ? CDISASM_MIPS_NAME_WSBW :
-             operation == 16u ? CDISASM_MIPS_NAME_SEB : operation == 20u ? CDISASM_MIPS_NAME_BITREV : CDISASM_MIPS_NAME_SEH;
+        unsigned operation = sa < 16u ? 2u + (sa & 1u) : (sa & 4u) ? 20u : (sa & 8u) ? 24u : 16u;
+        id = operation == 2u    ? CDISASM_MIPS_NAME_WSBH
+             : operation == 3u  ? CDISASM_MIPS_NAME_WSBW
+             : operation == 16u ? CDISASM_MIPS_NAME_SEB
+             : operation == 20u ? CDISASM_MIPS_NAME_BITREV
+                                : CDISASM_MIPS_NAME_SEH;
         form += 128u + operation;
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rd, 4u, 2u);
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rt, 4u, 1u);
@@ -232,8 +233,7 @@ static int allegrex_scalar(uint32_t raw, cdisasm_mips_instruction *i)
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rs, 4u, 1u);
         allegrex_imm(i, sa, 1u, 0u);
         allegrex_imm(i, size, 1u, 0u);
-    } else if (op == 0u && (((fn == 0u || fn == 2u || fn == 3u) && rs != 0u) ||
-                            ((fn == 4u || fn == 6u || fn == 7u) && sa != 0u))) {
+    } else if (op == 0u && (((fn == 0u || fn == 2u || fn == 3u) && rs != 0u) || ((fn == 4u || fn == 6u || fn == 7u) && sa != 0u))) {
         /* PSP shift_encodings probes establish ignored fields, with only bit0
          * selecting SRL/ROTR or SRLV/ROTRV. Keep ordinary canonical shifts in
          * the shared standard decoder; these additional encodings require the
@@ -244,9 +244,12 @@ static int allegrex_scalar(uint32_t raw, cdisasm_mips_instruction *i)
             id = variable ? CDISASM_MIPS_NAME_ROTRV : CDISASM_MIPS_NAME_ROTR;
             form += variable ? 226u : 222u;
         } else {
-            id = fn == 0u ? CDISASM_MIPS_NAME_SLL : fn == 2u ? CDISASM_MIPS_NAME_SRL :
-                 fn == 3u ? CDISASM_MIPS_NAME_SRA : fn == 4u ? CDISASM_MIPS_NAME_SLLV :
-                 fn == 6u ? CDISASM_MIPS_NAME_SRLV : CDISASM_MIPS_NAME_SRAV;
+            id = fn == 0u   ? CDISASM_MIPS_NAME_SLL
+                 : fn == 2u ? CDISASM_MIPS_NAME_SRL
+                 : fn == 3u ? CDISASM_MIPS_NAME_SRA
+                 : fn == 4u ? CDISASM_MIPS_NAME_SLLV
+                 : fn == 6u ? CDISASM_MIPS_NAME_SRLV
+                            : CDISASM_MIPS_NAME_SRAV;
             form += 240u + (fn == 0u ? 0u : fn == 2u ? 1u : fn == 3u ? 2u : fn == 4u ? 3u : fn == 6u ? 4u : 5u);
         }
         allegrex_reg(i, CDISASM_MIPS_REG_GPR0 + rd, 4u, 2u);
@@ -260,9 +263,8 @@ static int allegrex_scalar(uint32_t raw, cdisasm_mips_instruction *i)
 }
 #endif
 
-cdisasm_status cdisasm_mips_decode_allegrex(uint32_t raw, uint64_t address, cdisasm_mips_mode mode,
-                                         cdisasm_mips_revision revision, const cdisasm_mips_decode_flags *features,
-                                         cdisasm_mips_instruction *instruction)
+cdisasm_status cdisasm_mips_decode_allegrex(uint32_t raw, uint64_t address, cdisasm_mips_mode mode, cdisasm_mips_revision revision,
+                                            const cdisasm_mips_decode_flags *features, cdisasm_mips_instruction *instruction)
 {
 #if USE_EXTRA_OPCODES && USE_MIPS_ALLEGREX
     cdisasm_mips_instruction candidate;
@@ -305,7 +307,12 @@ cdisasm_status cdisasm_mips_decode_allegrex(uint32_t raw, uint64_t address, cdis
     *instruction = candidate;
     return CDISASM_STATUS_OK;
 #else
-    (void)raw; (void)address; (void)mode; (void)revision; (void)features; (void)instruction;
+    (void)raw;
+    (void)address;
+    (void)mode;
+    (void)revision;
+    (void)features;
+    (void)instruction;
     return CDISASM_STATUS_UNSUPPORTED_INSTRUCTION;
 #endif
 }
@@ -313,8 +320,7 @@ cdisasm_status cdisasm_mips_decode_allegrex(uint32_t raw, uint64_t address, cdis
 uint64_t cdisasm_mips_allegrex_required_flags(cdisasm_mips_form_id form)
 {
 #if USE_EXTRA_OPCODES && USE_MIPS_ALLEGREX
-    if ((form >= 40000u && form < 41000u) || (form >= 41000u && form < 41300u))
-        return CDISASM_MIPS_DECODE_FLAG_ALLEGREX;
+    if ((form >= 40000u && form < 41000u) || (form >= 41000u && form < 41300u)) return CDISASM_MIPS_DECODE_FLAG_ALLEGREX;
 #else
     (void)form;
 #endif
@@ -325,10 +331,11 @@ uint64_t cdisasm_mips_allegrex_required_flags(cdisasm_mips_form_id form)
 static void allegrex_effect(cdisasm_mips_register_effect *out, size_t *count, unsigned reg, unsigned access)
 {
     size_t n;
-    for (n = 0; n < *count; ++n) if (out[n].reg == reg) {
-        out[n].access |= (uint8_t)access;
-        return;
-    }
+    for (n = 0; n < *count; ++n)
+        if (out[n].reg == reg) {
+            out[n].access |= (uint8_t)access;
+            return;
+        }
     if (*count >= 64u) return;
     out[*count].reg = (cdisasm_mips_reg_id)reg;
     out[*count].access = (uint8_t)access;
@@ -349,7 +356,8 @@ static void allegrex_expand(const cdisasm_mips_operand *o, cdisasm_mips_register
         m = (encoded >> 2) & 7u;
         x = encoded & 3u;
         y = (encoded & 64u) ? (size == 3u ? 1u : size == 2u ? 2u : 0u) : 0u;
-        cols = 1u; rows = size;
+        cols = 1u;
+        rows = size;
     } else if (o->reg >= CDISASM_MIPS_REG_VFPU_MATRIX_FIRST && o->reg <= CDISASM_MIPS_REG_VFPU_MATRIX_LAST) {
         encoded = o->reg - CDISASM_MIPS_REG_VFPU_MATRIX_FIRST;
         size = o->detail.lane_index;
@@ -358,18 +366,20 @@ static void allegrex_expand(const cdisasm_mips_operand *o, cdisasm_mips_register
         y = (encoded & 64u) ? (size == 3u ? 1u : 2u) : 0u;
         cols = rows = size;
     } else return;
-    for (row = 0u; row < rows; ++row) for (col = 0u; col < cols; ++col) {
-        unsigned physical_x = (x + col) & 3u, physical_y = (y + row) & 3u;
-        if (encoded & 32u) {
-            unsigned temporary = physical_x; physical_x = physical_y; physical_y = temporary;
+    for (row = 0u; row < rows; ++row)
+        for (col = 0u; col < cols; ++col) {
+            unsigned physical_x = (x + col) & 3u, physical_y = (y + row) & 3u;
+            if (encoded & 32u) {
+                unsigned temporary = physical_x;
+                physical_x = physical_y;
+                physical_y = temporary;
+            }
+            allegrex_effect(out, count, CDISASM_MIPS_REG_VFPU_SCALAR((m << 2) | physical_x | (physical_y << 5)), o->access);
         }
-        allegrex_effect(out, count, CDISASM_MIPS_REG_VFPU_SCALAR((m << 2) | physical_x | (physical_y << 5)), o->access);
-    }
 }
 #endif
 
-size_t cdisasm_mips_allegrex_effects(const cdisasm_mips_instruction *instruction,
-                                   cdisasm_mips_register_effect *effects, size_t capacity)
+size_t cdisasm_mips_allegrex_effects(const cdisasm_mips_instruction *instruction, cdisasm_mips_register_effect *effects, size_t capacity)
 {
 #if USE_EXTRA_OPCODES && USE_MIPS_ALLEGREX
     cdisasm_mips_register_effect result[64] = {{0}};
@@ -383,8 +393,11 @@ size_t cdisasm_mips_allegrex_effects(const cdisasm_mips_instruction *instruction
     }
     if (instruction->form_id < 40000u || instruction->form_id >= 41000u) return 0;
     for (n = 0u; n < instruction->operand_count; ++n) allegrex_expand(&instruction->operand[n], result, &count);
-    for (n = 0u; n < sizeof(allegrex_forms)/sizeof(allegrex_forms[0]); ++n)
-        if (allegrex_forms[n].form == instruction->form_id) { control = allegrex_forms[n].effects; break; }
+    for (n = 0u; n < sizeof(allegrex_forms) / sizeof(allegrex_forms[0]); ++n)
+        if (allegrex_forms[n].form == instruction->form_id) {
+            control = allegrex_forms[n].effects;
+            break;
+        }
     if (control & 128u) {
         unsigned condition = instruction->raw_instruction & 15u;
         if (condition == 0u || condition == 4u) control &= ~3u;
@@ -396,12 +409,14 @@ size_t cdisasm_mips_allegrex_effects(const cdisasm_mips_instruction *instruction
     }
     if (control & 8u) allegrex_effect(result, &count, CDISASM_MIPS_REG_VFPU_CONTROL(3u), 1u);
     if (control & 128u) allegrex_effect(result, &count, CDISASM_MIPS_REG_VFPU_CONTROL(3u), 2u);
-    if (control & 256u) for (n = 8u; n < 16u; ++n)
-        allegrex_effect(result, &count, CDISASM_MIPS_REG_VFPU_CONTROL(n), (control & 512u) ? 2u : 3u);
+    if (control & 256u)
+        for (n = 8u; n < 16u; ++n) allegrex_effect(result, &count, CDISASM_MIPS_REG_VFPU_CONTROL(n), (control & 512u) ? 2u : 3u);
     if (effects && capacity >= count) memcpy(effects, result, count * sizeof(*effects));
     return count;
 #else
-    (void)instruction; (void)effects; (void)capacity;
+    (void)instruction;
+    (void)effects;
+    (void)capacity;
     return 0;
 #endif
 }
