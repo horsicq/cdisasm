@@ -284,7 +284,9 @@ function(cdisasm_configure_library target)
     endif()
 
     if(MSVC)
-        target_compile_options(${target} PRIVATE /W4)
+        # /utf-8: the generated tables cite references with non-ASCII characters
+        # (C4566 in code page 1252 otherwise turns them into '?').
+        target_compile_options(${target} PRIVATE /W4 /utf-8)
         target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
     else()
         target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
