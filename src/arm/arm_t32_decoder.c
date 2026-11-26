@@ -3187,7 +3187,7 @@ cdisasm_status cdisasm_arm_decode_t32_core(uint32_t raw_instruction, uint32_t op
      * unrecognized vector leaf cannot leave partial operands behind. */
     if ((first & UINT16_C(0xef00)) == UINT16_C(0xee00) || (first & UINT16_C(0xfe00)) == UINT16_C(0xfc00)) {
         cdisasm_arm_instruction vector_instruction = *instruction;
-        cdisasm_arm_requirements vector_requirements;
+        cdisasm_arm_requirements vector_requirements = {0};
         cdisasm_arm_requirements *vector_requirements_ptr = NULL;
 
         if (required_capabilities != NULL) {

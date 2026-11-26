@@ -2635,7 +2635,7 @@ static int arm_is_sve_element_count_form(const cdisasm_arm_instruction *instruct
 
 static int arm_valid_sve_element_count_schema(const cdisasm_arm_instruction *instruction)
 {
-    arm_sve_element_count_identity identity;
+    arm_sve_element_count_identity identity = {0};
     const cdisasm_arm_operand *destination;
     const cdisasm_arm_operand *pattern;
     const cdisasm_arm_operand *multiplier;
@@ -5142,7 +5142,7 @@ static int arm_valid_sve_unpredicated_logical_schema(const cdisasm_arm_instructi
 
 static int arm_valid_sve_integer_immediate_schema(const cdisasm_arm_instruction *instruction)
 {
-    arm_sve_integer_immediate_identity identity;
+    arm_sve_integer_immediate_identity identity = {0};
     uint32_t word = instruction->raw_instruction;
     unsigned encoded_immediate = (word >> 5) & 255u;
     unsigned encoded_register = word & 31u;
@@ -6451,7 +6451,7 @@ static int arm_advsimd_sat_shift_convert_identity_for_word(uint32_t word, arm_ad
 
 static int arm_valid_advsimd_sat_shift_convert_immediate_schema(const cdisasm_arm_instruction *instruction)
 {
-    arm_advsimd_sat_shift_convert_identity identity;
+    arm_advsimd_sat_shift_convert_identity identity = {0};
     uint32_t word = instruction->raw_instruction;
     unsigned q = (word >> 30) & 1u;
     unsigned immh = (word >> 19) & 15u;
@@ -8430,7 +8430,7 @@ static int arm_sve_cterm_identity_for_word(uint32_t word, arm_sve_cterm_identity
 
 static int arm_valid_sve_cterm_schema(const cdisasm_arm_instruction *instruction)
 {
-    arm_sve_cterm_identity identity;
+    arm_sve_cterm_identity identity = {0};
     uint32_t word = instruction->raw_instruction;
     int wide = (word & UINT32_C(0x00400000)) != 0u;
     unsigned rn = (word >> 5) & 31u;
@@ -8481,7 +8481,7 @@ static int arm_sve_whilewr_rw_identity_for_word(uint32_t word, arm_sve_whilewr_r
 
 static int arm_valid_sve_whilewr_rw_schema(const cdisasm_arm_instruction *instruction)
 {
-    arm_sve_whilewr_rw_identity identity;
+    arm_sve_whilewr_rw_identity identity = {0};
     uint32_t word = instruction->raw_instruction;
     uint8_t element_size = (uint8_t)(UINT8_C(1) << ((word >> 22) & 3u));
     int raw_is_family = instruction->isa_id == CDISASM_ARM_ISA_A64 && arm_sve_whilewr_rw_identity_for_word(word, &identity);
@@ -8518,7 +8518,7 @@ static int arm_exact_immediate_operand(const cdisasm_arm_operand *operand, uint6
 
 static int arm_valid_sve_saturating_count_schema(const cdisasm_arm_instruction *instruction)
 {
-    arm_sve_saturating_count_identity identity;
+    arm_sve_saturating_count_identity identity = {0};
     unsigned encoded = instruction->raw_instruction & 31u;
     unsigned pattern_index;
     int raw_is_family = instruction->isa_id == CDISASM_ARM_ISA_A64 && arm_sve_saturating_count_identity_for_word(instruction->raw_instruction, &identity);
@@ -8632,7 +8632,7 @@ static int arm_is_sve_predicate_count_form(const cdisasm_arm_instruction *instru
 
 static int arm_valid_sve_predicate_count_schema(const cdisasm_arm_instruction *instruction)
 {
-    arm_sve_predicate_count_identity identity;
+    arm_sve_predicate_count_identity identity = {0};
     unsigned encoded = instruction->raw_instruction & 31u;
     unsigned predicate = (instruction->raw_instruction >> 5) & 15u;
     uint8_t element_size = (uint8_t)(UINT8_C(1) << ((instruction->raw_instruction >> 22) & 3u));
@@ -8898,7 +8898,7 @@ static int arm_sme2_multi_mova_identity_for_word(uint32_t word, arm_sme2_multi_m
 
 static int arm_valid_sme2_multi_mova_schema(const cdisasm_arm_instruction *instruction)
 {
-    arm_sme2_multi_mova_identity identity;
+    arm_sme2_multi_mova_identity identity = {0};
     const cdisasm_arm_operand *tile;
     const cdisasm_arm_operand *list;
     int raw_is_mova = instruction->isa_id == CDISASM_ARM_ISA_A64 && arm_sme2_multi_mova_identity_for_word(instruction->raw_instruction, &identity);
@@ -9023,7 +9023,7 @@ static int arm_sme2p1_movaz_identity_for_word(uint32_t word, arm_sme2p1_movaz_id
 
 static int arm_valid_sme2p1_movaz_schema(const cdisasm_arm_instruction *instruction)
 {
-    arm_sme2p1_movaz_identity identity;
+    arm_sme2p1_movaz_identity identity = {0};
     const cdisasm_arm_operand *destination;
     const cdisasm_arm_operand *tile;
     int raw_is_movaz = instruction->isa_id == CDISASM_ARM_ISA_A64 && arm_sme2p1_movaz_identity_for_word(instruction->raw_instruction, &identity);
@@ -9242,15 +9242,15 @@ static int arm_valid_crc32_schema(const cdisasm_arm_instruction *instruction)
     uint32_t word = instruction->raw_instruction;
     cdisasm_arm_form_id expected_form = CDISASM_ARM_FORM_NONE;
     cdisasm_arm_name_id expected_name = CDISASM_ARM_NAME_NONE;
-    cdisasm_arm_reg_id expected_rd;
-    cdisasm_arm_reg_id expected_rn;
-    cdisasm_arm_reg_id expected_rm;
+    cdisasm_arm_reg_id expected_rd = CDISASM_ARM_REG_NONE;
+    cdisasm_arm_reg_id expected_rn = CDISASM_ARM_REG_NONE;
+    cdisasm_arm_reg_id expected_rm = CDISASM_ARM_REG_NONE;
     cdisasm_arm_condition expected_condition = CDISASM_ARM_CONDITION_AL;
     uint32_t expected_groups = CDISASM_GROUP_NONE;
     uint8_t source_size = 0u;
-    unsigned rd;
-    unsigned rn;
-    unsigned rm;
+    unsigned rd = 0;
+    unsigned rn = 0;
+    unsigned rm = 0;
     size_t operation;
     int raw_is_family = 0;
 
