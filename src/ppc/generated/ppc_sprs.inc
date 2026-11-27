@@ -2229,6 +2229,7 @@ static const struct { uint16_t selector; uint8_t access, name_lookup; const char
     {944,3,1,"mas7"}, /* a2qpx: IBM A2 BG/Q UM v1.3 2012-10-23 Table14-1 p532; section14.5 p632 */
     {947,3,1,"eplc"}, /* a2qpx: IBM A2 BG/Q UM v1.3 2012-10-23 Table14-1 p531; section14.5 p576 */
     {948,3,1,"epsc"}, /* a2qpx: IBM A2 BG/Q UM v1.3 2012-10-23 Table14-1 p531; section14.5 p577 */
+    {976,3,1,"axucr0"}, /* a2qpx: IBM Research FusedOS Blue Gene/Q SDK commit262bddac412c2840883896d008ca6b3a0428fabb A2_core.h line1069 (selector0x3D0), firmware/process_impl.h lines66-76 (read/write); IBM QPX Architecture 2012-05-09 section2.3 p4 (QPU ownership/fields). Hand-authored architectural fact; no EPL table copied. */
     {1006,2,1,"trace"}, /* a2qpx: IBM A2 BG/Q UM v1.3 2012-10-23 Table14-1 p534; section14.5 p681 */
     {1008,3,1,"ccr0"}, /* a2qpx: IBM A2 BG/Q UM v1.3 2012-10-23 Table14-1 p530; section14.5 p541 */
     {1009,3,1,"ccr1"}, /* a2qpx: IBM A2 BG/Q UM v1.3 2012-10-23 Table14-1 p530; section14.5 p542 */
@@ -3343,5 +3344,5 @@ static const struct { uint16_t selector; uint8_t access, name_lookup; const char
     {26,3,1,"srr0"}, /* power2: IBM AIX5L5.2 SC23-4871-02 Tables16/17 p101/PDF115; historical five-bit fields AIX3 SC23-2197-00 pp5-170/5-182 */
     {27,3,1,"srr1"}, /* power2: IBM AIX5L5.2 SC23-4871-02 Tables16/17 p101/PDF115; historical five-bit fields AIX3 SC23-2197-00 pp5-170/5-182 */
 };
-static const uint16_t ppc_spr_bounds[45] = {0,36,81,125,169,229,295,359,433,527,620,694,787,808,879,928,984,1055,1130,1262,1410,1574,1608,1662,1755,1758,1854,1951,1954,2097,2241,2394,2522,2690,2792,2826,2860,2950,3060,3151,3263,3266,3306,3323,3340};
+static const uint16_t ppc_spr_bounds[45] = {0,36,81,125,169,229,295,359,433,527,620,694,787,808,879,928,984,1055,1130,1262,1410,1574,1608,1662,1755,1758,1854,1951,1954,2097,2242,2395,2523,2691,2793,2827,2861,2951,3061,3152,3264,3267,3307,3324,3341};
 static const uint8_t ppc_spr_audited[44] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};

@@ -1,6 +1,6 @@
 # cdisasm
 
-cdisasm 12.18.0 is a C11 disassembler for x86, ARM, MIPS, Motorola 68000,
+cdisasm 12.19.0 is a C11 disassembler for x86, ARM, MIPS, Motorola 68000,
 PowerPC and the separate SPU ISA, with structured instruction data
 and optional text formatting. The API is stateless and allocation-free.
 
@@ -71,14 +71,16 @@ it (ctest `cdisasm_m68k_gnu_differential` when an m68k objdump is found;
 ## PowerPC
 
 PowerPC (`USE_ARCH_PPC`, enabled by default; `cdisasm_ppc.h`) uses a
-manual-transcribed catalog of **2,245 forms, 1,491 aliases and 44
+manual-transcribed catalog of **2,246 forms, 1,493 aliases and 44
 profiles**. The public `cdisasm_ppc_forms()` and alias/field queries provide
 the same encoding descriptions to xxasm. Generated runtime tables live under
 `src/ppc/generated/`; ordinary builds and installed consumers need no Python,
 opcode catalogs or external assembler. CMake consumers can request the
 `ppc` component and link `cdisasm::cdisasm_ppc`.
-Release 12.18.0 adds 250 forms, 1,049 aliases and four profiles over 12.17.0,
-with 3,340 finite SPR name records and conservative Linux native identification.
+Release 12.19.0 adds the finite original-A2 instructions and QPX-owned
+AXUCR0 name described below: one appended form, two aliases, one SPR record
+and 80 intended pairs over 12.18.0. The catalog has 3,341 SPR records.
+Conservative Linux identification and separate SPU support are retained.
 Earlier form identities, semantic IDs and CPU ordinals are preserved.
 [Published PPC coverage](PPC_COVERAGE.md) gives the release evidence and final
 remaining-gap ledger; it is also installed in `share/cdisasm/docs`.
@@ -120,6 +122,17 @@ aliases. At that stage the finite SPR catalog had 3,306 records across all 42 pr
 (including documented incomplete subsets); AESR belongs to `a2qpx`, VRSAVE
 to both A2 profiles. Original-A2 `dnh`/`rfdi` stay excluded.
 
+Job 22 adds the original-A2 zero-immediate `attn` word (`00000200`),
+all eight external-PID byte/halfword/word/doubleword transfers and distinct
+XO371 `mftb` for `a2` and `a2qpx`, in both widths and storage byte orders.
+These additions contribute 80 intended pairs through nine reused forms and
+one appended form. Nonzero ignored `attn` immediates remain outside the admitted
+subset; rejection does not assert a hardware trap. IBM's BG/Q SDK establishes
+QPX-owned `AXUCR0` selector 976 for both read and write, exposed only on
+`a2qpx`; its unspecified width stays unknown. Numeric SPR access remains
+available independently of symbolic ownership. This is a finite encoding
+addition, with no A2O inheritance or hardware/debug-execution claim.
+
 CPU identity, execution width, byte order and enabled facilities are separate.
 `mode` is 32 or 64 (zero selects 32); server, A2, e5500 and e6500 profiles
 support both, while the remaining profiles support 32 only. Doubleword operations on
@@ -154,13 +167,15 @@ semantics and require a versioned, manual-backed KNOWN classification for
 any oracle disagreement. Oracle acceptance does not establish CPU legality.
 Form coverage, reserved-bit negatives, truncation tests, opcode-space sweeps
 and exact xxasm round trips supplement these comparisons. The current catalog
-audit covers **42,723 form/profile/mode/endian/encoding pairs** in 115
-configurations, with **170,892 exact four-style round trips** per sample.
-Fresh independent assembly verifies **42,607 pairs exactly** and 40 by documented ignored-field
-equivalence. All 472 QPX tuples have exact evidence from the separately pinned
+inventory covers **42,803 form/profile/mode/endian/encoding pairs** in 115
+configurations; each sample requires 171,212 exact four-style round trips.
+Fresh job 22 independent assembly verifies **42,705 pairs exactly**, with 40
+documented ignored-field equivalences and the unchanged 58 unverified pairs.
+All 80 new A2 pairs have exact independent witnesses.
+All 472 QPX tuples have exact evidence from the separately pinned
 LLVM 10.0.1 BG/Q assembler; Capstone decoding remains a separate evidence class.
-There are **76 explicitly unverified samples**: the original 24 (18 nonzero
-`ehpriv`, three `e_dnh`, three `se_dnh`), four e6500 `sync 1,14` tuples,
+The **58 original unresolved samples** are three `e_dnh`, three `se_dnh`,
+four e6500 `sync 1,14` tuples,
 eight A2/A2QPX `wchkall` tuples and 40 POWER/POWER2 control or address-field
 samples. Historical reports retain their original counts. The VLE hand suite
 exercises 30,720 selected SCI8 encodings.
@@ -168,10 +183,14 @@ The strict assembly generator still fails that completeness requirement;
 successful catalog round trips do not replace independent evidence.
 These checks validate encodings and formatting, not hardware execution or
 floating-point numerical results.
-A separate pinned QEMU campaign ran 1,497 GNU/xxasm case pairs (2,994 executions):
-1,479 passed the defined expectations, 18 retained known `fres` signed-zero
-numerical failures, and zero unexplained outcomes. No physical silicon or
-booted privileged guest was tested; full numerical conformance is unclaimed.
+Historical job19 QEMU evidence has 1,497 GNU/xxasm case pairs (2,994
+executions): 1,479 passing cases and 18 known `fres` numerical failures.
+Job24 adds a POWER10/ISA3.1C campaign of 832 cases, with 768 passing and
+64 known numerical failures. Job25 actually boots 18 privileged guests:
+33 model/cases, 26 passing and seven known failing. These finite campaigns
+have zero unexplained outcomes; known failures remain failures. Full numerical
+and system conformance and physical silicon remain untested. The coverage
+document records exact models, edition qualifications and collector results.
 
 Profile names describe the enumerated subset, not complete processor support.
 Server support includes all 29 masked prefixed MMA forms, paired-VSR and
@@ -198,15 +217,16 @@ The remaining scope and evidence gaps are:
   variant-specific SPR lists and elemental-sync availability beyond e6500 remain qualified.
 - Original-A2 `wchkall` XO902, `wclr` aliases, debug exclusions and published
   SPR directions are implemented. Independent `wchkall` assembly remains
-  unavailable. No deciding AXUCR0 selector was recovered; eight external-PID transfers,
-  XO371 `mftb` and service-processor `attn` are pre-existing instruction gaps.
+  unavailable. The eight external-PID transfers, XO371 `mftb`, zero-immediate
+  `attn` and QPX-owned AXUCR0 selector/directions are implemented. Nonzero
+  ignored `attn` fields and eight unnamed reserved-NOP rows remain outside scope.
 - Explicit original `power`/`power2` profiles implement the audited historical
   instruction inventory, aliases and five-bit SPR vocabulary. Five POWER2-only
   SPR selectors remain unsourced; unused historical fields have the documented
   zero-filled encoding scope. The separate released SPU backend is described below.
   Xenon VMX128 still lacks a permitted
   primary shipped-opcode inventory.
-- The 76 external assembly evidence gaps above remain visible in the strict
+- The 58 original external assembly evidence gaps above remain visible in the strict
   completeness result.
 
 See [published PPC coverage](PPC_COVERAGE.md) for profile, evidence and source
