@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #include "x86_decoder.h"
 #include "x86_opcode_tables.h"
 

@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 /* SPU fixed-word decoder. Architectural facts come from the manual-sourced
  * generated catalog, shared through the public form API with encoders. */
 #include "cdisasm/cdisasm_spu.h"

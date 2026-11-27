@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #ifndef CDISASM_CPU_DETECT_INTERNAL_H
 #define CDISASM_CPU_DETECT_INTERNAL_H
 

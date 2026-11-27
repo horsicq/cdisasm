@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #include "cdisasm/cdisasm_mips.h"
 #include <string.h>
 

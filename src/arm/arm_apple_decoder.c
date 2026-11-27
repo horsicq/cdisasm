@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #include "arm_apple_decoder.h"
 
 #include <stddef.h>

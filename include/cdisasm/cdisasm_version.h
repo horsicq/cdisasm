@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #ifndef CDISASM_CDISASM_VERSION_H
 #define CDISASM_CDISASM_VERSION_H
 

@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #include "cdisasm/cdisasm_format.h"
 #include "arm_generated_decoder.h"
 #include "arm_generated_formatter.h"

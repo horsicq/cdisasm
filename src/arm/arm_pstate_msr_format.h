@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #ifndef CDISASM_ARM_PSTATE_MSR_FORMAT_H
 #define CDISASM_ARM_PSTATE_MSR_FORMAT_H
 

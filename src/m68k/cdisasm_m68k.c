@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 /* Motorola 68000-family decoder: table-driven from the generated forms. */
 #include "cdisasm/cdisasm_m68k.h"
 

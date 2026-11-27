@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #include "cdisasm/cdisasm_mips.h"
 #include "cdisasm/cdisasm_format.h"
 #include "mips_decoder.h"

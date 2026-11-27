@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #ifndef CDISASM_X86_OPCODE_TABLES_H
 #define CDISASM_X86_OPCODE_TABLES_H
 

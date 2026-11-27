@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 /* Reversible IBM/GNU SPU syntax. Architectural control suffixes retain
  * D/E/P/C bits even when convenience aliases are disabled. */
 #include "cdisasm/cdisasm_spu.h"

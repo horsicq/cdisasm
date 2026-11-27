@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #include "cdisasm_cpu_detect_internal.h"
 
 #include <string.h>

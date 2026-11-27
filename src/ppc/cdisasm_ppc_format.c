@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 /* Reversible GNU-style PowerPC presentation. Canonical decoded operands are
  * unchanged; all preferred aliases come from the shared public recipe table. */
 #include "cdisasm/cdisasm_ppc.h"

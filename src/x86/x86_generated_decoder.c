@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #include "x86_generated_decoder.h"
 
 #if USE_EXTRA_OPCODES

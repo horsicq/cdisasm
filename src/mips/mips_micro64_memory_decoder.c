@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 /* Original microMIPS64 lowering from pinned manufacturer/GNU numeric facts. */
 #include "mips_decoder.h"
 #include <string.h>

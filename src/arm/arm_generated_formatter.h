@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #ifndef CDISASM_ARM_GENERATED_FORMATTER_H
 #define CDISASM_ARM_GENERATED_FORMATTER_H
 

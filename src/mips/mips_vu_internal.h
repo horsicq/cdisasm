@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #ifndef CDISASM_MIPS_VU_INTERNAL_H
 #define CDISASM_MIPS_VU_INTERNAL_H
 

@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 /* Motorola-syntax formatter for cdisasm_m68k_instruction.
  *
  * move.l (8,a0),d1   moveq #-1,d0   bra.w $1006   lea ($1006,pc),a0

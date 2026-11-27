@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 /* Classic PowerPC decoder. Architectural facts originate in the descriptor
  * provenance; generated tables are shared with external encoding clients. */
 #include "cdisasm/cdisasm_ppc.h"

@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 hors<horsicq@gmail.com> */
+
 #include "cdisasm/cdisasm_format.h"
 
 #if USE_DISASM_FORMAT && USE_ARCH_X86
